@@ -1,0 +1,32 @@
+{
+    "name": "ws-prod",
+    "version": "1.0.0",
+    "description": "Backend application created for StackIt.cash",
+    "keywords": [
+        "typescript",
+        "express",
+        "tdd",
+        "bdd",
+        "api",
+        "fintech"
+    ],
+    "homepage": "https://github.com/superhornet/ws#readme",
+    "bugs": {
+        "url": "https://github.com/superhornet/ws/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/superhornet/ws.git"
+    },
+    "license": "COMMERCIAL",
+    "author": "Caleb King",
+    "type": "module",
+    "main": "dist/all.minjs",
+    "scripts": {
+        "start": "node ."
+    },
+    "dependencies": {
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1"
+    }
+}
