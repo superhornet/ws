@@ -21,7 +21,7 @@
     "license": "COMMERCIAL",
     "author": "Caleb King",
     "type": "module",
-    "main": "dist/all.minjs",
+    "main": "dist/all.min.cjs",
     "scripts": {
         "start": "node ."
     },
