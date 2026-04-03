@@ -1,0 +1,8 @@
+/node_modules
+/dist
+*.log
+/coverage
+/bdd
+/.vscode
+.env
+package-lock.json

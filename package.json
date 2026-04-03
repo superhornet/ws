@@ -1,5 +1,5 @@
 {
-    "name": "ws-prod",
+    "name": "ws",
     "version": "1.0.0",
     "description": "Backend application created for StackIt.cash",
     "keywords": [
@@ -14,6 +14,9 @@
     "bugs": {
         "url": "https://github.com/superhornet/ws/issues"
     },
+    "directories": {
+        "doc": "docs"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/superhornet/ws.git"
@@ -21,12 +24,52 @@
     "license": "COMMERCIAL",
     "author": "Caleb King",
     "type": "module",
-    "main": "dist/all.min.cjs",
+    "main": "dist/js/index.js",
     "scripts": {
-        "start": "node ."
+        "doc": "typedoc --plugin typedoc-plugin-rename-defaults --entryPointStrategy expand src/main/ts/",
+        "clean": "rimraf dist/ docs/",
+        "lint": "eslint . --ext .ts,.tsx --fix",
+        "tsc": "node ./node_modules/typescript/bin/tsc",
+        "build": "npm-run-all clean lint tsc",
+        "package": "node build.js",
+        "dev:start": "npm-run-all build start",
+        "dev": "nodemon --watch src -e ts --exec npm run dev:start",
+        "start": "node .",
+        "test:cucumber": "cucumber-js --format progress",
+        "test": "node --test './src/test/ts/**/*.Test.ts",
+        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./src/test/ts/**/*.Test.ts"
+    },
+    "overrides": {
+        "inflight": "latest",
+        "glob": "latest"
+    },
+    "devDependencies": {
+        "@cucumber/cucumber": "^12.4.0",
+        "@types/dotenv": "^6.1.1",
+        "@types/express": "^5.0.6",
+        "@types/fs-extra": "^11.0.4",
+        "@types/node": "^25.0.3",
+        "@types/pg": "^8.20.0",
+        "@types/shelljs": "^0.10.0",
+        "@typescript-eslint/eslint-plugin": "^8.51.0",
+        "@typescript-eslint/parser": "^8.51.0",
+        "body-parser": "^2.2.1",
+        "esbuild": "^0.27.2",
+        "eslint": "^9.39.2",
+        "fs-extra": "^11.3.3",
+        "nodemon": "^3.1.11",
+        "npm-run-all": "^4.1.5",
+        "pg": "^8.20.0",
+        "rimraf": "^6.1.2",
+        "shelljs": "^0.10.0",
+        "ts-node": "^10.9.2",
+        "tslint": "^5.20.1",
+        "typedoc": "^0.28.15",
+        "typedoc-plugin-rename-defaults": "^0.7.3",
+        "typescript": "^5.9.3"
     },
     "dependencies": {
-        "dotenv": "^17.2.3",
+        "dotenv": "^17.3.1",
         "express": "^5.2.1"
     }
 }

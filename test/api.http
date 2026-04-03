@@ -1,0 +1,248 @@
+GET http://localhost:3000/health HTTP/1.1
+
+###
+GET http://localhost:3000/api/session HTTP/1.1
+
+###
+DELETE http://localhost:3000/api/session HTTP/1.1
+
+###
+POST http://localhost:3000/api/audit HTTP/1.1
+Content-Type: application/json
+
+{
+    "message": "Sample message",
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f"
+}
+
+### Test Empty Body, should get 400
+POST http://localhost:3000/api/audit HTTP/1.1
+Content-Type: application/json
+
+### Create User
+POST http://localhost:3000/api/user HTTP/1.1
+Content-Type: application/json
+
+{
+    "message": "New User dialog",
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "email": "chadnotreal@gmail.com",
+    "firstname": "Chad",
+    "lastname": "Palmantieri",
+    "address1": "918 US Highway 441",
+    "address2": "",
+    "city": "Orlando",
+    "state": "FL",
+    "subcription": "Pro"
+}
+
+### Create User
+POST http://localhost:3000/api/user HTTP/1.1
+Content-Type: application/json
+
+{
+    "message": "Bare API creation",
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "email": "onlypam@prontonmail.com",
+    "firstname": "Pamalamalam",
+    "lastname": "Okfango",
+    "address1": "123 Main St.",
+    "address2": "",
+    "city": "Wakanda Heights",
+    "state": "NE",
+    "subcription": "Free"
+}
+
+### Read User
+GET http://localhost:3000/api/user/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "identifier": "cd62439a-1c46-420d-bec9-4385e684336f"
+}
+
+### Update User
+PUT http://localhost:3000/api/user/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "identifier": "cd62439a-1c46-420d-bec9-4385e684336f",
+    "email": "king.caleb.i.bsce.mfa@gmail.com",
+    "firstname": "Caleb",
+    "lastname": "King",
+    "address1": "125 Atlantic Ave",
+    "address2": "STE 9A",
+    "city": "Delray Beach",
+    "state": "FL",
+    "level": "Pro"
+}
+
+### Delete User
+DELETE  http://localhost:3000/api/user/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "identifier": "cd62439a-1c46-420d-bec9-4385e684336f"
+}
+
+### Create notification
+POST  http://localhost:3000/api/notification/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "identifier": "cd62439a-1c46-420d-bec9-4385e684336f",
+    "message": "Be kind and wash your behind."
+}
+
+### Create notification
+POST  http://localhost:3000/api/notification/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "f9658455-c58c-4b47-b9b5-10a844977fb3",
+    "identifier": "cd62439a-1c46-420d-bec9-4385e684336f",
+    "message": "And that's one to grow on."
+}
+
+### Read notifications
+GET http://localhost:3000/api/notifications HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "identifier": "cd62439a-1c46-420d-bec9-4385e684336f"
+}
+
+### Update notification
+PUT http://localhost:3000/api/notification/1 HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "identifier": "ba6d1d05-de8e-4580-958b-ce6451facc13"
+}
+
+### Delete notification
+DELETE http://localhost:3000/api/notification/2 HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "identifier": "5575671b-4cb1-4fc2-92a9-4a01c79b1e61"
+}
+
+### Create stack
+POST http://localhost/api/stack HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "ownerIdentifier": "ba6d1d05-de8e-4580-958b-ce6451facc13",
+    "stackName": "My Presidential Stack",
+    "createdBy": 0
+}
+
+### Create stack
+POST http://localhost/api/stack HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "f9658455-c58c-4b47-b9b5-10a844977fb3",
+    "ownerIdentifier": "5575671b-4cb1-4fc2-92a9-4a01c79b1e61",
+    "stackName": "Pam's First Stack",
+    "createdBy": 0
+}
+
+### Read stacks
+GET http://localhost/api/stacks HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "ownerIdentifier": "ba6d1d05-de8e-4580-958b-ce6451facc13"
+}
+
+### Update stack
+PUT http://localhost/api/stack/1 HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "ownerIdentifier": "ba6d1d05-de8e-4580-958b-ce6451facc13",
+    "stackName": "Appliances stack"
+}
+
+### Delete stack
+DELETE http://localhost/api/stack/2 HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
+    "ownerIdentifier": "5575671b-4cb1-4fc2-92a9-4a01c79b1e61"
+}
+
+### Create SubStack
+POST http://localhost/api/substack HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "0ecb6075-302c-4d4b-8f63-fe74f2a5734a",
+    "createdBy": 1,
+    "stackIdentifier": "c6985d5c-d4eb-4b61-b385-fdb0b1178248",
+    "substackName": "Flat Screen TV"
+}
+
+### List SubStacks by stack
+GET http://localhost/api/substacks HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "0ecb6075-302c-4d4b-8f63-fe74f2a5734a",
+    "stackIdentifier": "e3168ef7-7db3-4a9d-8cae-26ee59b024d7"
+}
+
+### List SubStacks by substack name
+GET http://localhost/api/substacks HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "0ecb6075-302c-4d4b-8f63-fe74f2a5734a",
+    "substackName": "Cotton Candy Machine"
+}
+
+### List SubStacks by owner
+GET http://localhost/api/substacks HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "0ecb6075-302c-4d4b-8f63-fe74f2a5734a",
+    "createdBy": "2"
+}
+### List SubStacks by creator
+GET http://localhost/api/substacks HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "0ecb6075-302c-4d4b-8f63-fe74f2a5734a",
+    "createdBy": 1
+}
+
+### Fund a substack
+POST http://localhost/api/transaction HTTP/1.1
+Content-Type: application/json
+
+{
+    "session": "0ecb6075-302c-4d4b-8f63-fe74f2a5734a",
+    "amount": 25,
+    "processor": "Google",
+    "transactionType": "Initial",
+    "toIdentifier": "ee84918f-406d-4aa3-87ce-bd1e1c72b464",
+    "fromIdentifier": ""
+}
+
+### Reset Data for demonstration of transaction processing
+GET http://localhost/reset HTTP/1.1
