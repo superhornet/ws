@@ -52,7 +52,7 @@
         "spec/**/*.Spec.ts",
         "spec/**/*.test.ts",
         "spec/**/*.Test.ts",
-        "src/test/ts/*.Test.ts",
+        "test/ts/*.Test.ts",
         "node_modules"
     ]
 }
