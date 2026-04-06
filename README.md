@@ -19,6 +19,24 @@ Possible implementation of Web interface running on NGINX.
 
 Possible implementation of Flutter UI.
 
+`.env`
+
+```env
+# Set to production when deploying to production
+NODE_ENV=production
+NODE_OPTIONS=--enable-source-maps
+# Node.js server configuration
+SERVER_PORT=3000
+POSTGRES_HOST=localhost
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POSTGRES_DATABASE=
+POSTGRES_PORT=5432
+POSTGRES_MAX=10
+POSTGRES_IDLETIMEOUT=30000
+POSTGRES_CONNECTIONTIMEOUT=2000
+```
+
 ## Payment Dependencies
 
 * Moonpay
