@@ -1,4 +1,6 @@
 import express from "express";
+import swaggerUi from "swagger-ui-express";
+import {swaggerDocument} from "./swagger.ts";
 import {router as auditRouter} from "./controllers/AuditController.ts";
 import {router as sessionRouter} from "./controllers/SessionController.ts";
 import {router as userRouter} from "./controllers/UserController.ts";
@@ -35,6 +37,7 @@ export class App {
     public loadRoutes(): void {
         this.express.use(express.json());
         this.express.use(express.urlencoded());
+        this.express.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
         this.express.use("/", healthRouter);
         this.express.use("/api", sessionRouter);
         this.express.use("/api", auditRouter);
