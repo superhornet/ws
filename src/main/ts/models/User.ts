@@ -160,8 +160,8 @@ export class User implements IUser {
             const [userid, hostname] = data.email.split('@');
 
             await query(
-                `UPDATE users SET email='${data.email}', emailID='${userid}', emailhost='${hostname}', firstname='${data.firstname}', lastname='${data.lastname}', address1='${data.address1}', address2='${data.address2}', city='${data.city}', state='${data.state}', level='${data.level}' where user_identifier = '${data.identifier}'`,
-                []
+                `UPDATE users SET email=$1, emailID=$2, emailhost=$3, firstname=$4, lastname=$5, address1=$6, address2=$7, city=$8, state=$9, level=$10 WHERE user_identifier = $11`,
+                [data.email, userid, hostname, data.firstname, data.lastname, data.address1, data.address2, data.city, data.state, data.level, data.identifier]
             )
         } catch (error) {
             throw new HTMLStatusError((error as Error).message, 500);
