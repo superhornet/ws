@@ -2,7 +2,7 @@ import { generateUUID } from "../libs/UUID.ts";
 import { SubscriptionType, type SubscriptionEnum } from "../types/SubscriptionTypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
-import { query, withTransaction } from "../libs/postgresDB.js";
+import { query, withTransaction } from "../libs/postgresDB.ts";
 export interface TUser {
     nameF: string;
     nameL: string;

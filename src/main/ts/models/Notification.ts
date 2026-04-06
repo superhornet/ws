@@ -1,6 +1,6 @@
 import type { NotificationAPIType, NotificationType } from "../types/NotificationAPITypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
-import { query, withTransaction } from "../libs/postgresDB.js";
+import { query, withTransaction } from "../libs/postgresDB.ts";
 
 export class Notification {
     private _message!: string;
