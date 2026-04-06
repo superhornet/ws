@@ -40,32 +40,28 @@ public static unauthorized(req: Request, res: Response, message: string, data: J
     res.status(403).json({
         code: 403,
         data,
-        message: message || "forbidden",
-        req: req.body
+        message: message || "forbidden"
     });
 }
 public static notFound(req: Request, res: Response, message: string, data: JSON | null){
     res.status(404).json({
         code: 404,
         data,
-        message: message || "not found",
-        req: req.originalUrl
+        message: message || "not found"
     })
 }
 public static serverError(req: Request, res: Response, message: string, data: JSON | null) {
     res.status(500).json({
         code: 500,
         data,
-        message: message || "internal server error",
-        req: req.originalUrl,
+        message: message || "internal server error"
     });
 }
 public static notImplemented(req: Request, res: Response, message: string, data: JSON | null) {
     res.status(501).json({
         code: 501,
         data,
-        message: message || "not implemented",
-        req: req.originalUrl,
+        message: message || "not implemented"
     });
   }
 }
