@@ -33,6 +33,7 @@ export function processError(req: Request, res: Response, error: HTMLStatusError
                 JSONResponse.notImplemented(req, res, error.message, null);
                 break;
             default:
+                JSONResponse.serverError(req, res, error.message, null);
                 break;
         }
     }else{
