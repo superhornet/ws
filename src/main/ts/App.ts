@@ -6,6 +6,7 @@ import {router as userRouter} from "./controllers/UserController.ts";
 import {router as notificationRouter} from "./controllers/NotificationController.ts";
 import {router as stackRouter } from "./controllers/StackController.ts";
 import {router as substackRouter } from "./controllers/SubstackController.ts";
+import {router as cybridRouter } from "./controllers/CybridController.ts";
 import {router as transactionRouter } from "./controllers/TransactionController.ts";
 import {router as healthRouter} from "./routes/index.ts";
 /**
@@ -44,6 +45,7 @@ export class App {
         this.express.use("/api", notificationRouter);
         this.express.use("/api", stackRouter);
         this.express.use("/api", substackRouter);
+        this.express.use("/api", cybridRouter);
         this.express.use("/api", transactionRouter);
     }
 }
