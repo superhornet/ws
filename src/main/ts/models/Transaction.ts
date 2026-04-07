@@ -57,7 +57,7 @@ export class Transaction {
                 if ([TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND].includes(theTransaction.transactionType)) {
                     balance += theTransaction.amount;
                 }
-                await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( ? , ? , ? , ? , ? , ? , ? , ? , ? , ? );`,
+                await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 );`,
                     [theTransaction.processor, (theTransaction.transactionType === TransactionProcessorType.INTERNAL) ? null : "",
                     theTransaction.fromID, theTransaction.toID, theTransaction.fromName,
                     theTransaction.toName, theTransaction.amount * 100, balance * 100, "", theTransaction.transactionType]
@@ -80,13 +80,13 @@ export class Transaction {
                         fee = theTransaction.amount * 0.01;
                     }
                     balance -= fee;
-                    await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( ? , ? , ? , ? , ? , ? , ? , ? , ? , ? );`,
+                    await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 );`,
                         [TransactionProcessorType.INTERNAL, null,
                         theTransaction.toID, 1, theTransaction.toName,
                             "Service Fee", fee * 100, balance * 100, "", TransactionItemType.FEE]
                     )
                     setBalanceBySubstackId(balance * 100, theTransaction.toID);
-                    await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( ? , ? , ? , ? , ? , ? , ? , ? , ? , ? );`,
+                    await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 );`,
                         [TransactionProcessorType.INTERNAL, null,
                             0, 1, theTransaction.toName, "Funds",
                         fee * 100, (await SubStack.getBalance('83d13d18-3802-407f-b9b6-73f39b17e31d') + fee) * 100, "Service Fee", TransactionItemType.SETTLED]
@@ -137,7 +137,7 @@ export class Transaction {
                         toName: string;
                         notation: string;
                         transactionType: string;
-                    }>(`select * from transactions where toID in (SELECT id FROM substacks WHERE stackIdentifier = ? ) OR fromID IN (SELECT id FROM substacks WHERE stackIdentifier = ?) AND transactionType != 'Settled';`,
+                    }>(`select * from transactions where toID in (SELECT id FROM substacks WHERE stackIdentifier = $1 ) OR fromID IN (SELECT id FROM substacks WHERE stackIdentifier = $2) AND transactionType != 'Settled';`,
                         [await SubStack.getParentStack(key), await SubStack.getParentStack(key)]
                     )
                     break;
