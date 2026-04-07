@@ -76,7 +76,7 @@ router.put("/substack", async (req, res) => {
         }
         const data: SubStackAPIType = req.body;
 
-        if (data.session.length > 36) {
+        if (data.session.length < 36) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
             SubStack.renameSubstack(Number.parseInt(req.body.id), data);
@@ -94,7 +94,7 @@ router.delete("/substack", async (req, res) => {
         }
         const data: SubStackAPIType = req.body;
 
-        if (data.session.length > 36) {
+        if (data.session.length < 36) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
             SubStack.deleteSubstack(Number.parseInt(req.body.id), data);
