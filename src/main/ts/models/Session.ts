@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import { query, withTransaction} from "../libs/postgresDB.ts"
 import { generateUUID } from "../libs/UUID.ts";
 
@@ -82,7 +83,7 @@ export class Session implements ISession {
         let otp = "";
 
         for (let i = 0; i < otpLength; i++) {
-            otp += legalChars.charAt(Math.random() * legalChars.length);
+            otp += legalChars.charAt(randomInt(legalChars.length));
         }
         return otp;
     }
