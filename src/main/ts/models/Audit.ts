@@ -46,7 +46,7 @@ export class Audit implements IAudit {
     }
     private logMessage() {
         withTransaction(async (client) => {
-            client.query(
+            await client.query(
                 `INSERT INTO audit (message, session) VALUES ($1, $2)`,
                 [this.message, this.session]
             )
