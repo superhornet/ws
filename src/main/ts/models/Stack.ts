@@ -65,7 +65,7 @@ export class Stack {
                 id: number; ownerIdentifier: string;
                 stackName: string; stackIdentifier: string; createdBy: number
             }>(
-                `SELECT id, ownerIdentifier, stackName, stackIdentifier, createdBy FROM stacks WHERE deleted = 0 AND ownerIdentifier = $1;`,
+                `SELECT id, ownerIdentifier, stackName, stackIdentifier, createdBy FROM stacks WHERE deleted = FALSE AND ownerIdentifier = $1;`,
                 [ownerIdentifier]
             )
             if (fetchedStacks === undefined) {

@@ -81,7 +81,7 @@ CREATE TABLE substacks(
     balance INTEGER DEFAULT 0, --Value in cents
     createdOn TEXT NOT NULL DEFAULT (NOW()),
     createdBy INTEGER,
-    deleted INTEGER DEFAULT 0 CHECK(deleted in (0, 1)),
+    deleted BOOLEAN DEFAULT FALSE,
     stackIdentifier TEXT CHECK(length(stackIdentifier) = 36),
     substackIdentifier TEXT CHECK(length(substackIdentifier) = 36),
     substackName TEXT NOT NULL,
