@@ -278,8 +278,8 @@ router.post("/cybrid/fiat-transfer", async (req, res) => {
         if (!Number.isInteger(data.amount) || !Number.isSafeInteger(data.amount)) {
             throw new HTMLStatusError("Amount must be a safe integer (in cents)", 400);
         }
-        if (data.amount > 1_000_000_00) {
-            throw new HTMLStatusError("Amount exceeds maximum transfer limit of $1,000,000", 400);
+        if (data.amount > 5_000_00) {
+            throw new HTMLStatusError("Amount exceeds maximum transfer limit of $5,000", 400);
         }
         new Audit("POST /api/cybrid/fiat-transfer", data.session);
         const transfer = await Cybrid.transferFiat(
