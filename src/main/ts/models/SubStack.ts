@@ -26,17 +26,12 @@ export class SubStack {
 
     storeSubStack() {
         const ownerId: number = this.substack.createdBy;
-        let stackId: number = 0;
+
         withTransaction(async (client) => {
             try {
-                const fetchedStack = await client.query<{ id: number }>(
-                    `SELECT id FROM stacks WHERE stackIdentifier = $1;`,
-                    [this.substack.stackIdentifier]
-                )
-                stackId = fetchedStack.rows[0]!.id;
                 await client.query(
                     `INSERT INTO substacks (createdBy, stackIdentifier, substackIdentifier, substackName, usersList) VALUES( $1 , $2 , $3 , $4 , $5 );`,
-                    [ownerId, stackId, this.substack.substackIdentifier, this.substack.substackName, this.substack.usersList.entries().toArray().toString()]
+                    [ownerId, this.substack.stackIdentifier, this.substack.substackIdentifier, this.substack.substackName, this.substack.usersList.entries().toArray().toString()]
                 )
             } catch (error) {
                 if (error instanceof HTMLStatusError) {
