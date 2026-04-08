@@ -84,7 +84,6 @@ router.delete("/stack", async (req, res) => {
         if(data.session.length < 36){
             throw new HTMLStatusError("Session ID required", 403);
         }else{
-            const data: StackAPIType = req.body;
             await Stack.deleteStack(Number.parseInt(req.body.id), data);
 //            const stacks: Array<StackType> | undefined = Stack.getForUser(data.ownerIdentifier || "");
             JSONResponse.noContent(req, res, "No Content", null)
