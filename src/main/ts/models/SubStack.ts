@@ -54,7 +54,7 @@ export class SubStack {
             let fetchedSubstacks;
             switch (type) {
                 case SubStackQueryTypes.OWNERID:
-                    fetchedSubstacks = query<{
+                    fetchedSubstacks = await query<{
                         id: number;
                         balance: number;
                         stackIdentifier: string;
@@ -69,7 +69,7 @@ export class SubStack {
                     );
                     break;
                 case SubStackQueryTypes.STACKID:
-                    fetchedSubstacks = query<{
+                    fetchedSubstacks = await query<{
                         id: number;
                         balance: number;
                         stackIdentifier: string;
@@ -84,7 +84,7 @@ export class SubStack {
                     );
                     break;
                 case SubStackQueryTypes.SUBSTACKNAME:
-                    fetchedSubstacks = query<{
+                    fetchedSubstacks = await query<{
                         id: number;
                         balance: number;
                         stackIdentifier: string;
@@ -102,7 +102,7 @@ export class SubStack {
             if (fetchedSubstacks === undefined) {
                 throw new HTMLStatusError("Substack not found", 404);
             } else {
-                for (const substack of await fetchedSubstacks) {
+                for (const substack of fetchedSubstacks) {
                     output.push({
                         id: substack.id,
                         balance: substack.balance,
