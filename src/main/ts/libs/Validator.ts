@@ -47,13 +47,11 @@ export class Validator {
             throw new TypeError("Input must be a string.");
         }
         return str
-            .replaceAll('&', "{ampersand}")
-            .replaceAll('>', `{greater_than}`)
-            .replaceAll('<', "{less_than}")
-            .replaceAll('"', "{inch_mark}")
-            .replaceAll('\'', "{foot_mark}")
-            .replaceAll('/', "{solidus}")
-            .replaceAll(';', "{semicolon}");
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#x27;");
     }
     /**
      * stringValidate
