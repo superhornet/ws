@@ -37,7 +37,7 @@ router.get("/stacks", async (req, res)=>{
             throw new HTMLStatusError("Empty JSON body", 400);
         }
         const data: StackAPIType = req.body;
-        if(data.session.length < 36){
+        if(!data.session || data.session.length < 36){
             throw new HTMLStatusError("Session ID required", 403);
         }else{
             const stacks: Array<StackType> | undefined = await Stack.getForUser(data.ownerIdentifier || "");
@@ -59,7 +59,7 @@ router.put("/stack", async (req, res) => {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
         const data: StackAPIType = req.body;
-        if(data.session.length < 36){
+        if(!data.session || data.session.length < 36){
             throw new HTMLStatusError("Session ID required", 403);
         }else{
             await Stack.renameStack(Number.parseInt(req.body.id), data);
@@ -81,7 +81,7 @@ router.delete("/stack", async (req, res) => {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
         const data: StackAPIType = req.body;
-        if(data.session.length < 36){
+        if(!data.session || data.session.length < 36){
             throw new HTMLStatusError("Session ID required", 403);
         }else{
             const data: StackAPIType = req.body;
