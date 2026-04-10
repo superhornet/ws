@@ -41,6 +41,11 @@ mock.module("@cybrid/cybrid-api-bank-typescript", {
             Lightning: "lightning",
             Book: "book",
         },
+        PostTransferParticipantBankModelTypeEnum: {
+            Bank: "bank",
+            Customer: "customer",
+            Counterparty: "counterparty",
+        },
     },
 });
 

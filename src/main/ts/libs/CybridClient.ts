@@ -13,6 +13,7 @@ import {
     IdentityVerificationsBankApi,
     PostQuoteBankModelProductTypeEnum,
     PostTransferBankModelTransferTypeEnum,
+    PostTransferParticipantBankModelTypeEnum,
 } from '@cybrid/cybrid-api-bank-typescript';
 import type {
     CustomerBankModel,
@@ -69,7 +70,7 @@ async function getAccessToken(): Promise<string> {
             grant_type: 'client_credentials',
             client_id: CYBRID_CLIENT_ID,
             client_secret: CYBRID_CLIENT_SECRET,
-            scope: 'banks:read banks:write customers:read customers:write customers:execute accounts:read accounts:execute quotes:execute quotes:read trades:execute trades:read transfers:execute transfers:read transfers:write identity_verifications:read identity_verifications:write identity_verifications:execute',
+            scope: 'banks:read banks:write customers:read customers:pii:read customers:write customers:execute accounts:read accounts:execute quotes:execute quotes:read trades:execute trades:read transfers:execute transfers:read transfers:write identity_verifications:read identity_verifications:write identity_verifications:execute',
         }),
     });
 
@@ -121,8 +122,8 @@ export async function createCustomer(postCustomerBankModel: PostCustomerBankMode
     return firstValueFrom((await customersApi()).createCustomer({ postCustomerBankModel }));
 }
 
-export async function getCustomer(customerGuid: string): Promise<CustomerBankModel> {
-    return firstValueFrom((await customersApi()).getCustomer({ customerGuid }));
+export async function getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
+    return firstValueFrom((await customersApi()).getCustomer({ customerGuid, includePii }));
 }
 
 export async function listCustomers(page = 0, perPage = 25): Promise<CustomerListBankModel> {
@@ -204,6 +205,20 @@ export async function createBookTransfer(
         transfer_type: PostTransferBankModelTransferTypeEnum.Book,
         source_account_guid: sourceAccountGuid,
         destination_account_guid: destinationAccountGuid,
+        source_participants: [
+            {
+                type: PostTransferParticipantBankModelTypeEnum.Customer,
+                amount: 0,
+                guid: sourceAccountGuid
+            }
+        ],
+        destination_participants: [
+            {
+                type: PostTransferParticipantBankModelTypeEnum.Customer,
+                amount: 0,
+                guid: destinationAccountGuid
+            }
+        ]
     });
 }
 

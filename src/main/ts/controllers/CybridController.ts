@@ -36,7 +36,8 @@ router.get("/cybrid/customer", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         }
         new Audit(`GET /api/cybrid/customer/${data.identifier}`, data.session);
-        const customer = await Cybrid.getCustomer(data.identifier);
+        const includePii = req.query.include_pii === "true";
+        const customer = await Cybrid.getCustomer(data.identifier, includePii);
         JSONResponse.goodToGo(req, res, "OK", customer as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
