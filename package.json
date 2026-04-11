@@ -72,6 +72,7 @@
         "@cybrid/cybrid-api-bank-typescript": "^0.128.102",
         "dotenv": "^17.3.1",
         "express": "^5.2.1",
+        "express-rate-limit": "^8.3.2",
         "helmet": "^8.1.0",
         "pg": "^8.20.0"
     }
