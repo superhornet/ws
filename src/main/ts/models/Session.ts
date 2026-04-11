@@ -50,6 +50,13 @@ export class Session implements ISession {
             this.expires = sessionInsert.rows[0]!.expires;
         })
     }
+    static async validate(uuid: string): Promise<boolean> {
+        const result = await query<{ id: number }>(
+            `SELECT id FROM sessions WHERE uuid = $1 AND expires > NOW();`,
+            [uuid]
+        );
+        return result.length > 0;
+    }
     /**
      * kill() prunes expired sessions from the database
      *
