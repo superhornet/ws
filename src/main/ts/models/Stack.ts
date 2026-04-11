@@ -14,7 +14,11 @@ export class Stack {
             stackIdentifier: generateUUID(),
             createdBy: data.createdBy
         }
-        this.storeStack(data.ownerIdentifier);
+    }
+    static async create(data: StackAPIType): Promise<Stack> {
+        const stack = new Stack(data);
+        await stack.storeStack(data.ownerIdentifier);
+        return stack;
     }
     public get stack(): StackType {
         return this._stack;
@@ -26,10 +30,10 @@ export class Stack {
     /**
      * storeStack
      */
-    private storeStack(ownerIdentifier: string) {
+    private async storeStack(ownerIdentifier: string) {
         let ownerId: number = 0;
 
-        withTransaction(async (client) => {
+        await withTransaction(async (client) => {
             const fetchedUser = await client.query<{ id: number }>(
                 `SELECT id FROM users WHERE user_identifier = $1 RETURNING id;`,
                 [ownerIdentifier]
@@ -90,8 +94,8 @@ export class Stack {
             }
         }
     }
-    static renameStack(stackID: number, data: StackAPIType) {
-        withTransaction(async (client) => {
+    static async renameStack(stackID: number, data: StackAPIType) {
+        await withTransaction(async (client) => {
             try {
                 const updatedStack = await client.query(
                     `UPDATE stacks set stackName=$1 WHERE deleted = FALSE AND id = $2;`,
@@ -112,7 +116,7 @@ export class Stack {
 
     static async deleteStack(stackID: number, data: StackAPIType) {
         dotenv.config({ quiet: true });
-        withTransaction(async (client) => {
+        await withTransaction(async (client) => {
             try {
                 const updatedStack = await client.query(
                     `UPDATE stacks set deleted = TRUE WHERE ownerIdentifier = $1 AND id = $2;`,

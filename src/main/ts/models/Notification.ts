@@ -12,19 +12,13 @@ export class Notification {
         this._identifier = value;
     }
     constructor(data: NotificationAPIType) {
-        try {
-            this.message = data.message;
-            this.identifier = data.identifier || "";
-            this.storeNotification();
-
-        } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
-            }
-
-        }
+        this.message = data.message;
+        this.identifier = data.identifier || "";
+    }
+    static async create(data: NotificationAPIType): Promise<Notification> {
+        const notification = new Notification(data);
+        await notification.storeNotification();
+        return notification;
     }
     public get message(): string {
         return this._message;
@@ -35,9 +29,8 @@ export class Notification {
     /**
      * storeNotification
      */
-    private storeNotification() {
-
-        withTransaction(async (client) => {
+    private async storeNotification() {
+        await withTransaction(async (client) => {
             const notificationInsert = await client.query<{ id: number }>(
                 `INSERT INTO notifications (message, seen, notification_identifier) VALUES( $1 , $2 , $3 ) RETURNING id;`,
                 [this.message, 'FALSE', this.identifier]

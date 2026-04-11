@@ -18,7 +18,7 @@ router.post("/transaction", async (req, res) => {
         } else if(data.transactionType !== TransactionItemType.INITIAL_FUND && data.amount > await SubStack.getBalance(data.fromIdentifier)) {
             throw new HTMLStatusError("Bad Request", 400);
         } else {
-            const transaction = new Transaction(data);
+            const transaction = await Transaction.create(data);
             JSONResponse.creationSuccess(req, res, 'Created', transaction as unknown as JSON);
             new Audit(`Saved Transaction $${data.amount}: ${data.fromIdentifier} to ${data.toIdentifier}.`, data.session);
         }

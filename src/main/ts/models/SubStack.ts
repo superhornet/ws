@@ -15,7 +15,11 @@ export class SubStack {
             balance: 0,
             usersList: new Set<number>([data.createdBy])
         }
-        this.storeSubStack();
+    }
+    static async create(data: SubStackAPIType): Promise<SubStack> {
+        const substack = new SubStack(data);
+        await substack.storeSubStack();
+        return substack;
     }
     public get substack(): SubStackType {
         return this._substack;
@@ -24,10 +28,10 @@ export class SubStack {
         this._substack = value;
     }
 
-    storeSubStack() {
+    async storeSubStack() {
         const ownerId: number = this.substack.createdBy;
         let stackId: number = 0;
-        withTransaction(async (client) => {
+        await withTransaction(async (client) => {
             try {
                 const fetchedStack = await client.query<{ id: number }>(
                     `SELECT id FROM stacks WHERE stackIdentifier = $1;`,
@@ -123,8 +127,8 @@ export class SubStack {
             }
         }
     }
-    static renameSubstack(substackID: number, data: SubStackAPIType) {
-        withTransaction(async (client) => {
+    static async renameSubstack(substackID: number, data: SubStackAPIType) {
+        await withTransaction(async (client) => {
             try {
                 const users = [...data.usersList].toString();
 
@@ -145,8 +149,8 @@ export class SubStack {
             }
         });
     }
-    static deleteSubstack(substackID: number, data: SubStackAPIType) {
-                withTransaction(async (client) => {
+    static async deleteSubstack(substackID: number, data: SubStackAPIType) {
+        await withTransaction(async (client) => {
             try {
                 const deletedSubstack = await client.query(
                     `UPDATE substacks set deleted = TRUE WHERE deleted = FALSE AND id = $1 AND substackIdentifier = $2;`,
