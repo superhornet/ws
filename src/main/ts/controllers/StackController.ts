@@ -19,7 +19,7 @@ router.post("/stack", async (req, res) => {
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
-            const stack = new Stack(data);
+            const stack = await Stack.create(data);
             JSONResponse.creationSuccess(req, res, "Created", stack as unknown as JSON);
             new Audit(`${data.stackName} created by ${data.ownerIdentifier}.`, data.session);
         }

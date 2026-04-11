@@ -16,12 +16,11 @@ export class Transaction {
         this.#toIdentifier = data.toIdentifier;
         this.#fromIdentifier = data.fromIdentifier;
         this.#data = data;
-        try {
-            this.storeTransaction();
-
-        } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    }
+    static async create(data: TransactionAPIType): Promise<Transaction> {
+        const transaction = new Transaction(data);
+        await transaction.storeTransaction();
+        return transaction;
     }
     private async details(){
         const [from, fromName] = await uuidToSubStack(this.#fromIdentifier);
@@ -32,8 +31,8 @@ export class Transaction {
             this.#toName = toName as string;
 
     }
-    private storeTransaction() {
-        this.details();
+    private async storeTransaction() {
+        await this.details();
         this.transaction = {
             id: 0,
             processor: this.#data.processor,
@@ -50,7 +49,7 @@ export class Transaction {
         }
 
         const theTransaction: TransactionType = this.transaction;
-        withTransaction(async (client) => {
+        await withTransaction(async (client) => {
             let balance = await SubStack.getBalance(this.#toIdentifier);
             try {
 
@@ -62,7 +61,7 @@ export class Transaction {
                     theTransaction.fromID, theTransaction.toID, theTransaction.fromName,
                     theTransaction.toName, theTransaction.amount * 100, balance * 100, "", theTransaction.transactionType]
                 )
-                setBalanceBySubstackId(balance * 100, theTransaction.toID);
+                await setBalanceBySubstackId(balance * 100, theTransaction.toID);
                 if ([TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND].includes(theTransaction.transactionType) &&
                     [TransactionProcessorType.APPLE,
                     TransactionProcessorType.BITCOIN,
@@ -85,13 +84,13 @@ export class Transaction {
                         theTransaction.toID, 1, theTransaction.toName,
                             "Service Fee", fee * 100, balance * 100, "", TransactionItemType.FEE]
                     )
-                    setBalanceBySubstackId(balance * 100, theTransaction.toID);
+                    await setBalanceBySubstackId(balance * 100, theTransaction.toID);
                     await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( ? , ? , ? , ? , ? , ? , ? , ? , ? , ? );`,
                         [TransactionProcessorType.INTERNAL, null,
                             0, 1, theTransaction.toName, "Funds",
                         fee * 100, (await SubStack.getBalance('83d13d18-3802-407f-b9b6-73f39b17e31d') + fee) * 100, "Service Fee", TransactionItemType.SETTLED]
                     )
-                    setBalanceBySubstackId((await SubStack.getBalance('83d13d18-3802-407f-b9b6-73f39b17e31d') + fee) * 100, 1)
+                    await setBalanceBySubstackId((await SubStack.getBalance('83d13d18-3802-407f-b9b6-73f39b17e31d') + fee) * 100, 1)
                 }
 
 
@@ -190,8 +189,8 @@ async function uuidToSubStack(identifier: string){
 }
 
 
-function setBalanceBySubstackId(balance: number, subStackID: number) {
-    withTransaction(async (client) => {
+async function setBalanceBySubstackId(balance: number, subStackID: number) {
+    await withTransaction(async (client) => {
         try {
             await client.query(
                 `UPDATE substacks SET balance = $1 WHERE id = $2;`,
