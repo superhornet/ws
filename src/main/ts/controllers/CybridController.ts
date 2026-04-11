@@ -7,6 +7,14 @@ import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 
 export const router = express.Router();
 
+function getSession(req: express.Request): string {
+    const session = req.headers["x-session"] as string | undefined;
+    if (!session) {
+        throw new HTMLStatusError("Session ID Required", 403);
+    }
+    return session;
+}
+
 // --- Customers ---
 
 router.post("/cybrid/customer", async (req, res) => {
@@ -26,18 +34,16 @@ router.post("/cybrid/customer", async (req, res) => {
     }
 });
 
-router.get("/cybrid/customer", async (req, res) => {
+router.get("/cybrid/customer/:customer_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const customerGuid = req.params.customer_guid;
+        if (!customerGuid) {
+            throw new HTMLStatusError("Customer GUID is required", 400);
         }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit(`GET /api/cybrid/customer/${data.identifier}`, data.session);
+        new Audit(`GET /api/cybrid/customer/${customerGuid}`, session);
         const includePii = req.query.include_pii === "true";
-        const customer = await Cybrid.getCustomer(data.identifier, includePii);
+        const customer = await Cybrid.getCustomer(customerGuid, includePii);
         JSONResponse.goodToGo(req, res, "OK", customer as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -46,14 +52,8 @@ router.get("/cybrid/customer", async (req, res) => {
 
 router.get("/cybrid/customers", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit("GET /api/cybrid/customers", data.session);
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/customers", session);
         const customers = await Cybrid.listCustomers();
         JSONResponse.goodToGo(req, res, "OK", customers as unknown as JSON);
     } catch (error) {
@@ -80,17 +80,15 @@ router.post("/cybrid/account", async (req, res) => {
     }
 });
 
-router.get("/cybrid/account", async (req, res) => {
+router.get("/cybrid/account/:account_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const accountGuid = req.params.account_guid;
+        if (!accountGuid) {
+            throw new HTMLStatusError("Account GUID is required", 400);
         }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit(`GET /api/cybrid/account/${data.identifier}`, data.session);
-        const account = await Cybrid.getAccount(data.identifier);
+        new Audit(`GET /api/cybrid/account/${accountGuid}`, session);
+        const account = await Cybrid.getAccount(accountGuid);
         JSONResponse.goodToGo(req, res, "OK", account as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -99,16 +97,12 @@ router.get("/cybrid/account", async (req, res) => {
 
 router.get("/cybrid/accounts", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit("GET /api/cybrid/accounts", data.session);
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/accounts", session);
         const customerGuid = req.query.customer_guid as string | undefined;
-        const accounts = await Cybrid.listAccounts(customerGuid);
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const accounts = await Cybrid.listAccounts(customerGuid, page, perPage);
         JSONResponse.goodToGo(req, res, "OK", accounts as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -134,17 +128,15 @@ router.post("/cybrid/quote", async (req, res) => {
     }
 });
 
-router.get("/cybrid/quote", async (req, res) => {
+router.get("/cybrid/quote/:quote_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const quoteGuid = req.params.quote_guid;
+        if (!quoteGuid) {
+            throw new HTMLStatusError("Quote GUID is required", 400);
         }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit(`GET /api/cybrid/quote/${data.identifier}`, data.session);
-        const quote = await Cybrid.getQuote(data.identifier);
+        new Audit(`GET /api/cybrid/quote/${quoteGuid}`, session);
+        const quote = await Cybrid.getQuote(quoteGuid);
         JSONResponse.goodToGo(req, res, "OK", quote as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -170,17 +162,15 @@ router.post("/cybrid/trade", async (req, res) => {
     }
 });
 
-router.get("/cybrid/trade", async (req, res) => {
+router.get("/cybrid/trade/:trade_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const tradeGuid = req.params.trade_guid;
+        if (!tradeGuid) {
+            throw new HTMLStatusError("Trade GUID is required", 400);
         }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit(`GET /api/cybrid/trade/${data.identifier}`, data.session);
-        const trade = await Cybrid.getTrade(data.identifier);
+        new Audit(`GET /api/cybrid/trade/${tradeGuid}`, session);
+        const trade = await Cybrid.getTrade(tradeGuid);
         JSONResponse.goodToGo(req, res, "OK", trade as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -189,14 +179,8 @@ router.get("/cybrid/trade", async (req, res) => {
 
 router.get("/cybrid/trades", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit("GET /api/cybrid/trades", data.session);
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/trades", session);
         const customerGuid = req.query.customer_guid as string | undefined;
         const trades = await Cybrid.listTrades(customerGuid);
         JSONResponse.goodToGo(req, res, "OK", trades as unknown as JSON);
@@ -224,17 +208,15 @@ router.post("/cybrid/transfer", async (req, res) => {
     }
 });
 
-router.get("/cybrid/transfer", async (req, res) => {
+router.get("/cybrid/transfer/:transfer_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const transferGuid = req.params.transfer_guid;
+        if (!transferGuid) {
+            throw new HTMLStatusError("Transfer GUID is required", 400);
         }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit(`GET /api/cybrid/transfer/${data.identifier}`, data.session);
-        const transfer = await Cybrid.getTransfer(data.identifier);
+        new Audit(`GET /api/cybrid/transfer/${transferGuid}`, session);
+        const transfer = await Cybrid.getTransfer(transferGuid);
         JSONResponse.goodToGo(req, res, "OK", transfer as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -243,14 +225,8 @@ router.get("/cybrid/transfer", async (req, res) => {
 
 router.get("/cybrid/transfers", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit("GET /api/cybrid/transfers", data.session);
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/transfers", session);
         const customerGuid = req.query.customer_guid as string | undefined;
         const transfers = await Cybrid.listTransfers(customerGuid);
         JSONResponse.goodToGo(req, res, "OK", transfers as unknown as JSON);
@@ -314,17 +290,15 @@ router.post("/cybrid/identity-verification", async (req, res) => {
     }
 });
 
-router.get("/cybrid/identity-verification", async (req, res) => {
+router.get("/cybrid/identity-verification/:verification_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const verificationGuid = req.params.verification_guid;
+        if (!verificationGuid) {
+            throw new HTMLStatusError("Verification GUID is required", 400);
         }
-        const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        new Audit(`GET /api/cybrid/identity-verification/${data.identifier}`, data.session);
-        const verification = await Cybrid.getIdentityVerification(data.identifier);
+        new Audit(`GET /api/cybrid/identity-verification/${verificationGuid}`, session);
+        const verification = await Cybrid.getIdentityVerification(verificationGuid);
         JSONResponse.goodToGo(req, res, "OK", verification as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
