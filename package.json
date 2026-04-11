@@ -65,7 +65,8 @@
         "tslint": "^5.20.1",
         "typedoc": "^0.28.15",
         "typedoc-plugin-rename-defaults": "^0.7.3",
-        "typescript": "^5.9.3"
+        "typescript": "^5.9.3",
+        "xhr2": "^0.2.1"
     },
     "dependencies": {
         "@cybrid/cybrid-api-bank-typescript": "^0.128.102",

@@ -33,12 +33,12 @@ export class Cybrid {
         }
     }
 
-    static async getCustomer(customerGuid: string): Promise<CustomerBankModel> {
+    static async getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
         try {
             if (!customerGuid) {
                 throw new HTMLStatusError("Customer GUID is required", 400);
             }
-            return await CybridClient.getCustomer(customerGuid);
+            return await CybridClient.getCustomer(customerGuid, includePii);
         } catch (error) {
             if (error instanceof HTMLStatusError) throw error;
             throw new HTMLStatusError((error as Error).message, 500);

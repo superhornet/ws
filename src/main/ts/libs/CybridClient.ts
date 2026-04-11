@@ -1,4 +1,7 @@
 import * as dotenv from 'dotenv';
+// @ts-expect-error - xhr2 has no type definitions
+import XMLHttpRequest from 'xhr2';
+(globalThis as { XMLHttpRequest?: unknown }).XMLHttpRequest = XMLHttpRequest;
 import { firstValueFrom } from 'rxjs';
 import {
     Configuration,
@@ -10,6 +13,7 @@ import {
     IdentityVerificationsBankApi,
     PostQuoteBankModelProductTypeEnum,
     PostTransferBankModelTransferTypeEnum,
+    PostTransferParticipantBankModelTypeEnum,
 } from '@cybrid/cybrid-api-bank-typescript';
 import type {
     CustomerBankModel,
@@ -66,7 +70,7 @@ async function getAccessToken(): Promise<string> {
             grant_type: 'client_credentials',
             client_id: CYBRID_CLIENT_ID,
             client_secret: CYBRID_CLIENT_SECRET,
-            scope: 'banks:read banks:write customers:read customers:write customers:execute accounts:read accounts:execute quotes:execute quotes:read trades:execute trades:read transfers:execute transfers:read transfers:write identity_verifications:read identity_verifications:write identity_verifications:execute',
+            scope: 'banks:read banks:write customers:read customers:pii:read customers:write customers:execute accounts:read accounts:execute quotes:execute quotes:read trades:execute trades:read transfers:execute transfers:read transfers:write identity_verifications:read identity_verifications:write identity_verifications:execute',
         }),
     });
 
@@ -80,115 +84,102 @@ async function getAccessToken(): Promise<string> {
     return cachedToken;
 }
 
-function getConfiguration(): Configuration {
+async function getConfiguration(): Promise<Configuration> {
+    const token = await getAccessToken();
     return new Configuration({
         basePath: CYBRID_API_BASE,
-        accessToken: () => getAccessToken() as unknown as string,
+        accessToken: `Bearer ${token}`,
     });
 }
 
-// Lazily initialized API instances
-let _customersApi: CustomersBankApi | null = null;
-let _accountsApi: AccountsBankApi | null = null;
-let _quotesApi: QuotesBankApi | null = null;
-let _tradesApi: TradesBankApi | null = null;
-let _transfersApi: TransfersBankApi | null = null;
-let _identityVerificationsApi: IdentityVerificationsBankApi | null = null;
-
-function customersApi(): CustomersBankApi {
-    if (!_customersApi) _customersApi = new CustomersBankApi(getConfiguration());
-    return _customersApi;
+async function customersApi(): Promise<CustomersBankApi> {
+    return new CustomersBankApi(await getConfiguration());
 }
 
-function accountsApi(): AccountsBankApi {
-    if (!_accountsApi) _accountsApi = new AccountsBankApi(getConfiguration());
-    return _accountsApi;
+async function accountsApi(): Promise<AccountsBankApi> {
+    return new AccountsBankApi(await getConfiguration());
 }
 
-function quotesApi(): QuotesBankApi {
-    if (!_quotesApi) _quotesApi = new QuotesBankApi(getConfiguration());
-    return _quotesApi;
+async function quotesApi(): Promise<QuotesBankApi> {
+    return new QuotesBankApi(await getConfiguration());
 }
 
-function tradesApi(): TradesBankApi {
-    if (!_tradesApi) _tradesApi = new TradesBankApi(getConfiguration());
-    return _tradesApi;
+async function tradesApi(): Promise<TradesBankApi> {
+    return new TradesBankApi(await getConfiguration());
 }
 
-function transfersApi(): TransfersBankApi {
-    if (!_transfersApi) _transfersApi = new TransfersBankApi(getConfiguration());
-    return _transfersApi;
+async function transfersApi(): Promise<TransfersBankApi> {
+    return new TransfersBankApi(await getConfiguration());
 }
 
-function identityVerificationsApi(): IdentityVerificationsBankApi {
-    if (!_identityVerificationsApi) _identityVerificationsApi = new IdentityVerificationsBankApi(getConfiguration());
-    return _identityVerificationsApi;
+async function identityVerificationsApi(): Promise<IdentityVerificationsBankApi> {
+    return new IdentityVerificationsBankApi(await getConfiguration());
 }
 
 // --- Customers ---
 
 export async function createCustomer(postCustomerBankModel: PostCustomerBankModel): Promise<CustomerBankModel> {
-    return firstValueFrom(customersApi().createCustomer({ postCustomerBankModel }));
+    return firstValueFrom((await customersApi()).createCustomer({ postCustomerBankModel }));
 }
 
-export async function getCustomer(customerGuid: string): Promise<CustomerBankModel> {
-    return firstValueFrom(customersApi().getCustomer({ customerGuid }));
+export async function getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
+    return firstValueFrom((await customersApi()).getCustomer({ customerGuid, includePii }));
 }
 
 export async function listCustomers(page = 0, perPage = 25): Promise<CustomerListBankModel> {
-    return firstValueFrom(customersApi().listCustomers({ page, perPage }));
+    return firstValueFrom((await customersApi()).listCustomers({ page, perPage }));
 }
 
 // --- Accounts ---
 
 export async function createAccount(postAccountBankModel: PostAccountBankModel): Promise<AccountBankModel> {
-    return firstValueFrom(accountsApi().createAccount({ postAccountBankModel }));
+    return firstValueFrom((await accountsApi()).createAccount({ postAccountBankModel }));
 }
 
 export async function getAccount(accountGuid: string): Promise<AccountBankModel> {
-    return firstValueFrom(accountsApi().getAccount({ accountGuid }));
+    return firstValueFrom((await accountsApi()).getAccount({ accountGuid }));
 }
 
 export async function listAccounts(customerGuid?: string, page = 0, perPage = 25): Promise<AccountListBankModel> {
-    return firstValueFrom(accountsApi().listAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return firstValueFrom((await accountsApi()).listAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
 // --- Quotes ---
 
 export async function createQuote(postQuoteBankModel: PostQuoteBankModel): Promise<QuoteBankModel> {
-    return firstValueFrom(quotesApi().createQuote({ postQuoteBankModel }));
+    return firstValueFrom((await quotesApi()).createQuote({ postQuoteBankModel }));
 }
 
 export async function getQuote(quoteGuid: string): Promise<QuoteBankModel> {
-    return firstValueFrom(quotesApi().getQuote({ quoteGuid }));
+    return firstValueFrom((await quotesApi()).getQuote({ quoteGuid }));
 }
 
 // --- Trades ---
 
 export async function createTrade(postTradeBankModel: PostTradeBankModel): Promise<TradeBankModel> {
-    return firstValueFrom(tradesApi().createTrade({ postTradeBankModel }));
+    return firstValueFrom((await tradesApi()).createTrade({ postTradeBankModel }));
 }
 
 export async function getTrade(tradeGuid: string): Promise<TradeBankModel> {
-    return firstValueFrom(tradesApi().getTrade({ tradeGuid }));
+    return firstValueFrom((await tradesApi()).getTrade({ tradeGuid }));
 }
 
 export async function listTrades(customerGuid?: string, page = 0, perPage = 25): Promise<TradeListBankModel> {
-    return firstValueFrom(tradesApi().listTrades({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return firstValueFrom((await tradesApi()).listTrades({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
 // --- Transfers ---
 
 export async function createTransfer(postTransferBankModel: PostTransferBankModel): Promise<TransferBankModel> {
-    return firstValueFrom(transfersApi().createTransfer({ postTransferBankModel }));
+    return firstValueFrom((await transfersApi()).createTransfer({ postTransferBankModel }));
 }
 
 export async function getTransfer(transferGuid: string): Promise<TransferBankModel> {
-    return firstValueFrom(transfersApi().getTransfer({ transferGuid }));
+    return firstValueFrom((await transfersApi()).getTransfer({ transferGuid }));
 }
 
 export async function listTransfers(customerGuid?: string, page = 0, perPage = 25): Promise<TransferListBankModel> {
-    return firstValueFrom(transfersApi().listTransfers({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return firstValueFrom((await transfersApi()).listTransfers({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
 // --- Book Transfers (fiat customer-to-customer) ---
@@ -214,17 +205,31 @@ export async function createBookTransfer(
         transfer_type: PostTransferBankModelTransferTypeEnum.Book,
         source_account_guid: sourceAccountGuid,
         destination_account_guid: destinationAccountGuid,
+        source_participants: [
+            {
+                type: PostTransferParticipantBankModelTypeEnum.Customer,
+                amount: 0,
+                guid: sourceAccountGuid
+            }
+        ],
+        destination_participants: [
+            {
+                type: PostTransferParticipantBankModelTypeEnum.Customer,
+                amount: 0,
+                guid: destinationAccountGuid
+            }
+        ]
     });
 }
 
 // --- Identity Verification ---
 
 export async function createIdentityVerification(postIdentityVerificationBankModel: PostIdentityVerificationBankModel): Promise<IdentityVerificationBankModel> {
-    return firstValueFrom(identityVerificationsApi().createIdentityVerification({ postIdentityVerificationBankModel }));
+    return firstValueFrom((await identityVerificationsApi()).createIdentityVerification({ postIdentityVerificationBankModel }));
 }
 
 export async function getIdentityVerification(identityVerificationGuid: string): Promise<IdentityVerificationWithDetailsBankModel> {
-    return firstValueFrom(identityVerificationsApi().getIdentityVerification({ identityVerificationGuid }));
+    return firstValueFrom((await identityVerificationsApi()).getIdentityVerification({ identityVerificationGuid }));
 }
 
 // Re-export SDK types for convenience
