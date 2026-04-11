@@ -1,5 +1,6 @@
 import express from "express";
 import helmet from "helmet";
+import {generalLimiter, sessionLimiter, financialLimiter} from "./libs/rateLimiter.ts";
 import {router as auditRouter} from "./controllers/AuditController.ts";
 import {router as sessionRouter} from "./controllers/SessionController.ts";
 import {router as userRouter} from "./controllers/UserController.ts";
@@ -38,6 +39,10 @@ export class App {
         this.express.use(helmet());
         this.express.use(express.json());
         this.express.use(express.urlencoded());
+        this.express.use(generalLimiter);
+        this.express.use("/api/session", sessionLimiter);
+        this.express.use("/api/cybrid", financialLimiter);
+        this.express.use("/api/transaction", financialLimiter);
         this.express.use("/", healthRouter);
         this.express.use("/api", sessionRouter);
         this.express.use("/api", auditRouter);
