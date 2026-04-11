@@ -9,6 +9,7 @@ import {router as substackRouter } from "./controllers/SubstackController.ts";
 import {router as cybridRouter } from "./controllers/CybridController.ts";
 import {router as transactionRouter } from "./controllers/TransactionController.ts";
 import {router as healthRouter} from "./routes/index.ts";
+import {sessionAuth} from "./libs/sessionAuth.ts";
 /**
  * @class App
  *
@@ -40,6 +41,7 @@ export class App {
         this.express.use(express.urlencoded());
         this.express.use("/", healthRouter);
         this.express.use("/api", sessionRouter);
+        this.express.use("/api", sessionAuth);
         this.express.use("/api", auditRouter);
         this.express.use("/api", userRouter);
         this.express.use("/api", notificationRouter);
