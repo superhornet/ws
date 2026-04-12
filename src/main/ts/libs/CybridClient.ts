@@ -11,6 +11,7 @@ import {
     TradesBankApi,
     TransfersBankApi,
     IdentityVerificationsBankApi,
+    SymbolsBankApi,
     PostQuoteBankModelProductTypeEnum,
     PostTransferBankModelTransferTypeEnum,
     PostTransferParticipantBankModelTypeEnum,
@@ -70,7 +71,7 @@ async function getAccessToken(): Promise<string> {
             grant_type: 'client_credentials',
             client_id: CYBRID_CLIENT_ID,
             client_secret: CYBRID_CLIENT_SECRET,
-            scope: 'banks:read banks:write customers:read customers:pii:read customers:write customers:execute accounts:read accounts:execute quotes:execute quotes:read trades:execute trades:read transfers:execute transfers:read transfers:write identity_verifications:read identity_verifications:write identity_verifications:execute',
+            scope: 'banks:read banks:write customers:read customers:pii:read customers:write customers:execute accounts:read accounts:execute prices:read quotes:execute quotes:read trades:execute trades:read transfers:execute transfers:read transfers:write identity_verifications:read identity_verifications:write identity_verifications:execute',
         }),
     });
 
@@ -114,6 +115,10 @@ async function transfersApi(): Promise<TransfersBankApi> {
 
 async function identityVerificationsApi(): Promise<IdentityVerificationsBankApi> {
     return new IdentityVerificationsBankApi(await getConfiguration());
+}
+
+async function symbolsApi(): Promise<SymbolsBankApi> {
+    return new SymbolsBankApi(await getConfiguration());
 }
 
 // --- Customers ---
@@ -230,6 +235,12 @@ export async function createIdentityVerification(postIdentityVerificationBankMod
 
 export async function getIdentityVerification(identityVerificationGuid: string): Promise<IdentityVerificationWithDetailsBankModel> {
     return firstValueFrom((await identityVerificationsApi()).getIdentityVerification({ identityVerificationGuid }));
+}
+
+// --- Symbols ---
+
+export async function listSymbols(): Promise<Array<string>> {
+    return firstValueFrom((await symbolsApi()).listSymbols());
 }
 
 // Re-export SDK types for convenience

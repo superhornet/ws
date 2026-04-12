@@ -226,4 +226,15 @@ export class Cybrid {
             throw new HTMLStatusError((error as Error).message, 500);
         }
     }
+
+    // --- Symbols ---
+
+    static async listSymbols(): Promise<Array<string>> {
+        try {
+            return await CybridClient.listSymbols();
+        } catch (error) {
+            if (error instanceof HTMLStatusError) throw error;
+            throw new HTMLStatusError((error as Error).message, 500);
+        }
+    }
 }
