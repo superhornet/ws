@@ -36,8 +36,8 @@ export class App {
      */
     public loadRoutes(): void {
         this.express.use(helmet());
-        this.express.use(express.json());
-        this.express.use(express.urlencoded());
+        this.express.use(express.json({ limit: '100kb' }));
+        this.express.use(express.urlencoded({ limit: '100kb' }));
         this.express.use("/", healthRouter);
         this.express.use("/api", sessionRouter);
         this.express.use("/api", auditRouter);
