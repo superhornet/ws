@@ -290,6 +290,19 @@ router.post("/cybrid/identity-verification", async (req, res) => {
     }
 });
 
+// --- Symbols ---
+
+router.get("/cybrid/symbols", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/symbols", session);
+        const symbols = await Cybrid.listSymbols();
+        JSONResponse.goodToGo(req, res, "OK", symbols as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
 router.get("/cybrid/identity-verification/:verification_guid", async (req, res) => {
     try {
         const session = getSession(req);
