@@ -1,6 +1,6 @@
 import { describe, it, mock, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { Observable, of } from "rxjs";
+import { Observable, of, throwError } from "rxjs";
 import { HTMLStatusError } from "../../src/main/ts/libs/HTMLStatusError.ts";
 
 // --- Mock results ---
@@ -196,6 +196,44 @@ describe("CybridClient.createBookTransfer", () => {
         }
 
         assert.equal(mockCreateTransfer.mock.callCount(), 0);
+    });
+
+    it("should build source and destination participants with the exact expected shape", async () => {
+        // Pins current production behavior: participant type is "customer",
+        // amount is 0 (real amount lives in the quote), and guid is the
+        // *account* guid passed in. Any regression that reshuffles this would
+        // silently break book transfers at the Cybrid layer.
+        await CybridClient.createBookTransfer("src-acct", "dst-acct", 3000, "USD");
+
+        const transferArgs = mockCreateTransfer.mock.calls[0]!.arguments[0] as unknown as Record<string, unknown>;
+        const postTransfer = (transferArgs as Record<string, Record<string, unknown>>).postTransferBankModel!;
+
+        assert.deepEqual(postTransfer.source_participants, [
+            { type: "customer", amount: 0, guid: "src-acct" },
+        ]);
+        assert.deepEqual(postTransfer.destination_participants, [
+            { type: "customer", amount: 0, guid: "dst-acct" },
+        ]);
+    });
+
+    it("should bubble up an error from createTransfer after a successful quote", async () => {
+        mockCreateTransfer.mock.mockImplementation(() =>
+            throwError(() => new Error("transfer service unavailable")),
+        );
+
+        await assert.rejects(
+            () => CybridClient.createBookTransfer("src-acct", "dst-acct", 3000),
+            (error: Error) => {
+                assert.match(error.message, /transfer service unavailable/);
+                return true;
+            },
+        );
+
+        // The quote was created successfully — the failure happened on the
+        // subsequent createTransfer call. No cleanup/rollback of the quote is
+        // attempted today; this test locks in that behavior.
+        assert.equal(mockCreateQuote.mock.callCount(), 1);
+        assert.equal(mockCreateTransfer.mock.callCount(), 1);
     });
 });
 

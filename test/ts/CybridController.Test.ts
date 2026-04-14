@@ -916,3 +916,176 @@ describe('DELETE /api/cybrid/invoice/:guid', () => {
         assert.equal(mockCancelInvoice.mock.calls[0]!.arguments[0], 'inv-1');
     });
 });
+
+// =============================================================================
+// Query-param forwarding on non-trivial list / :guid routes
+// =============================================================================
+
+describe('GET /api/cybrid/banks (type filter)', () => {
+
+    beforeEach(() => {
+        mockListBanks.mock.resetCalls();
+        mockListBanks.mock.mockImplementation(async () => ({ total: 0, objects: [] }));
+    });
+
+    it('should forward page, per_page, and type query params in that order', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/banks?page=1&per_page=10&type=sandbox',
+            { 'x-session': 'session-uuid' }
+        );
+        const call = mockListBanks.mock.calls[0]!;
+        assert.equal(call.arguments[0], 1);
+        assert.equal(call.arguments[1], 10);
+        assert.equal(call.arguments[2], 'sandbox');
+    });
+
+    it('should omit type when not provided', async () => {
+        await getJSON(createApp(), '/api/cybrid/banks', { 'x-session': 'session-uuid' });
+        const call = mockListBanks.mock.calls[0]!;
+        assert.equal(call.arguments[2], undefined);
+    });
+});
+
+describe('GET /api/cybrid/counterparty/:guid (include_pii)', () => {
+
+    beforeEach(() => {
+        mockGetCounterparty.mock.resetCalls();
+        mockGetCounterparty.mock.mockImplementation(async () => ({ guid: 'cp-1' }));
+    });
+
+    it('should default include_pii to false when the query param is absent', async () => {
+        await getJSON(createApp(), '/api/cybrid/counterparty/cp-1', { 'x-session': 'session-uuid' });
+        const call = mockGetCounterparty.mock.calls[0]!;
+        assert.equal(call.arguments[0], 'cp-1');
+        assert.equal(call.arguments[1], false);
+    });
+
+    it('should forward include_pii=true when set', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/counterparty/cp-1?include_pii=true',
+            { 'x-session': 'session-uuid' }
+        );
+        assert.equal(mockGetCounterparty.mock.calls[0]!.arguments[1], true);
+    });
+
+    it('should treat include_pii=1 (anything non-"true") as false', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/counterparty/cp-1?include_pii=1',
+            { 'x-session': 'session-uuid' }
+        );
+        assert.equal(mockGetCounterparty.mock.calls[0]!.arguments[1], false);
+    });
+});
+
+describe('GET /api/cybrid/external-bank-account/:guid (boolean flags)', () => {
+
+    beforeEach(() => {
+        mockGetExternalBankAccount.mock.resetCalls();
+        mockGetExternalBankAccount.mock.mockImplementation(async () => ({ guid: 'eba-1' }));
+    });
+
+    it('should default all three flags to false when absent', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/external-bank-account/eba-1',
+            { 'x-session': 'session-uuid' }
+        );
+        const call = mockGetExternalBankAccount.mock.calls[0]!;
+        assert.deepEqual(
+            [call.arguments[0], call.arguments[1], call.arguments[2], call.arguments[3]],
+            ['eba-1', false, false, false],
+        );
+    });
+
+    it('should forward include_balances, force_balance_refresh and include_pii when all set to true', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/external-bank-account/eba-1?include_balances=true&force_balance_refresh=true&include_pii=true',
+            { 'x-session': 'session-uuid' }
+        );
+        const call = mockGetExternalBankAccount.mock.calls[0]!;
+        assert.deepEqual(
+            [call.arguments[0], call.arguments[1], call.arguments[2], call.arguments[3]],
+            ['eba-1', true, true, true],
+        );
+    });
+
+    it('should forward each flag independently', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/external-bank-account/eba-1?include_balances=true',
+            { 'x-session': 'session-uuid' }
+        );
+        const call = mockGetExternalBankAccount.mock.calls[0]!;
+        assert.deepEqual(
+            [call.arguments[1], call.arguments[2], call.arguments[3]],
+            [true, false, false],
+        );
+    });
+});
+
+describe('GET /api/cybrid/payment-instructions (dual filter)', () => {
+
+    beforeEach(() => {
+        mockListPaymentInstructions.mock.resetCalls();
+        mockListPaymentInstructions.mock.mockImplementation(async () => ({ total: 0, objects: [] }));
+    });
+
+    it('should return 403 without session header', async () => {
+        const res = await getJSON(createApp(), '/api/cybrid/payment-instructions');
+        assert.equal(res.status, 403);
+    });
+
+    it('should forward customer_guid, invoice_guid, page and per_page in that order', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/payment-instructions?customer_guid=cust-1&invoice_guid=inv-1&page=2&per_page=50',
+            { 'x-session': 'session-uuid' }
+        );
+        const call = mockListPaymentInstructions.mock.calls[0]!;
+        assert.equal(call.arguments[0], 'cust-1');
+        assert.equal(call.arguments[1], 'inv-1');
+        assert.equal(call.arguments[2], 2);
+        assert.equal(call.arguments[3], 50);
+    });
+
+    it('should forward invoice_guid on its own when customer_guid is absent', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/payment-instructions?invoice_guid=inv-1',
+            { 'x-session': 'session-uuid' }
+        );
+        const call = mockListPaymentInstructions.mock.calls[0]!;
+        assert.equal(call.arguments[0], undefined);
+        assert.equal(call.arguments[1], 'inv-1');
+    });
+});
+
+describe('GET /api/cybrid/file/:guid (include_download_url)', () => {
+
+    beforeEach(() => {
+        mockGetFile.mock.resetCalls();
+        mockGetFile.mock.mockImplementation(async () => ({ guid: 'file-1' }));
+    });
+
+    it('should forward include_download_url query param when provided', async () => {
+        await getJSON(
+            createApp(),
+            '/api/cybrid/file/file-1?include_download_url=true',
+            { 'x-session': 'session-uuid' }
+        );
+        const call = mockGetFile.mock.calls[0]!;
+        assert.equal(call.arguments[0], 'file-1');
+        assert.equal(call.arguments[1], 'true');
+    });
+
+    it('should pass undefined when include_download_url is absent', async () => {
+        await getJSON(createApp(), '/api/cybrid/file/file-1', { 'x-session': 'session-uuid' });
+        const call = mockGetFile.mock.calls[0]!;
+        assert.equal(call.arguments[0], 'file-1');
+        assert.equal(call.arguments[1], undefined);
+    });
+});
