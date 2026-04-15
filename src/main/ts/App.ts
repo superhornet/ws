@@ -1,5 +1,6 @@
 import express from "express";
 import helmet from "helmet";
+import { sanitizeBody } from "./utils/sanitize.ts";
 import {router as auditRouter} from "./controllers/AuditController.ts";
 import {router as sessionRouter} from "./controllers/SessionController.ts";
 import {router as userRouter} from "./controllers/UserController.ts";
@@ -38,6 +39,7 @@ export class App {
         this.express.use(helmet());
         this.express.use(express.json());
         this.express.use(express.urlencoded());
+        this.express.use(sanitizeBody);
         this.express.use("/", healthRouter);
         this.express.use("/api", sessionRouter);
         this.express.use("/api", auditRouter);
