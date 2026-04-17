@@ -195,6 +195,21 @@ mock.module('../../src/main/ts/models/Cybrid.ts', {
     }
 });
 
+// Mock IdempotencyKey to prevent DB calls
+const mockAcquire = fn();
+const mockComplete = fn();
+const mockRelease = fn();
+
+mock.module('../../src/main/ts/models/IdempotencyKey.ts', {
+    namedExports: {
+        IdempotencyKey: {
+            acquire: mockAcquire,
+            complete: mockComplete,
+            release: mockRelease,
+        }
+    }
+});
+
 // Mock Audit to prevent DB calls
 mock.module('../../src/main/ts/models/Audit.ts', {
     namedExports: {
@@ -274,8 +289,9 @@ async function sendJSON(
 const postJSON = (
     app: ReturnType<typeof express>,
     path: string,
-    body: unknown
-) => sendJSON(app, 'POST', path, body);
+    body: unknown,
+    headers: Record<string, string> = {}
+) => sendJSON(app, 'POST', path, body, headers);
 
 const getJSON = (
     app: ReturnType<typeof express>,
@@ -311,6 +327,11 @@ describe('POST /api/cybrid/fiat-transfer', () => {
     beforeEach(() => {
         mockTransferFiat.mock.resetCalls();
         mockTransferFiat.mock.mockImplementation(async () => mockTransfer);
+        mockAcquire.mock.resetCalls();
+        mockAcquire.mock.mockImplementation(async () => null);
+        mockComplete.mock.resetCalls();
+        mockComplete.mock.mockImplementation(async () => undefined);
+        mockRelease.mock.resetCalls();
     });
 
     it('should return 400 for empty body', async () => {
@@ -393,7 +414,7 @@ describe('POST /api/cybrid/fiat-transfer', () => {
             source_account_guid: 'src-guid',
             destination_account_guid: 'dst-guid',
             amount: 2500
-        });
+        }, { 'Idempotency-Key': 'fiat-test-key' });
 
         assert.equal(res.status, 201);
         assert.equal(res.body.code, 201);
@@ -409,7 +430,7 @@ describe('POST /api/cybrid/fiat-transfer', () => {
             destination_account_guid: 'dst-guid',
             amount: 1000,
             asset: 'CAD'
-        });
+        }, { 'Idempotency-Key': 'fiat-test-key' });
 
         assert.equal(mockTransferFiat.mock.callCount(), 1);
         const call = mockTransferFiat.mock.calls[0]!;
@@ -604,13 +625,28 @@ const postRoutes: ReadonlyArray<PostRouteCase> = [
     { path: '/api/cybrid/plan', model: mockCreatePlan, body: { name: 'monthly' }, expectedMessage: 'Plan created' }
 ];
 
+const idempotencyRequiredPaths = new Set([
+    '/api/cybrid/quote',
+    '/api/cybrid/trade',
+    '/api/cybrid/transfer',
+]);
+
 for (const route of postRoutes) {
     describe(`POST ${route.path}`, () => {
         const mockResult = { guid: 'mock-guid-1' };
+        const needsIdempotencyKey = idempotencyRequiredPaths.has(route.path);
+        const idempotencyHeaders = needsIdempotencyKey ? { 'Idempotency-Key': 'test-key' } : {};
 
         beforeEach(() => {
             route.model.mock.resetCalls();
             route.model.mock.mockImplementation(async () => mockResult);
+            if (needsIdempotencyKey) {
+                mockAcquire.mock.resetCalls();
+                mockAcquire.mock.mockImplementation(async () => null);
+                mockComplete.mock.resetCalls();
+                mockComplete.mock.mockImplementation(async () => undefined);
+                mockRelease.mock.resetCalls();
+            }
         });
 
         it('should return 400 for empty body', async () => {
@@ -626,7 +662,7 @@ for (const route of postRoutes) {
 
         it('should return 201 on success and forward the body', async () => {
             const payload = { session: 'session-uuid', ...route.body };
-            const res = await postJSON(createApp(), route.path, payload);
+            const res = await postJSON(createApp(), route.path, payload, idempotencyHeaders);
             assert.equal(res.status, 201);
             assert.equal(res.body.message, route.expectedMessage);
             assert.deepEqual(res.body.data, mockResult);
@@ -638,7 +674,7 @@ for (const route of postRoutes) {
             route.model.mock.mockImplementation(async () => {
                 throw new Error('upstream fail');
             });
-            const res = await postJSON(createApp(), route.path, { session: 'session-uuid', ...route.body });
+            const res = await postJSON(createApp(), route.path, { session: 'session-uuid', ...route.body }, idempotencyHeaders);
             assert.equal(res.status, 500);
         });
     });

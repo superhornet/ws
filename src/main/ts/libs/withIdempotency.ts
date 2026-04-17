@@ -9,10 +9,11 @@ const MAX_KEY_LENGTH = 255;
 /**
  * Wraps a handler's mutation logic with idempotency protection.
  *
- * If no Idempotency-Key header is present, the callback executes normally
- * (idempotency is opt-in from the client's perspective).
+ * The Idempotency-Key header is required — requests without it are rejected
+ * with 400. This prevents accidental duplicate financial operations from
+ * network retries.
  *
- * If the header is present:
+ * When the header is present:
  *   - First request: acquires lock, runs callback, caches response, returns it.
  *   - Duplicate with completed original: returns cached response immediately.
  *   - Duplicate while original is in-flight: returns 409 Conflict.
@@ -28,9 +29,10 @@ export async function withIdempotency(
     const idempotencyKey = req.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
 
     if (!idempotencyKey) {
-        const result = await callback();
-        res.status(result.code).json(result);
-        return;
+        throw new HTMLStatusError(
+            "Idempotency-Key header is required for this endpoint",
+            400
+        );
     }
 
     if (idempotencyKey.length === 0 || idempotencyKey.length > MAX_KEY_LENGTH) {
