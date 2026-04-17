@@ -29,6 +29,9 @@ export function processError(req: Request, res: Response, error: HTMLStatusError
             case "404":
                 JSONResponse.notFound(req, res, error.message, null);
                 break;
+            case "409":
+                JSONResponse.conflict(req, res, error.message, null);
+                break;
             case "501":
                 JSONResponse.notImplemented(req, res, error.message, null);
                 break;

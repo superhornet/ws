@@ -103,6 +103,21 @@ CREATE TABLE transactions(
     notation TEXT DEFAULT NULL,
     transactionType TEXT CHECK(transactionType IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit'
 );
+
+DROP TABLE IF EXISTS idempotency_keys;
+CREATE TABLE idempotency_keys(
+    id SERIAL PRIMARY KEY,
+    idempotency_key TEXT NOT NULL CHECK(length(idempotency_key) >= 1 AND length(idempotency_key) <= 255),
+    session_id TEXT NOT NULL CHECK(length(session_id) = 36),
+    route_path TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('in_progress', 'completed')) DEFAULT 'in_progress',
+    response_code INTEGER,
+    response_body JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW()),
+    completed_at TIMESTAMP,
+    UNIQUE(session_id, idempotency_key, route_path)
+);
+CREATE INDEX idx_idempotency_keys_created ON idempotency_keys(created_at);
 `)});
         JSONResponse.goodToGo(req, res, "OK", null);
     } catch (error) {

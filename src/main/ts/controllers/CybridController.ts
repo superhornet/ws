@@ -23,6 +23,7 @@ import type {
     PostPlanBankModel,
 } from "../libs/CybridClient.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
+import { withIdempotency } from "../libs/withIdempotency.ts";
 
 export const router = express.Router();
 
@@ -161,8 +162,10 @@ router.post("/cybrid/quote", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         }
         new Audit("POST /api/cybrid/quote", data.session);
-        const quote = await Cybrid.createQuote(req.body);
-        JSONResponse.creationSuccess(req, res, "Quote created", quote as unknown as JSON);
+        await withIdempotency(req, res, data.session, "/cybrid/quote", async () => {
+            const quote = await Cybrid.createQuote(req.body);
+            return { code: 201, data: quote as unknown as JSON, message: "Quote created" };
+        });
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -209,8 +212,10 @@ router.post("/cybrid/trade", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         }
         new Audit("POST /api/cybrid/trade", data.session);
-        const trade = await Cybrid.createTrade(req.body);
-        JSONResponse.creationSuccess(req, res, "Trade created", trade as unknown as JSON);
+        await withIdempotency(req, res, data.session, "/cybrid/trade", async () => {
+            const trade = await Cybrid.createTrade(req.body);
+            return { code: 201, data: trade as unknown as JSON, message: "Trade created" };
+        });
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -255,8 +260,10 @@ router.post("/cybrid/transfer", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         }
         new Audit("POST /api/cybrid/transfer", data.session);
-        const transfer = await Cybrid.createTransfer(req.body);
-        JSONResponse.creationSuccess(req, res, "Transfer created", transfer as unknown as JSON);
+        await withIdempotency(req, res, data.session, "/cybrid/transfer", async () => {
+            const transfer = await Cybrid.createTransfer(req.body);
+            return { code: 201, data: transfer as unknown as JSON, message: "Transfer created" };
+        });
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -334,13 +341,15 @@ router.post("/cybrid/fiat-transfer", async (req, res) => {
             throw new HTMLStatusError("Amount exceeds maximum transfer limit of $5,000", 400);
         }
         new Audit("POST /api/cybrid/fiat-transfer", data.session);
-        const transfer = await Cybrid.transferFiat(
-            data.source_account_guid,
-            data.destination_account_guid,
-            data.amount,
-            data.asset,
-        );
-        JSONResponse.creationSuccess(req, res, "Fiat transfer created", transfer as unknown as JSON);
+        await withIdempotency(req, res, data.session, "/cybrid/fiat-transfer", async () => {
+            const transfer = await Cybrid.transferFiat(
+                data.source_account_guid,
+                data.destination_account_guid,
+                data.amount,
+                data.asset,
+            );
+            return { code: 201, data: transfer as unknown as JSON, message: "Fiat transfer created" };
+        });
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
