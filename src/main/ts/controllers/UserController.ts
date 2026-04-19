@@ -6,6 +6,14 @@ import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 export const router = express.Router();
 
+function getSession(req: express.Request): string {
+    const session = req.headers["x-session"] as string | undefined;
+    if (!session) {
+        throw new HTMLStatusError("Session ID Required", 403);
+    }
+    return session;
+}
+
 /**
  * Create a User
  */
@@ -38,20 +46,16 @@ router.post("/user", (req, res) => {
  */
 router.get("/user", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new Error("Empty JSON body");
+        const session = getSession(req);
+        const identifier = req.query.identifier as string | undefined;
+        if (!identifier) {
+            throw new HTMLStatusError("User identifier is required", 400);
         }
-        const data: UserAPIType = req.body;
-
-        if (data.session) {
-            new Audit(`Get /api/user/${data.identifier}`, data.session);
-            const user = await User.fetchById(data.identifier);
-            JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
-        } else {
-            throw new Error("Session ID Required");
-        }
+        new Audit(`Get /api/user/${identifier}`, session);
+        const user = await User.fetchById(identifier);
+        JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
     } catch (error) {
-        processError(req, res, error as HTMLStatusError)
+        processError(req, res, error as HTMLStatusError);
     }
 });
 /**
