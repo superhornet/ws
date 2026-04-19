@@ -25,9 +25,16 @@ router.post("/user", (req, res) => {
         const data: UserAPIType = req.body;
         if (data.session) {
             new Audit(data.message, data.session);
-            const user = new User({nameF: data.firstname, nameL: data.lastname,
-                email: data.email, address1: data.address1, address2: data.address2, city: data.city, state: data.state,
-                subscriptionLevel: data.level});
+            const user = new User({
+                nameF: data.firstname,
+                nameL: data.lastname,
+                email: data.email,
+                address1: data.address1,
+                address2: data.address2,
+                city: data.city,
+                state: data.state,
+                subscriptionLevel: data.level
+            });
 
             JSONResponse.creationSuccess(req, res, "Created", user.toJSON() as unknown as JSON);
         } else {
@@ -73,7 +80,7 @@ router.put("/user", async (req, res) => {
             await User.updateUser(data);
             JSONResponse.updateSuccess(req, res, "Accepted", null);
         } else {
-            throw new Error("Session ID Required");
+            throw new HTMLStatusError("Session ID Required", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
