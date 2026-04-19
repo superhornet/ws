@@ -154,7 +154,8 @@ export class User implements IUser {
         try {
             if (data.identifier === undefined ||
                 data.firstname === undefined ||
-                data.lastname === undefined) {
+                data.lastname === undefined ||
+                data.email === undefined) {
                 throw new HTMLStatusError("Missing JSON Data", 400);
             }
             const [userid, hostname] = data.email.split('@');
