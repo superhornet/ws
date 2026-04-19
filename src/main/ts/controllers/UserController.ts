@@ -42,9 +42,9 @@ router.get("/user", async (req, res) => {
             throw new Error("Empty JSON body");
         }
         const data: UserAPIType = req.body;
-        new Audit(`Get /api/user/${data.identifier}`, data.session);
 
         if (data.session) {
+            new Audit(`Get /api/user/${data.identifier}`, data.session);
             const user = await User.fetchById(data.identifier);
             JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
         } else {
@@ -63,9 +63,9 @@ router.put("/user", async (req, res) => {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
         const data: UserAPIType = req.body;
-        new Audit(`Put /api/user/ ${data.identifier}`, data.session);
 
         if (data.session) {
+            new Audit(`Put /api/user/ ${data.identifier}`, data.session);
             await User.updateUser(data);
             JSONResponse.updateSuccess(req, res, "Accepted", null);
         } else {
