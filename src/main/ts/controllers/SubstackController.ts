@@ -20,7 +20,7 @@ router.post("/substack", async (req, res) => {
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
-            const stack = new SubStack(data);
+            const stack = await SubStack.create(data);
             JSONResponse.creationSuccess(req, res, "Created", stack as unknown as JSON);
             new Audit(`${data.substackName} created by ${data.createdBy}`, data.session);
         }
@@ -79,7 +79,7 @@ router.put("/substack", async (req, res) => {
         if (!data.session || data.session.length < 36) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
-            SubStack.renameSubstack(Number.parseInt(req.body.id), data);
+            await SubStack.renameSubstack(Number.parseInt(req.body.id), data);
             JSONResponse.updateSuccess(req, res, "Accepted", null)
             new Audit(`Updating substack/ ${req.body.id}`, data.session);
         }
@@ -97,7 +97,7 @@ router.delete("/substack", async (req, res) => {
         if (!data.session || data.session.length < 36) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
-            SubStack.deleteSubstack(Number.parseInt(req.body.id), data);
+            await SubStack.deleteSubstack(Number.parseInt(req.body.id), data);
             JSONResponse.noContent(req, res, "No Content", null)
             new Audit(`Updating substack/ ${req.body.id}`, data.session);
         }

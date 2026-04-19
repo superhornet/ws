@@ -31,17 +31,16 @@ export class Session implements ISession {
      * Session constructor
      */
     constructor() {
-        try {
-            this.uuid = generateUUID();
-            this.otp = this.generateOTP();
-            this.storeSession();
-
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
+        this.uuid = generateUUID();
+        this.otp = this.generateOTP();
     }
-    private storeSession() {
-        withTransaction(async (client) => {
+    static async create(): Promise<Session> {
+        const session = new Session();
+        await session.storeSession();
+        return session;
+    }
+    private async storeSession() {
+        await withTransaction(async (client) => {
             const sessionInsert = await client.query<{id: number, expires: string}>(
                 'INSERT INTO sessions (uuid, otp) VALUES ($1, $2) RETURNING id, expires',
                 [this.uuid, this.otp]

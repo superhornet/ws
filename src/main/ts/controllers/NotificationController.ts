@@ -20,7 +20,7 @@ router.post("/notification", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
             new Audit(`Create notification for ${data.identifier}: ${data.message}.`, data.session);
-            const notification = new Notification(data);
+            const notification = await Notification.create(data);
             JSONResponse.creationSuccess(req, res, "Created", notification as unknown as JSON);
         }
     } catch (error) {

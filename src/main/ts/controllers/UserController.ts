@@ -9,7 +9,7 @@ export const router = express.Router();
 /**
  * Create a User
  */
-router.post("/user", (req, res) => {
+router.post("/user", async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
@@ -17,7 +17,7 @@ router.post("/user", (req, res) => {
         const data: UserAPIType = req.body;
         if (data.session) {
             new Audit(data.message, data.session);
-            const user = new User({nameF: data.firstname, nameL: data.lastname,
+            const user = await User.create({nameF: data.firstname, nameL: data.lastname,
                 email: data.email, address1: data.address1, address2: data.address2, city: data.city, state: data.state,
                 subscriptionLevel: data.level});
 
