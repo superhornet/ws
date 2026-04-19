@@ -98,7 +98,7 @@ router.delete("/user", async (req, res) => {
         const data: UserAPIType = req.body;
 
         if (data.session === undefined) {
-            throw new Error("Session ID Required");
+            throw new HTMLStatusError("Session ID Required", 403);
         } else {
             new Audit(`Delete /api/user/ ${data.identifier}`, data.session);
             await User.deleteUser(data);
