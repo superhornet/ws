@@ -4,15 +4,8 @@ import { Audit } from "../models/Audit.ts";
 import { User } from "../models/User.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
+import { getSession } from "../libs/session.ts";
 export const router = express.Router();
-
-function getSession(req: express.Request): string {
-    const session = req.headers["x-session"] as string | undefined;
-    if (!session) {
-        throw new HTMLStatusError("Session ID Required", 403);
-    }
-    return session;
-}
 
 /**
  * Create a User
