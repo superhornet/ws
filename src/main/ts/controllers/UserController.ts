@@ -5,6 +5,7 @@ import { User } from "../models/User.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import { getSession } from "../libs/session.ts";
+import { requireBody } from "../libs/requestValidation.ts";
 export const router = express.Router();
 
 /**
@@ -12,9 +13,7 @@ export const router = express.Router();
  */
 router.post("/user", (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: UserAPIType = req.body;
         if (data.session) {
             new Audit(data.message, data.session);
@@ -63,9 +62,7 @@ router.get("/user", async (req, res) => {
  */
 router.put("/user", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: UserAPIType = req.body;
 
         if (data.session) {
@@ -85,9 +82,7 @@ router.put("/user", async (req, res) => {
  */
 router.delete("/user", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: UserAPIType = req.body;
 
         if (data.session === undefined) {

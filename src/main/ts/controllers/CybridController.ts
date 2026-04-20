@@ -24,7 +24,8 @@ import type {
 } from "../libs/CybridClient.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import { withIdempotency } from "../libs/withIdempotency.ts";
-import { getSession } from "../libs/session.ts";
+import { getSession, requireSessionFromBody } from "../libs/session.ts";
+import { requireBody } from "../libs/requestValidation.ts";
 
 export const router = express.Router();
 
@@ -32,13 +33,9 @@ export const router = express.Router();
 
 router.post("/cybrid/customer", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/customer", data.session);
         const customer = await Cybrid.createCustomer(req.body);
         JSONResponse.creationSuccess(req, res, "Customer created", customer as unknown as JSON);
@@ -76,13 +73,9 @@ router.get("/cybrid/customers", async (req, res) => {
 
 router.patch("/cybrid/customer/:customer_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PatchCustomerBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         const customerGuid = req.params.customer_guid;
         if (!customerGuid) {
             throw new HTMLStatusError("Customer GUID is required", 400);
@@ -99,13 +92,9 @@ router.patch("/cybrid/customer/:customer_guid", async (req, res) => {
 
 router.post("/cybrid/account", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/account", data.session);
         const account = await Cybrid.createAccount(req.body);
         JSONResponse.creationSuccess(req, res, "Account created", account as unknown as JSON);
@@ -147,13 +136,9 @@ router.get("/cybrid/accounts", async (req, res) => {
 
 router.post("/cybrid/quote", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/quote", data.session);
         await withIdempotency(req, res, data.session, "/cybrid/quote", async () => {
             const quote = await Cybrid.createQuote(req.body);
@@ -197,13 +182,9 @@ router.get("/cybrid/quotes", async (req, res) => {
 
 router.post("/cybrid/trade", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/trade", data.session);
         await withIdempotency(req, res, data.session, "/cybrid/trade", async () => {
             const trade = await Cybrid.createTrade(req.body);
@@ -245,13 +226,9 @@ router.get("/cybrid/trades", async (req, res) => {
 
 router.post("/cybrid/transfer", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/transfer", data.session);
         await withIdempotency(req, res, data.session, "/cybrid/transfer", async () => {
             const transfer = await Cybrid.createTransfer(req.body);
@@ -291,13 +268,9 @@ router.get("/cybrid/transfers", async (req, res) => {
 
 router.patch("/cybrid/transfer/:transfer_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PatchTransferBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         const transferGuid = req.params.transfer_guid;
         if (!transferGuid) {
             throw new HTMLStatusError("Transfer GUID is required", 400);
@@ -314,13 +287,9 @@ router.patch("/cybrid/transfer/:transfer_guid", async (req, res) => {
 
 router.post("/cybrid/fiat-transfer", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: FiatTransferRequest = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         if (!data.source_account_guid || !data.destination_account_guid) {
             throw new HTMLStatusError("Source and destination account GUIDs are required", 400);
         }
@@ -352,13 +321,9 @@ router.post("/cybrid/fiat-transfer", async (req, res) => {
 
 router.post("/cybrid/identity-verification", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: CybridAPIType = req.body;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/identity-verification", data.session);
         const verification = await Cybrid.createIdentityVerification(req.body);
         JSONResponse.creationSuccess(req, res, "Identity verification created", verification as unknown as JSON);
@@ -443,13 +408,9 @@ router.get("/cybrid/prices", async (req, res) => {
 
 router.post("/cybrid/deposit-address", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostDepositAddressBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/deposit-address", data.session);
         const address = await Cybrid.createDepositAddress(data);
         JSONResponse.creationSuccess(req, res, "Deposit address created", address as unknown as JSON);
@@ -491,13 +452,9 @@ router.get("/cybrid/deposit-addresses", async (req, res) => {
 
 router.post("/cybrid/deposit-bank-account", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostDepositBankAccountBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/deposit-bank-account", data.session);
         const account = await Cybrid.createDepositBankAccount(data);
         JSONResponse.creationSuccess(req, res, "Deposit bank account created", account as unknown as JSON);
@@ -539,13 +496,9 @@ router.get("/cybrid/deposit-bank-accounts", async (req, res) => {
 
 router.post("/cybrid/external-bank-account", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostExternalBankAccountBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/external-bank-account", data.session);
         const account = await Cybrid.createExternalBankAccount(data);
         JSONResponse.creationSuccess(req, res, "External bank account created", account as unknown as JSON);
@@ -593,13 +546,9 @@ router.get("/cybrid/external-bank-accounts", async (req, res) => {
 
 router.patch("/cybrid/external-bank-account/:external_bank_account_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PatchExternalBankAccountBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         const externalBankAccountGuid = req.params.external_bank_account_guid;
         if (!externalBankAccountGuid) {
             throw new HTMLStatusError("External Bank Account GUID is required", 400);
@@ -631,13 +580,9 @@ router.delete("/cybrid/external-bank-account/:external_bank_account_guid", async
 
 router.post("/cybrid/external-wallet", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostExternalWalletBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/external-wallet", data.session);
         const wallet = await Cybrid.createExternalWallet(data);
         JSONResponse.creationSuccess(req, res, "External wallet created", wallet as unknown as JSON);
@@ -694,13 +639,9 @@ router.delete("/cybrid/external-wallet/:external_wallet_guid", async (req, res) 
 
 router.post("/cybrid/workflow", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostWorkflowBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/workflow", data.session);
         const workflow = await Cybrid.createWorkflow(data);
         JSONResponse.creationSuccess(req, res, "Workflow created", workflow as unknown as JSON);
@@ -742,13 +683,9 @@ router.get("/cybrid/workflows", async (req, res) => {
 
 router.post("/cybrid/bank", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostBankBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/bank", data.session);
         const bank = await Cybrid.createBank(data);
         JSONResponse.creationSuccess(req, res, "Bank created", bank as unknown as JSON);
@@ -788,13 +725,9 @@ router.get("/cybrid/banks", async (req, res) => {
 
 router.patch("/cybrid/bank/:bank_guid", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PatchBankBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         const bankGuid = req.params.bank_guid;
         if (!bankGuid) {
             throw new HTMLStatusError("Bank GUID is required", 400);
@@ -811,13 +744,9 @@ router.patch("/cybrid/bank/:bank_guid", async (req, res) => {
 
 router.post("/cybrid/counterparty", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostCounterpartyBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/counterparty", data.session);
         const counterparty = await Cybrid.createCounterparty(data);
         JSONResponse.creationSuccess(req, res, "Counterparty created", counterparty as unknown as JSON);
@@ -860,13 +789,9 @@ router.get("/cybrid/counterparties", async (req, res) => {
 
 router.post("/cybrid/persona-session", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostPersonaSessionBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/persona-session", data.session);
         const personaSession = await Cybrid.createPersonaSession(data);
         JSONResponse.creationSuccess(req, res, "Persona session created", personaSession as unknown as JSON);
@@ -879,13 +804,9 @@ router.post("/cybrid/persona-session", async (req, res) => {
 
 router.post("/cybrid/file", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostFileBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/file", data.session);
         const file = await Cybrid.createFile(data);
         JSONResponse.creationSuccess(req, res, "File created", file as unknown as JSON);
@@ -928,13 +849,9 @@ router.get("/cybrid/files", async (req, res) => {
 
 router.post("/cybrid/execution", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostExecutionBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/execution", data.session);
         const execution = await Cybrid.createExecution(data);
         JSONResponse.creationSuccess(req, res, "Execution created", execution as unknown as JSON);
@@ -976,13 +893,9 @@ router.get("/cybrid/executions", async (req, res) => {
 
 router.post("/cybrid/invoice", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostInvoiceBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/invoice", data.session);
         const invoice = await Cybrid.createInvoice(data);
         JSONResponse.creationSuccess(req, res, "Invoice created", invoice as unknown as JSON);
@@ -1039,13 +952,9 @@ router.delete("/cybrid/invoice/:invoice_guid", async (req, res) => {
 
 router.post("/cybrid/payment-instruction", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostPaymentInstructionBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/payment-instruction", data.session);
         const instruction = await Cybrid.createPaymentInstruction(data);
         JSONResponse.creationSuccess(req, res, "Payment instruction created", instruction as unknown as JSON);
@@ -1088,13 +997,9 @@ router.get("/cybrid/payment-instructions", async (req, res) => {
 
 router.post("/cybrid/plan", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data = req.body as PostPlanBankModel & { session?: string };
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        requireSessionFromBody(data);
         new Audit("POST /api/cybrid/plan", data.session);
         const plan = await Cybrid.createPlan(data);
         JSONResponse.creationSuccess(req, res, "Plan created", plan as unknown as JSON);
