@@ -4,7 +4,7 @@ import { Audit } from "../models/Audit.ts";
 import { User } from "../models/User.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { getSession } from "../libs/session.ts";
+import { getSession, requireSessionFromBody } from "../libs/session.ts";
 import { requireBody } from "../libs/requestValidation.ts";
 export const router = express.Router();
 
@@ -15,23 +15,21 @@ router.post("/user", (req, res) => {
     try {
         requireBody(req);
         const data: UserAPIType = req.body;
-        if (data.session) {
-            new Audit(data.message, data.session);
-            const user = new User({
-                nameF: data.firstname,
-                nameL: data.lastname,
-                email: data.email,
-                address1: data.address1,
-                address2: data.address2,
-                city: data.city,
-                state: data.state,
-                subscriptionLevel: data.level
-            });
+        requireSessionFromBody(data);
 
-            JSONResponse.creationSuccess(req, res, "Created", user.toJSON() as unknown as JSON);
-        } else {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        new Audit("POST /api/user", data.session);
+        const user = new User({
+            nameF: data.firstname,
+            nameL: data.lastname,
+            email: data.email,
+            address1: data.address1,
+            address2: data.address2,
+            city: data.city,
+            state: data.state,
+            subscriptionLevel: data.level
+        });
+
+        JSONResponse.creationSuccess(req, res, "Created", user.toJSON() as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -50,13 +48,14 @@ router.get("/user", async (req, res) => {
         if (!identifier) {
             throw new HTMLStatusError("User identifier is required", 400);
         }
-        new Audit(`Get /api/user/${identifier}`, session);
+        new Audit(`GET /api/user/${identifier}`, session);
         const user = await User.fetchById(identifier);
         JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
+
 /**
  * Update a user
  */
@@ -64,14 +63,11 @@ router.put("/user", async (req, res) => {
     try {
         requireBody(req);
         const data: UserAPIType = req.body;
+        requireSessionFromBody(data);
 
-        if (data.session) {
-            new Audit(`Put /api/user/ ${data.identifier}`, data.session);
-            await User.updateUser(data);
-            JSONResponse.updateSuccess(req, res, "Accepted", null);
-        } else {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
+        new Audit(`PUT /api/user/${data.identifier}`, data.session);
+        await User.updateUser(data);
+        JSONResponse.updateSuccess(req, res, "Accepted", null);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -84,14 +80,11 @@ router.delete("/user", async (req, res) => {
     try {
         requireBody(req);
         const data: UserAPIType = req.body;
+        requireSessionFromBody(data);
 
-        if (data.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else {
-            new Audit(`Delete /api/user/ ${data.identifier}`, data.session);
-            await User.deleteUser(data);
-            JSONResponse.noContent(req, res, "No Content", null);
-        }
+        new Audit(`DELETE /api/user/${data.identifier}`, data.session);
+        await User.deleteUser(data);
+        JSONResponse.noContent(req, res, "No Content", null);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
