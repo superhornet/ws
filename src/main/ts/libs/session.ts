@@ -8,3 +8,11 @@ export function getSession(req: express.Request): string {
     }
     return session;
 }
+
+export function requireSessionFromBody<T extends { session?: string }>(
+    data: T,
+): asserts data is T & { session: string } {
+    if (!data.session) {
+        throw new HTMLStatusError("Session ID Required", 403);
+    }
+}
