@@ -24,16 +24,9 @@ import type {
 } from "../libs/CybridClient.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import { withIdempotency } from "../libs/withIdempotency.ts";
+import { getSession } from "../libs/session.ts";
 
 export const router = express.Router();
-
-function getSession(req: express.Request): string {
-    const session = req.headers["x-session"] as string | undefined;
-    if (!session) {
-        throw new HTMLStatusError("Session ID Required", 403);
-    }
-    return session;
-}
 
 // --- Customers ---
 
