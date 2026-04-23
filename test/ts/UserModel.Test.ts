@@ -187,13 +187,22 @@ describe("User.updateUser", () => {
         mockQuery.mock.mockImplementation(async () => [{ user_identifier: "uid-1" }]);
     });
 
-    for (const field of ["identifier", "firstname", "lastname", "email"] as const) {
+    for (const field of ["identifier", "firstname", "lastname", "email",
+                         "address1", "city", "state", "level"] as const) {
         it(`rejects missing ${field} with 400 'Missing JSON Data'`, async () => {
             const partial: Record<string, unknown> = { ...validUpdatePayload };
             delete partial[field];
             await expectStatus(User.updateUser(partial as never), 400, /Missing JSON Data/);
         });
     }
+
+    it("rejects malformed email with 400 'Missing JSON Data'", async () => {
+        await expectStatus(
+            User.updateUser({ ...validUpdatePayload, email: "nothing" } as never),
+            400,
+            /Missing JSON Data/,
+        );
+    });
 
     it("issues an UPDATE with the mapped values", async () => {
         await User.updateUser(validUpdatePayload as never);

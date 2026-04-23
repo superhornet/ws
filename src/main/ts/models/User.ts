@@ -158,17 +158,22 @@ export class User implements IUser {
     }
     static async updateUser(data: UserAPIType) {
         try {
-            if (data.identifier === undefined ||
-                data.firstname === undefined ||
-                data.lastname === undefined ||
-                data.email === undefined) {
+            const requiredFields = ["identifier", "firstname", "lastname", "email",
+                                    "address1", "city", "state", "level"] as const;
+            const hasMissing = requiredFields.some(
+                (fieldName) => data[fieldName] === undefined || data[fieldName] === "",
+            );
+            if (hasMissing) {
                 throw new HTMLStatusError("Missing JSON Data", 400);
             }
-            const [userid, hostname] = data.email.split('@');
+            const [userid, hostname] = data.email.split("@");
+            if (!userid || !hostname) {
+                throw new HTMLStatusError("Missing JSON Data", 400);
+            }
 
             const result = await query(
                 `UPDATE users SET email=$1, emailID=$2, emailhost=$3, firstname=$4, lastname=$5, address1=$6, address2=$7, city=$8, state=$9, level=$10 WHERE user_identifier = $11 RETURNING user_identifier`,
-                [data.email, userid, hostname, data.firstname, data.lastname, data.address1, data.address2, data.city, data.state, data.level, data.identifier]
+                [data.email, userid, hostname, data.firstname, data.lastname, data.address1, data.address2 ?? "", data.city, data.state, data.level, data.identifier]
             )
             if (result.length === 0) {
                 throw new HTMLStatusError("User not found", 404);
