@@ -166,28 +166,36 @@ export class User implements IUser {
             }
             const [userid, hostname] = data.email.split('@');
 
-            await query(
-                `UPDATE users SET email=$1, emailID=$2, emailhost=$3, firstname=$4, lastname=$5, address1=$6, address2=$7, city=$8, state=$9, level=$10 WHERE user_identifier = $11`,
+            const result = await query(
+                `UPDATE users SET email=$1, emailID=$2, emailhost=$3, firstname=$4, lastname=$5, address1=$6, address2=$7, city=$8, state=$9, level=$10 WHERE user_identifier = $11 RETURNING user_identifier`,
                 [data.email, userid, hostname, data.firstname, data.lastname, data.address1, data.address2, data.city, data.state, data.level, data.identifier]
             )
+            if (result.length === 0) {
+                throw new HTMLStatusError("User not found", 404);
+            }
         } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            }
             throw new HTMLStatusError((error as Error).message, 500);
         }
     }
     static async deleteUser(data: UserAPIType) {
-        //console.log(`Data: ${(data.identifier)}`);
         try {
             if (data.identifier === undefined) {
                 throw new HTMLStatusError("Missing JSON Data", 400);
             }
-            await query(
-                `UPDATE users SET deleted=TRUE WHERE user_identifier = $1`,
+            const result = await query(
+                `UPDATE users SET deleted=TRUE WHERE user_identifier = $1 RETURNING user_identifier`,
                 [data.identifier]
             )
-            // if (result.rowCount === 0) {
-            //     throw new HTMLStatusError("No user match to delete", 404);
-            // }
+            if (result.length === 0) {
+                throw new HTMLStatusError("User not found", 404);
+            }
         } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            }
             throw new HTMLStatusError((error as Error).message, 500);
         }
     }

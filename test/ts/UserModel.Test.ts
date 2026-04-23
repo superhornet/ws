@@ -180,19 +180,18 @@ describe("User.fetchById", () => {
 });
 
 // --- updateUser ---
-// NOTE: updateUser's outer catch wraps EVERY error (including its own 400
-// validation error) as 500 — that is the current behavior we pin here.
 
 describe("User.updateUser", () => {
     beforeEach(() => {
         resetAll();
+        mockQuery.mock.mockImplementation(async () => [{ user_identifier: "uid-1" }]);
     });
 
     for (const field of ["identifier", "firstname", "lastname", "email"] as const) {
-        it(`rejects missing ${field} with 500-wrapped 'Missing JSON Data'`, async () => {
+        it(`rejects missing ${field} with 400 'Missing JSON Data'`, async () => {
             const partial: Record<string, unknown> = { ...validUpdatePayload };
             delete partial[field];
-            await expectStatus(User.updateUser(partial as never), 500, /Missing JSON Data/);
+            await expectStatus(User.updateUser(partial as never), 400, /Missing JSON Data/);
         });
     }
 
@@ -201,6 +200,7 @@ describe("User.updateUser", () => {
         assert.equal(mockQuery.mock.callCount(), 1);
         const [sql, params] = mockQuery.mock.calls[0]!.arguments as [string, unknown[]];
         assert.match(sql, /UPDATE users SET/);
+        assert.match(sql, /RETURNING user_identifier/);
         assert.deepEqual(params, [
             "jane@example.com", "jane", "example.com",
             "Jane", "Doe",
@@ -208,6 +208,11 @@ describe("User.updateUser", () => {
             "Free",
             "uid-1",
         ]);
+    });
+
+    it("throws 404 when no row matches the identifier", async () => {
+        mockQuery.mock.mockImplementation(async () => []);
+        await expectStatus(User.updateUser(validUpdatePayload as never), 404, /User not found/);
     });
 
     it("wraps DB errors as 500", async () => {
@@ -223,18 +228,28 @@ describe("User.updateUser", () => {
 describe("User.deleteUser", () => {
     beforeEach(() => {
         resetAll();
+        mockQuery.mock.mockImplementation(async () => [{ user_identifier: "uid-1" }]);
     });
 
-    it("rejects missing identifier with 500-wrapped 'Missing JSON Data'", async () => {
-        await expectStatus(User.deleteUser({} as never), 500, /Missing JSON Data/);
+    it("rejects missing identifier with 400 'Missing JSON Data'", async () => {
+        await expectStatus(User.deleteUser({} as never), 400, /Missing JSON Data/);
     });
 
     it("issues a soft-delete UPDATE when identifier is provided", async () => {
         await User.deleteUser({ identifier: "uid-1" } as never);
         assert.equal(mockQuery.mock.callCount(), 1);
         const [sql, params] = mockQuery.mock.calls[0]!.arguments as [string, unknown[]];
-        assert.match(sql, /UPDATE users SET deleted=TRUE WHERE user_identifier = \$1/);
+        assert.match(sql, /UPDATE users SET deleted=TRUE WHERE user_identifier = \$1 RETURNING user_identifier/);
         assert.deepEqual(params, ["uid-1"]);
+    });
+
+    it("throws 404 when no row matches the identifier", async () => {
+        mockQuery.mock.mockImplementation(async () => []);
+        await expectStatus(
+            User.deleteUser({ identifier: "missing" } as never),
+            404,
+            /User not found/,
+        );
     });
 
     it("wraps DB errors as 500", async () => {
