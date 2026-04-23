@@ -57,8 +57,12 @@ router.put("/notification/:id", async (req, res) => {
         if(data.session === undefined){
             throw new HTMLStatusError("Session ID Required", 403);
         }else{
-        new Audit(`Marking notification id: ${req.params.id} as seen`, data.session);
-        await Notification.setAsSeen(Number.parseInt(req.params.id) || 0);
+        const notificationId = Number.parseInt(req.params.id, 10);
+        if (!Number.isInteger(notificationId) || notificationId <= 0) {
+            throw new HTMLStatusError("Invalid notification id", 400);
+        }
+        new Audit(`Marking notification id: ${notificationId} as seen`, data.session);
+        await Notification.setAsSeen(notificationId);
         JSONResponse.updateSuccess(req, res, "Accepted", data as JSON)
         }
     } catch (error) {
@@ -75,8 +79,12 @@ router.delete("/notification/:id", (req, res) => {
         if(data.session === undefined){
             throw new HTMLStatusError("Session ID Required", 403);
         }else{
-        new Audit(`Marking notification id: ${req.params.id} as deleted`, data.session);
-        Notification.setDeleted(Number.parseInt(req.params.id) || 0);
+        const notificationId = Number.parseInt(req.params.id, 10);
+        if (!Number.isInteger(notificationId) || notificationId <= 0) {
+            throw new HTMLStatusError("Invalid notification id", 400);
+        }
+        new Audit(`Marking notification id: ${notificationId} as deleted`, data.session);
+        Notification.setDeleted(notificationId);
         JSONResponse.noContent(req, res, "No Content", null)
         }
     } catch (error) {
