@@ -43,6 +43,9 @@ class MockUser {
     toJSON() {
         return { ...userInstanceJSON };
     }
+    static async create(input: unknown): Promise<MockUser> {
+        return new MockUser(input);
+    }
     static fetchById(...args: unknown[]): Promise<unknown> {
         return mockFetchById(...args);
     }

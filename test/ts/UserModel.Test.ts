@@ -101,15 +101,13 @@ describe("new User()", () => {
         assert.equal(json.lastname, "Kim");
     });
 
-    it("schedules a DB insert via withTransaction", () => {
-        new User({ ...validUserInput });
+    it("schedules a DB insert via withTransaction", async () => {
+        await User.create({ ...validUserInput });
         assert.equal(mockWithTransaction.mock.callCount(), 1);
     });
 
     it("sends INSERT with the mapped values to the transaction client", async () => {
-        new User({ ...validUserInput });
-        // withTransaction is invoked synchronously; await the queued callback.
-        await new Promise((resolve) => setImmediate(resolve));
+        await User.create({ ...validUserInput });
         assert.equal(mockClientQuery.mock.callCount(), 1);
         const [sql, params] = mockClientQuery.mock.calls[0]!.arguments as [string, unknown[]];
         assert.match(sql, /INSERT INTO users/);

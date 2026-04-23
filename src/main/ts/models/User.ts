@@ -42,7 +42,7 @@ export class User implements IUser {
     public _UserConfig!: TUserConfig;
     private userObj: IUser | undefined;
     private id!: number;
-    constructor(
+    private constructor(
         user1: Pick<TUser, "nameF"|"nameL"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
     ) {
         const [userid, hostname] = user1.email.split("@");
@@ -66,11 +66,14 @@ export class User implements IUser {
                 forUser: user.identifier
             }
         };
-        try {
-            this.storeUser();
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
+    }
+
+    static async create(
+        user1: Pick<TUser, "nameF"|"nameL"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
+    ): Promise<User> {
+        const user = new User(user1);
+        await user.storeUser();
+        return user;
     }
     public toJSON() {
         const data = this.User?._User as TUser;
@@ -89,9 +92,9 @@ export class User implements IUser {
             subscriptionLevel: data.subscriptionLevel,
         };
     }
-    private storeUser() {
+    private async storeUser(): Promise<void> {
         const data = this.User?._User as TUser;
-        withTransaction(async (client) => {
+        await withTransaction(async (client) => {
             const userInsert = await client.query<{ id: number }>(
                 `INSERT INTO users (email,emailHost,emailID,firstname,lastname,user_identifier,address1,address2,city,state,level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
                 [
@@ -108,6 +111,9 @@ export class User implements IUser {
                     data.subscriptionLevel
                 ]
             );
+            if (userInsert.rows.length === 0) {
+                throw new HTMLStatusError("User creation failed", 400);
+            }
             this.id = userInsert.rows[0]!.id;
         });
     }

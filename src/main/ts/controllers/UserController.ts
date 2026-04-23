@@ -11,14 +11,14 @@ export const router = express.Router();
 /**
  * Create a User
  */
-router.post("/user", (req, res) => {
+router.post("/user", async (req, res) => {
     try {
         requireBody(req);
         const data: UserAPIType = req.body;
         requireSessionFromBody(data);
 
         new Audit("POST /api/user", data.session);
-        const user = new User({
+        const user = await User.create({
             nameF: data.firstname,
             nameL: data.lastname,
             email: data.email,
