@@ -70,24 +70,19 @@ export class User implements IUser {
     private constructor(
         user1: CreateUserInput
     ) {
-        const [userid, hostname] = user1.email.split("@");
+        const { firstname, lastname, email, address1, address2, city, state } = user1;
+        const [userid, hostname] = email.split("@");
         const level = user1.level || SubscriptionType.FREE;
         if (!User.isSubscriptionEnum(level)) {
             throw new HTMLStatusError("Missing JSON Data", 400);
         }
 
         const user: TUser = {
-            firstname: user1.firstname,
-            lastname: user1.lastname,
-            email: user1.email,
+            firstname, lastname, email,
             emailID: userid || "",
             emailHost: hostname || "",
-            address1: user1.address1,
-            address2: user1.address2,
-            city: user1.city,
-            state: user1.state,
-            level: level,
-            identifier: generateUUID()
+            address1, address2, city, state, level,
+            identifier: generateUUID(),
         };
         this.User = {
             _User: user,
@@ -105,40 +100,15 @@ export class User implements IUser {
         return user;
     }
     public toJSON() {
-        const data = this.User?._User as TUser;
-        return {
-            address1: data.address1,
-            address2: data.address2,
-            city: data.city,
-            email: data.email,
-            emailHost: data.emailHost,
-            emailID: data.emailID,
-            firstname: data.firstname,
-            id: this.id,
-            identifier: data.identifier,
-            lastname: data.lastname,
-            state: data.state,
-            level: data.level,
-        };
+        const { address1, address2, city, email, emailHost, emailID, firstname, identifier, lastname, state, level } = this.User!._User;
+        return { address1, address2, city, email, emailHost, emailID, firstname, id: this.id, identifier, lastname, state, level };
     }
     private async storeUser(): Promise<void> {
-        const data = this.User?._User as TUser;
+        const { email, emailHost, emailID, firstname, lastname, identifier, address1, address2, city, state, level } = this.User!._User;
         await withTransaction(async (client) => {
             const userInsert = await client.query<{ id: number }>(
                 `INSERT INTO users (email,emailHost,emailID,firstname,lastname,user_identifier,address1,address2,city,state,level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-                [
-                    data.email,
-                    data.emailHost,
-                    data.emailID,
-                    data.firstname,
-                    data.lastname,
-                    data.identifier,
-                    data.address1,
-                    data.address2,
-                    data.city,
-                    data.state,
-                    data.level
-                ]
+                [email, emailHost, emailID, firstname, lastname, identifier, address1, address2, city, state, level],
             );
             if (userInsert.rows.length === 0) {
                 throw new HTMLStatusError("User creation failed", 400);
@@ -147,9 +117,7 @@ export class User implements IUser {
         });
     }
     static async fetchById(userid: string): Promise<FetchedUser> {
-        let user: FetchedUser;
         try {
-
             const fetchedUser = await query<{ id: number; email: string;
                 firstname: string; lastname: string; user_identifier: string;
                 address1: string; address2: string; city: string; state: string;
@@ -157,26 +125,15 @@ export class User implements IUser {
                 `SELECT id, email, firstname, lastname, user_identifier, address1, address2, city, state, level FROM users WHERE user_identifier = $1 AND deleted = FALSE;`,
                 [userid]
             )
-            if (fetchedUser[0]) {
-                if (!User.isSubscriptionEnum(fetchedUser[0].level)) {
-                    throw new HTMLStatusError("Internal Server Error", 500);
-                }
-                user = {
-                    id: fetchedUser[0].id,
-                    email: fetchedUser[0].email,
-                    firstname: fetchedUser[0].firstname,
-                    lastname: fetchedUser[0].lastname,
-                    identifier: fetchedUser[0].user_identifier,
-                    address1: fetchedUser[0].address1,
-                    address2: fetchedUser[0].address2,
-                    city: fetchedUser[0].city,
-                    state: fetchedUser[0].state,
-                    level: fetchedUser[0].level
-                }
-            } else {
+            const row = fetchedUser[0];
+            if (!row) {
                 throw new HTMLStatusError("User was not found", 404);
             }
-            return user;
+            const { id, email, firstname, lastname, user_identifier: identifier, address1, address2, city, state, level } = row;
+            if (!User.isSubscriptionEnum(level)) {
+                throw new HTMLStatusError("Internal Server Error", 500);
+            }
+            return { id, email, firstname, lastname, identifier, address1, address2, city, state, level };
         } catch (error) {
             if (error instanceof HTMLStatusError) {
                 throw error;
