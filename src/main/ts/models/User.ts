@@ -45,6 +45,12 @@ export interface IUser {
 }
 
 export class User implements IUser {
+    private static readonly allowedLevels: ReadonlySet<string> = new Set([
+        SubscriptionType.FREE,
+        SubscriptionType.BASIC,
+        SubscriptionType.PRO,
+    ]);
+
     private get User(): IUser | undefined {
         return this.userObj;
     }
@@ -59,6 +65,10 @@ export class User implements IUser {
         user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
     ) {
         const [userid, hostname] = user1.email.split("@");
+        const level = user1.subscriptionLevel || SubscriptionType.FREE;
+        if (!User.allowedLevels.has(level)) {
+            throw new HTMLStatusError("Missing JSON Data", 400);
+        }
 
         const user: TUser = {
             firstname: user1.firstname,
@@ -70,7 +80,7 @@ export class User implements IUser {
             address2: user1.address2,
             city: user1.city,
             state: user1.state,
-            subscriptionLevel: user1.subscriptionLevel || SubscriptionType.FREE,
+            subscriptionLevel: level,
             identifier: generateUUID()
         };
         this.User = {
@@ -178,6 +188,9 @@ export class User implements IUser {
             }
             const [userid, hostname] = data.email.split("@");
             if (!userid || !hostname) {
+                throw new HTMLStatusError("Missing JSON Data", 400);
+            }
+            if (!User.allowedLevels.has(data.level)) {
                 throw new HTMLStatusError("Missing JSON Data", 400);
             }
 
