@@ -206,8 +206,8 @@ describe('POST /api/user', () => {
         });
         assert.equal(mockUserConstructor.mock.callCount(), 1);
         const arg = mockUserConstructor.mock.calls[0]!.arguments[0] as Record<string, unknown>;
-        assert.equal(arg.nameF, 'Jane');
-        assert.equal(arg.nameL, 'Doe');
+        assert.equal(arg.firstname, 'Jane');
+        assert.equal(arg.lastname, 'Doe');
         assert.equal(arg.email, 'jane@example.com');
         assert.equal(arg.subscriptionLevel, 'Free');
     });

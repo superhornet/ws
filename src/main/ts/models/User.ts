@@ -4,8 +4,8 @@ import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
 export interface TUser {
-    nameF: string;
-    nameL: string;
+    firstname: string;
+    lastname: string;
     email: string;
     emailID: string;
     emailHost: string;
@@ -43,13 +43,13 @@ export class User implements IUser {
     private userObj: IUser | undefined;
     private id!: number;
     private constructor(
-        user1: Pick<TUser, "nameF"|"nameL"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
+        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
     ) {
         const [userid, hostname] = user1.email.split("@");
 
         const user: TUser = {
-            nameF: user1.nameF,
-            nameL: user1.nameL,
+            firstname: user1.firstname,
+            lastname: user1.lastname,
             email: user1.email,
             emailID: userid || "",
             emailHost: hostname || "",
@@ -69,7 +69,7 @@ export class User implements IUser {
     }
 
     static async create(
-        user1: Pick<TUser, "nameF"|"nameL"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
+        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
     ): Promise<User> {
         const user = new User(user1);
         await user.storeUser();
@@ -84,10 +84,10 @@ export class User implements IUser {
             email: data.email,
             emailHost: data.emailHost,
             emailID: data.emailID,
-            firstname: data.nameF,
+            firstname: data.firstname,
             id: this.id,
             identifier: data.identifier,
-            lastname: data.nameL,
+            lastname: data.lastname,
             state: data.state,
             subscriptionLevel: data.subscriptionLevel,
         };
@@ -101,8 +101,8 @@ export class User implements IUser {
                     data.email,
                     data.emailHost,
                     data.emailID,
-                    data.nameF,
-                    data.nameL,
+                    data.firstname,
+                    data.lastname,
                     data.identifier,
                     data.address1,
                     data.address2,
