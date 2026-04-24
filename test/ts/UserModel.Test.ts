@@ -52,7 +52,7 @@ const validUserInput = {
     address2: "Apt 2",
     city: "Springfield",
     state: "IL",
-    subscriptionLevel: "Free",
+    level: "Free",
 };
 
 const validUpdatePayload = {
@@ -84,14 +84,14 @@ describe("new User()", () => {
         assert.equal(json.email, "jane@example.com");
     });
 
-    it("defaults subscriptionLevel to FREE when falsy", () => {
-        const user = new User({ ...validUserInput, subscriptionLevel: "" });
-        assert.equal(user.toJSON().subscriptionLevel, "Free");
+    it("defaults level to FREE when falsy", () => {
+        const user = new User({ ...validUserInput, level: "" });
+        assert.equal(user.toJSON().level, "Free");
     });
 
-    it("rejects an unknown subscriptionLevel with 400 'Missing JSON Data'", () => {
+    it("rejects an unknown level with 400 'Missing JSON Data'", () => {
         assert.throws(
-            () => new User({ ...validUserInput, subscriptionLevel: "Platinum" }),
+            () => new User({ ...validUserInput, level: "Platinum" }),
             (error: HTMLStatusError) => {
                 assert.equal(error.statusCode, 400);
                 assert.match(error.message, /Missing JSON Data/);

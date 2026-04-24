@@ -33,7 +33,7 @@ const userInstanceJSON: Record<string, unknown> = {
     address2: 'Apt 2',
     city: 'Springfield',
     state: 'IL',
-    subscriptionLevel: 'Free'
+    level: 'Free'
 };
 
 class MockUser {
@@ -209,7 +209,7 @@ describe('POST /api/user', () => {
         assert.equal(arg.firstname, 'Jane');
         assert.equal(arg.lastname, 'Doe');
         assert.equal(arg.email, 'jane@example.com');
-        assert.equal(arg.subscriptionLevel, 'Free');
+        assert.equal(arg.level, 'Free');
     });
 
     it('records an Audit entry tied to the session', async () => {
