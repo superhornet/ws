@@ -26,7 +26,7 @@ export interface TUser {
     address2: string;
     city: string;
     state: string;
-    level: string;
+    level: SubscriptionEnum;
     /** identifier is uuid */
     identifier: string;
 }
@@ -44,12 +44,18 @@ export interface IUser {
     _UserConfig: TUserConfig;
 }
 
+type CreateUserInput = Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"> & { level: string };
+
 export class User implements IUser {
-    private static readonly allowedLevels: ReadonlySet<string> = new Set([
+    private static readonly allowedLevels: ReadonlySet<SubscriptionEnum> = new Set([
         SubscriptionType.FREE,
         SubscriptionType.BASIC,
         SubscriptionType.PRO,
     ]);
+
+    private static isSubscriptionEnum(value: string): value is SubscriptionEnum {
+        return (User.allowedLevels as ReadonlySet<string>).has(value);
+    }
 
     private get User(): IUser | undefined {
         return this.userObj;
@@ -62,11 +68,11 @@ export class User implements IUser {
     private userObj: IUser | undefined;
     private id!: number;
     private constructor(
-        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"level">
+        user1: CreateUserInput
     ) {
         const [userid, hostname] = user1.email.split("@");
         const level = user1.level || SubscriptionType.FREE;
-        if (!User.allowedLevels.has(level)) {
+        if (!User.isSubscriptionEnum(level)) {
             throw new HTMLStatusError("Missing JSON Data", 400);
         }
 
@@ -92,7 +98,7 @@ export class User implements IUser {
     }
 
     static async create(
-        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"level">
+        user1: CreateUserInput
     ): Promise<User> {
         const user = new User(user1);
         await user.storeUser();
@@ -147,11 +153,14 @@ export class User implements IUser {
             const fetchedUser = await query<{ id: number; email: string;
                 firstname: string; lastname: string; user_identifier: string;
                 address1: string; address2: string; city: string; state: string;
-                level: SubscriptionEnum }>(
+                level: string }>(
                 `SELECT id, email, firstname, lastname, user_identifier, address1, address2, city, state, level FROM users WHERE user_identifier = $1 AND deleted = FALSE;`,
                 [userid]
             )
             if (fetchedUser[0]) {
+                if (!User.isSubscriptionEnum(fetchedUser[0].level)) {
+                    throw new HTMLStatusError("Internal Server Error", 500);
+                }
                 user = {
                     id: fetchedUser[0].id,
                     email: fetchedUser[0].email,
@@ -190,7 +199,7 @@ export class User implements IUser {
             if (!userid || !hostname) {
                 throw new HTMLStatusError("Missing JSON Data", 400);
             }
-            if (!User.allowedLevels.has(data.level)) {
+            if (!User.isSubscriptionEnum(data.level)) {
                 throw new HTMLStatusError("Missing JSON Data", 400);
             }
 

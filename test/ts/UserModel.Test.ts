@@ -188,6 +188,11 @@ describe("User.fetchById", () => {
         });
         await expectStatus(User.fetchById("uid-1"), 500, /Internal Server Error/);
     });
+
+    it("throws 500 when the DB returns an unexpected level", async () => {
+        mockQuery.mock.mockImplementation(async () => [{ ...row, level: "Platinum" }]);
+        await expectStatus(User.fetchById("uid-1"), 500, /Internal Server Error/);
+    });
 });
 
 // --- updateUser ---
