@@ -26,7 +26,7 @@ export interface TUser {
     address2: string;
     city: string;
     state: string;
-    subscriptionLevel: string;
+    level: string;
     /** identifier is uuid */
     identifier: string;
 }
@@ -62,10 +62,10 @@ export class User implements IUser {
     private userObj: IUser | undefined;
     private id!: number;
     private constructor(
-        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
+        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"level">
     ) {
         const [userid, hostname] = user1.email.split("@");
-        const level = user1.subscriptionLevel || SubscriptionType.FREE;
+        const level = user1.level || SubscriptionType.FREE;
         if (!User.allowedLevels.has(level)) {
             throw new HTMLStatusError("Missing JSON Data", 400);
         }
@@ -80,7 +80,7 @@ export class User implements IUser {
             address2: user1.address2,
             city: user1.city,
             state: user1.state,
-            subscriptionLevel: level,
+            level: level,
             identifier: generateUUID()
         };
         this.User = {
@@ -92,7 +92,7 @@ export class User implements IUser {
     }
 
     static async create(
-        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"subscriptionLevel">
+        user1: Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"|"level">
     ): Promise<User> {
         const user = new User(user1);
         await user.storeUser();
@@ -112,7 +112,7 @@ export class User implements IUser {
             identifier: data.identifier,
             lastname: data.lastname,
             state: data.state,
-            subscriptionLevel: data.subscriptionLevel,
+            level: data.level,
         };
     }
     private async storeUser(): Promise<void> {
@@ -131,7 +131,7 @@ export class User implements IUser {
                     data.address2,
                     data.city,
                     data.state,
-                    data.subscriptionLevel
+                    data.level
                 ]
             );
             if (userInsert.rows.length === 0) {

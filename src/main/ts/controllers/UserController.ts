@@ -26,7 +26,7 @@ router.post("/user", async (req, res) => {
             address2: data.address2,
             city: data.city,
             state: data.state,
-            subscriptionLevel: data.level
+            level: data.level
         });
 
         JSONResponse.creationSuccess(req, res, "Created", user.toJSON() as unknown as JSON);
