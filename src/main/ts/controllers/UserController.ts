@@ -19,8 +19,8 @@ router.post("/user", async (req, res) => {
 
         new Audit("POST /api/user", data.session);
         const user = await User.create({
-            nameF: data.firstname,
-            nameL: data.lastname,
+            firstname: data.firstname,
+            lastname: data.lastname,
             email: data.email,
             address1: data.address1,
             address2: data.address2,

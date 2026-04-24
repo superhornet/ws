@@ -45,8 +45,8 @@ async function expectStatus(
 }
 
 const validUserInput = {
-    nameF: "Jane",
-    nameL: "Doe",
+    firstname: "Jane",
+    lastname: "Doe",
     email: "jane@example.com",
     address1: "1 Main",
     address2: "Apt 2",
@@ -94,8 +94,8 @@ describe("new User()", () => {
         assert.match(user.toJSON().identifier, /^[0-9a-f-]{36}$/);
     });
 
-    it("maps nameF/nameL to firstname/lastname in toJSON", () => {
-        const user = new User({ ...validUserInput, nameF: "Alex", nameL: "Kim" });
+    it("exposes firstname/lastname in toJSON", () => {
+        const user = new User({ ...validUserInput, firstname: "Alex", lastname: "Kim" });
         const json = user.toJSON();
         assert.equal(json.firstname, "Alex");
         assert.equal(json.lastname, "Kim");
