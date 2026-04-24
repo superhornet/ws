@@ -37,12 +37,24 @@ export class Audit implements IAudit {
      */
     constructor(message: string, session: string) {
         try {
-            this.message = message;
+            this.message = Audit.sanitize(message);
             this.session = session;
             this.logMessage();
         } catch (error) {
             throw new Error((error as Error).message);
         }
+    }
+    /**
+     * Neutralize log-injection: strip C0/C1 control chars (incl. CR/LF) so
+     * attacker-controlled substrings can't forge extra log lines, and cap
+     * length so an oversized payload can't flood the audit table.
+     */
+    static sanitize(message: string): string {
+        const maxLength = 512;
+        // eslint-disable-next-line no-control-regex
+        const stripped = message.replace(/[\x00-\x1F\x7F-\x9F]/g, " ");
+
+        return stripped.length > maxLength ? stripped.slice(0, maxLength) : stripped;
     }
     private logMessage() {
         withTransaction(async (client) => {
