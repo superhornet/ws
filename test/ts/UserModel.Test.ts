@@ -89,6 +89,17 @@ describe("new User()", () => {
         assert.equal(user.toJSON().subscriptionLevel, "Free");
     });
 
+    it("rejects an unknown subscriptionLevel with 400 'Missing JSON Data'", () => {
+        assert.throws(
+            () => new User({ ...validUserInput, subscriptionLevel: "Platinum" }),
+            (error: HTMLStatusError) => {
+                assert.equal(error.statusCode, 400);
+                assert.match(error.message, /Missing JSON Data/);
+                return true;
+            },
+        );
+    });
+
     it("generates a UUID-shaped identifier", () => {
         const user = new User({ ...validUserInput });
         assert.match(user.toJSON().identifier, /^[0-9a-f-]{36}$/);
@@ -199,6 +210,14 @@ describe("User.updateUser", () => {
     it("rejects malformed email with 400 'Missing JSON Data'", async () => {
         await expectStatus(
             User.updateUser({ ...validUpdatePayload, email: "nothing" } as never),
+            400,
+            /Missing JSON Data/,
+        );
+    });
+
+    it("rejects unknown level with 400 'Missing JSON Data'", async () => {
+        await expectStatus(
+            User.updateUser({ ...validUpdatePayload, level: "Platinum" } as never),
             400,
             /Missing JSON Data/,
         );
