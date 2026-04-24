@@ -3,6 +3,19 @@ import { SubscriptionType, type SubscriptionEnum } from "../types/SubscriptionTy
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
+export interface FetchedUser {
+    id: number;
+    email: string;
+    firstname: string;
+    lastname: string;
+    identifier: string;
+    address1: string;
+    address2: string;
+    city: string;
+    state: string;
+    level: SubscriptionEnum;
+}
+
 export interface TUser {
     firstname: string;
     lastname: string;
@@ -117,11 +130,8 @@ export class User implements IUser {
             this.id = userInsert.rows[0]!.id;
         });
     }
-    static async fetchById(userid: string) {
-        let user:{ id: number; email: string;
-                firstname: string; lastname: string; identifier: string;
-                address1: string; address2: string; city: string; state: string;
-                level: SubscriptionEnum };
+    static async fetchById(userid: string): Promise<FetchedUser> {
+        let user: FetchedUser;
         try {
 
             const fetchedUser = await query<{ id: number; email: string;
