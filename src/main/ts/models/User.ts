@@ -152,7 +152,7 @@ export class User implements IUser {
             if (error instanceof HTMLStatusError) {
                 throw error;
             } else {
-                throw new HTMLStatusError((error as Error).message, 500);
+                throw new HTMLStatusError("Internal Server Error", 500);
             }
         }
     }
@@ -182,7 +182,7 @@ export class User implements IUser {
             if (error instanceof HTMLStatusError) {
                 throw error;
             }
-            throw new HTMLStatusError((error as Error).message, 500);
+            throw new HTMLStatusError("Internal Server Error", 500);
         }
     }
     static async deleteUser(data: UserAPIType) {
@@ -201,7 +201,7 @@ export class User implements IUser {
             if (error instanceof HTMLStatusError) {
                 throw error;
             }
-            throw new HTMLStatusError((error as Error).message, 500);
+            throw new HTMLStatusError("Internal Server Error", 500);
         }
     }
 }

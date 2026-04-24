@@ -175,7 +175,7 @@ describe("User.fetchById", () => {
         mockQuery.mock.mockImplementation(async () => {
             throw new Error("db down");
         });
-        await expectStatus(User.fetchById("uid-1"), 500, /db down/);
+        await expectStatus(User.fetchById("uid-1"), 500, /Internal Server Error/);
     });
 });
 
@@ -228,7 +228,7 @@ describe("User.updateUser", () => {
         mockQuery.mock.mockImplementation(async () => {
             throw new Error("db down");
         });
-        await expectStatus(User.updateUser(validUpdatePayload as never), 500, /db down/);
+        await expectStatus(User.updateUser(validUpdatePayload as never), 500, /Internal Server Error/);
     });
 });
 
@@ -268,7 +268,7 @@ describe("User.deleteUser", () => {
         await expectStatus(
             User.deleteUser({ identifier: "uid-1" } as never),
             500,
-            /db down/,
+            /Internal Server Error/,
         );
     });
 });
