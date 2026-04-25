@@ -76,37 +76,34 @@ describe("new User()", () => {
         resetAll();
     });
 
-    it("derives emailID and emailHost from the email", () => {
-        const user = new User({ ...validUserInput });
+    it("derives emailID and emailHost from the email", async () => {
+        const user = await User.create({ ...validUserInput });
         const json = user.toJSON();
         assert.equal(json.emailID, "jane");
         assert.equal(json.emailHost, "example.com");
         assert.equal(json.email, "jane@example.com");
     });
 
-    it("defaults level to FREE when falsy", () => {
-        const user = new User({ ...validUserInput, level: "" });
+    it("defaults level to FREE when falsy", async () => {
+        const user = await User.create({ ...validUserInput, level: "" });
         assert.equal(user.toJSON().level, "Free");
     });
 
-    it("rejects an unknown level with 400 'Missing JSON Data'", () => {
-        assert.throws(
-            () => new User({ ...validUserInput, level: "Platinum" }),
-            (error: HTMLStatusError) => {
-                assert.equal(error.statusCode, 400);
-                assert.match(error.message, /Missing JSON Data/);
-                return true;
-            },
+    it("rejects an unknown level with 400 'Missing JSON Data'", async () => {
+        await expectStatus(
+            User.create({ ...validUserInput, level: "Platinum" }),
+            400,
+            /Missing JSON Data/,
         );
     });
 
-    it("generates a UUID-shaped identifier", () => {
-        const user = new User({ ...validUserInput });
+    it("generates a UUID-shaped identifier", async () => {
+        const user = await User.create({ ...validUserInput });
         assert.match(user.toJSON().identifier, /^[0-9a-f-]{36}$/);
     });
 
-    it("exposes firstname/lastname in toJSON", () => {
-        const user = new User({ ...validUserInput, firstname: "Alex", lastname: "Kim" });
+    it("exposes firstname/lastname in toJSON", async () => {
+        const user = await User.create({ ...validUserInput, firstname: "Alex", lastname: "Kim" });
         const json = user.toJSON();
         assert.equal(json.firstname, "Alex");
         assert.equal(json.lastname, "Kim");
