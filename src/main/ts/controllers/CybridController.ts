@@ -23,6 +23,7 @@ import type {
     PostPlanBankModel,
 } from "../libs/CybridClient.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
+import { requireGuid } from "../libs/httpErrorWrap.ts";
 import { withIdempotency } from "../libs/withIdempotency.ts";
 import { getSession, requireSessionFromBody } from "../libs/session.ts";
 import { requireBody } from "../libs/requestValidation.ts";
@@ -48,9 +49,7 @@ router.get("/cybrid/customer/:customer_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const customerGuid = req.params.customer_guid;
-        if (!customerGuid) {
-            throw new HTMLStatusError("Customer GUID is required", 400);
-        }
+        requireGuid(customerGuid, "Customer");
         new Audit(`GET /api/cybrid/customer/${customerGuid}`, session);
         const includePii = req.query.include_pii === "true";
         const customer = await Cybrid.getCustomer(customerGuid, includePii);
@@ -77,9 +76,7 @@ router.patch("/cybrid/customer/:customer_guid", async (req, res) => {
         const data = req.body as PatchCustomerBankModel & { session?: string };
         requireSessionFromBody(data);
         const customerGuid = req.params.customer_guid;
-        if (!customerGuid) {
-            throw new HTMLStatusError("Customer GUID is required", 400);
-        }
+        requireGuid(customerGuid, "Customer");
         new Audit(`PATCH /api/cybrid/customer/${customerGuid}`, data.session);
         const customer = await Cybrid.updateCustomer(customerGuid, data);
         JSONResponse.goodToGo(req, res, "Customer updated", customer as unknown as JSON);
@@ -107,9 +104,7 @@ router.get("/cybrid/account/:account_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const accountGuid = req.params.account_guid;
-        if (!accountGuid) {
-            throw new HTMLStatusError("Account GUID is required", 400);
-        }
+        requireGuid(accountGuid, "Account");
         new Audit(`GET /api/cybrid/account/${accountGuid}`, session);
         const account = await Cybrid.getAccount(accountGuid);
         JSONResponse.goodToGo(req, res, "OK", account as unknown as JSON);
@@ -153,9 +148,7 @@ router.get("/cybrid/quote/:quote_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const quoteGuid = req.params.quote_guid;
-        if (!quoteGuid) {
-            throw new HTMLStatusError("Quote GUID is required", 400);
-        }
+        requireGuid(quoteGuid, "Quote");
         new Audit(`GET /api/cybrid/quote/${quoteGuid}`, session);
         const quote = await Cybrid.getQuote(quoteGuid);
         JSONResponse.goodToGo(req, res, "OK", quote as unknown as JSON);
@@ -199,9 +192,7 @@ router.get("/cybrid/trade/:trade_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const tradeGuid = req.params.trade_guid;
-        if (!tradeGuid) {
-            throw new HTMLStatusError("Trade GUID is required", 400);
-        }
+        requireGuid(tradeGuid, "Trade");
         new Audit(`GET /api/cybrid/trade/${tradeGuid}`, session);
         const trade = await Cybrid.getTrade(tradeGuid);
         JSONResponse.goodToGo(req, res, "OK", trade as unknown as JSON);
@@ -243,9 +234,7 @@ router.get("/cybrid/transfer/:transfer_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const transferGuid = req.params.transfer_guid;
-        if (!transferGuid) {
-            throw new HTMLStatusError("Transfer GUID is required", 400);
-        }
+        requireGuid(transferGuid, "Transfer");
         new Audit(`GET /api/cybrid/transfer/${transferGuid}`, session);
         const transfer = await Cybrid.getTransfer(transferGuid);
         JSONResponse.goodToGo(req, res, "OK", transfer as unknown as JSON);
@@ -272,9 +261,7 @@ router.patch("/cybrid/transfer/:transfer_guid", async (req, res) => {
         const data = req.body as PatchTransferBankModel & { session?: string };
         requireSessionFromBody(data);
         const transferGuid = req.params.transfer_guid;
-        if (!transferGuid) {
-            throw new HTMLStatusError("Transfer GUID is required", 400);
-        }
+        requireGuid(transferGuid, "Transfer");
         new Audit(`PATCH /api/cybrid/transfer/${transferGuid}`, data.session);
         const transfer = await Cybrid.updateTransfer(transferGuid, data);
         JSONResponse.goodToGo(req, res, "Transfer updated", transfer as unknown as JSON);
@@ -349,9 +336,7 @@ router.get("/cybrid/identity-verification/:verification_guid", async (req, res) 
     try {
         const session = getSession(req);
         const verificationGuid = req.params.verification_guid;
-        if (!verificationGuid) {
-            throw new HTMLStatusError("Verification GUID is required", 400);
-        }
+        requireGuid(verificationGuid, "Verification");
         new Audit(`GET /api/cybrid/identity-verification/${verificationGuid}`, session);
         const verification = await Cybrid.getIdentityVerification(verificationGuid);
         JSONResponse.goodToGo(req, res, "OK", verification as unknown as JSON);
@@ -423,9 +408,7 @@ router.get("/cybrid/deposit-address/:deposit_address_guid", async (req, res) => 
     try {
         const session = getSession(req);
         const depositAddressGuid = req.params.deposit_address_guid;
-        if (!depositAddressGuid) {
-            throw new HTMLStatusError("Deposit Address GUID is required", 400);
-        }
+        requireGuid(depositAddressGuid, "Deposit Address");
         new Audit(`GET /api/cybrid/deposit-address/${depositAddressGuid}`, session);
         const address = await Cybrid.getDepositAddress(depositAddressGuid);
         JSONResponse.goodToGo(req, res, "OK", address as unknown as JSON);
@@ -467,9 +450,7 @@ router.get("/cybrid/deposit-bank-account/:deposit_bank_account_guid", async (req
     try {
         const session = getSession(req);
         const depositBankAccountGuid = req.params.deposit_bank_account_guid;
-        if (!depositBankAccountGuid) {
-            throw new HTMLStatusError("Deposit Bank Account GUID is required", 400);
-        }
+        requireGuid(depositBankAccountGuid, "Deposit Bank Account");
         new Audit(`GET /api/cybrid/deposit-bank-account/${depositBankAccountGuid}`, session);
         const account = await Cybrid.getDepositBankAccount(depositBankAccountGuid);
         JSONResponse.goodToGo(req, res, "OK", account as unknown as JSON);
@@ -511,9 +492,7 @@ router.get("/cybrid/external-bank-account/:external_bank_account_guid", async (r
     try {
         const session = getSession(req);
         const externalBankAccountGuid = req.params.external_bank_account_guid;
-        if (!externalBankAccountGuid) {
-            throw new HTMLStatusError("External Bank Account GUID is required", 400);
-        }
+        requireGuid(externalBankAccountGuid, "External Bank Account");
         new Audit(`GET /api/cybrid/external-bank-account/${externalBankAccountGuid}`, session);
         const includeBalances = req.query.include_balances === "true";
         const forceBalanceRefresh = req.query.force_balance_refresh === "true";
@@ -550,9 +529,7 @@ router.patch("/cybrid/external-bank-account/:external_bank_account_guid", async 
         const data = req.body as PatchExternalBankAccountBankModel & { session?: string };
         requireSessionFromBody(data);
         const externalBankAccountGuid = req.params.external_bank_account_guid;
-        if (!externalBankAccountGuid) {
-            throw new HTMLStatusError("External Bank Account GUID is required", 400);
-        }
+        requireGuid(externalBankAccountGuid, "External Bank Account");
         new Audit(`PATCH /api/cybrid/external-bank-account/${externalBankAccountGuid}`, data.session);
         const account = await Cybrid.patchExternalBankAccount(externalBankAccountGuid, data);
         JSONResponse.goodToGo(req, res, "External bank account updated", account as unknown as JSON);
@@ -565,9 +542,7 @@ router.delete("/cybrid/external-bank-account/:external_bank_account_guid", async
     try {
         const session = getSession(req);
         const externalBankAccountGuid = req.params.external_bank_account_guid;
-        if (!externalBankAccountGuid) {
-            throw new HTMLStatusError("External Bank Account GUID is required", 400);
-        }
+        requireGuid(externalBankAccountGuid, "External Bank Account");
         new Audit(`DELETE /api/cybrid/external-bank-account/${externalBankAccountGuid}`, session);
         const account = await Cybrid.deleteExternalBankAccount(externalBankAccountGuid);
         JSONResponse.goodToGo(req, res, "External bank account deleted", account as unknown as JSON);
@@ -595,9 +570,7 @@ router.get("/cybrid/external-wallet/:external_wallet_guid", async (req, res) => 
     try {
         const session = getSession(req);
         const externalWalletGuid = req.params.external_wallet_guid;
-        if (!externalWalletGuid) {
-            throw new HTMLStatusError("External Wallet GUID is required", 400);
-        }
+        requireGuid(externalWalletGuid, "External Wallet");
         new Audit(`GET /api/cybrid/external-wallet/${externalWalletGuid}`, session);
         const wallet = await Cybrid.getExternalWallet(externalWalletGuid);
         JSONResponse.goodToGo(req, res, "OK", wallet as unknown as JSON);
@@ -624,9 +597,7 @@ router.delete("/cybrid/external-wallet/:external_wallet_guid", async (req, res) 
     try {
         const session = getSession(req);
         const externalWalletGuid = req.params.external_wallet_guid;
-        if (!externalWalletGuid) {
-            throw new HTMLStatusError("External Wallet GUID is required", 400);
-        }
+        requireGuid(externalWalletGuid, "External Wallet");
         new Audit(`DELETE /api/cybrid/external-wallet/${externalWalletGuid}`, session);
         const wallet = await Cybrid.deleteExternalWallet(externalWalletGuid);
         JSONResponse.goodToGo(req, res, "External wallet deleted", wallet as unknown as JSON);
@@ -654,9 +625,7 @@ router.get("/cybrid/workflow/:workflow_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const workflowGuid = req.params.workflow_guid;
-        if (!workflowGuid) {
-            throw new HTMLStatusError("Workflow GUID is required", 400);
-        }
+        requireGuid(workflowGuid, "Workflow");
         new Audit(`GET /api/cybrid/workflow/${workflowGuid}`, session);
         const workflow = await Cybrid.getWorkflow(workflowGuid);
         JSONResponse.goodToGo(req, res, "OK", workflow as unknown as JSON);
@@ -698,9 +667,7 @@ router.get("/cybrid/bank/:bank_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const bankGuid = req.params.bank_guid;
-        if (!bankGuid) {
-            throw new HTMLStatusError("Bank GUID is required", 400);
-        }
+        requireGuid(bankGuid, "Bank");
         new Audit(`GET /api/cybrid/bank/${bankGuid}`, session);
         const bank = await Cybrid.getBank(bankGuid);
         JSONResponse.goodToGo(req, res, "OK", bank as unknown as JSON);
@@ -729,9 +696,7 @@ router.patch("/cybrid/bank/:bank_guid", async (req, res) => {
         const data = req.body as PatchBankBankModel & { session?: string };
         requireSessionFromBody(data);
         const bankGuid = req.params.bank_guid;
-        if (!bankGuid) {
-            throw new HTMLStatusError("Bank GUID is required", 400);
-        }
+        requireGuid(bankGuid, "Bank");
         new Audit(`PATCH /api/cybrid/bank/${bankGuid}`, data.session);
         const bank = await Cybrid.updateBank(bankGuid, data);
         JSONResponse.goodToGo(req, res, "Bank updated", bank as unknown as JSON);
@@ -759,9 +724,7 @@ router.get("/cybrid/counterparty/:counterparty_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const counterpartyGuid = req.params.counterparty_guid;
-        if (!counterpartyGuid) {
-            throw new HTMLStatusError("Counterparty GUID is required", 400);
-        }
+        requireGuid(counterpartyGuid, "Counterparty");
         new Audit(`GET /api/cybrid/counterparty/${counterpartyGuid}`, session);
         const includePii = req.query.include_pii === "true";
         const counterparty = await Cybrid.getCounterparty(counterpartyGuid, includePii);
@@ -819,9 +782,7 @@ router.get("/cybrid/file/:file_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const fileGuid = req.params.file_guid;
-        if (!fileGuid) {
-            throw new HTMLStatusError("File GUID is required", 400);
-        }
+        requireGuid(fileGuid, "File");
         new Audit(`GET /api/cybrid/file/${fileGuid}`, session);
         const includeDownloadUrl = req.query.include_download_url as string | undefined;
         const file = await Cybrid.getFile(fileGuid, includeDownloadUrl);
@@ -864,9 +825,7 @@ router.get("/cybrid/execution/:execution_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const executionGuid = req.params.execution_guid;
-        if (!executionGuid) {
-            throw new HTMLStatusError("Execution GUID is required", 400);
-        }
+        requireGuid(executionGuid, "Execution");
         new Audit(`GET /api/cybrid/execution/${executionGuid}`, session);
         const execution = await Cybrid.getExecution(executionGuid);
         JSONResponse.goodToGo(req, res, "OK", execution as unknown as JSON);
@@ -908,9 +867,7 @@ router.get("/cybrid/invoice/:invoice_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const invoiceGuid = req.params.invoice_guid;
-        if (!invoiceGuid) {
-            throw new HTMLStatusError("Invoice GUID is required", 400);
-        }
+        requireGuid(invoiceGuid, "Invoice");
         new Audit(`GET /api/cybrid/invoice/${invoiceGuid}`, session);
         const invoice = await Cybrid.getInvoice(invoiceGuid);
         JSONResponse.goodToGo(req, res, "OK", invoice as unknown as JSON);
@@ -937,9 +894,7 @@ router.delete("/cybrid/invoice/:invoice_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const invoiceGuid = req.params.invoice_guid;
-        if (!invoiceGuid) {
-            throw new HTMLStatusError("Invoice GUID is required", 400);
-        }
+        requireGuid(invoiceGuid, "Invoice");
         new Audit(`DELETE /api/cybrid/invoice/${invoiceGuid}`, session);
         const invoice = await Cybrid.cancelInvoice(invoiceGuid);
         JSONResponse.goodToGo(req, res, "Invoice cancelled", invoice as unknown as JSON);
@@ -967,9 +922,7 @@ router.get("/cybrid/payment-instruction/:payment_instruction_guid", async (req, 
     try {
         const session = getSession(req);
         const paymentInstructionGuid = req.params.payment_instruction_guid;
-        if (!paymentInstructionGuid) {
-            throw new HTMLStatusError("Payment Instruction GUID is required", 400);
-        }
+        requireGuid(paymentInstructionGuid, "Payment Instruction");
         new Audit(`GET /api/cybrid/payment-instruction/${paymentInstructionGuid}`, session);
         const instruction = await Cybrid.getPaymentInstruction(paymentInstructionGuid);
         JSONResponse.goodToGo(req, res, "OK", instruction as unknown as JSON);
@@ -1012,9 +965,7 @@ router.get("/cybrid/plan/:plan_guid", async (req, res) => {
     try {
         const session = getSession(req);
         const planGuid = req.params.plan_guid;
-        if (!planGuid) {
-            throw new HTMLStatusError("Plan GUID is required", 400);
-        }
+        requireGuid(planGuid, "Plan");
         new Audit(`GET /api/cybrid/plan/${planGuid}`, session);
         const plan = await Cybrid.getPlan(planGuid);
         JSONResponse.goodToGo(req, res, "OK", plan as unknown as JSON);

@@ -263,12 +263,12 @@ describe("Cybrid.transferFiat", () => {
         await expectBadRequest(Cybrid.transferFiat("source-guid", "dest-guid", 10.5), /safe integer/);
     });
 
-    it("should throw when amount exceeds the 1,000,000 cap", async () => {
-        await expectBadRequest(Cybrid.transferFiat("source-guid", "dest-guid", 1_000_000_01), /maximum transfer limit/);
+    it("should throw when amount exceeds the $5,000 cap", async () => {
+        await expectBadRequest(Cybrid.transferFiat("source-guid", "dest-guid", 5_000_01), /maximum transfer limit/);
     });
 
     it("should allow amount exactly at the cap", async () => {
-        const result = await Cybrid.transferFiat("src-guid", "dst-guid", 1_000_000_00);
+        const result = await Cybrid.transferFiat("src-guid", "dst-guid", 5_000_00);
         assert.equal(result.guid, "transfer-guid-123");
     });
 
