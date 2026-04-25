@@ -1,4 +1,5 @@
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { toHttpError, requireGuid } from "../libs/httpErrorWrap.ts";
 import * as CybridClient from "../libs/CybridClient.ts";
 import type {
     CustomerBankModel,
@@ -71,749 +72,418 @@ export class Cybrid {
 
     // --- Customers ---
 
-    static async createCustomer(data: PostCustomerBankModel): Promise<CustomerBankModel> {
-        try {
-            return await CybridClient.createCustomer(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createCustomer(data: PostCustomerBankModel): Promise<CustomerBankModel> {
+        return toHttpError(() => CybridClient.createCustomer(data));
     }
 
-    static async getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
-        try {
-            if (!customerGuid) {
-                throw new HTMLStatusError("Customer GUID is required", 400);
-            }
-            return await CybridClient.getCustomer(customerGuid, includePii);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
+        return toHttpError(() => {
+            requireGuid(customerGuid, "Customer");
+            return CybridClient.getCustomer(customerGuid, includePii);
+        });
     }
 
-    static async listCustomers(page?: number, perPage?: number): Promise<CustomerListBankModel> {
-        try {
-            return await CybridClient.listCustomers(page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listCustomers(page?: number, perPage?: number): Promise<CustomerListBankModel> {
+        return toHttpError(() => CybridClient.listCustomers(page, perPage));
     }
 
-    static async updateCustomer(customerGuid: string, data: PatchCustomerBankModel): Promise<CustomerBankModel> {
-        try {
-            if (!customerGuid) {
-                throw new HTMLStatusError("Customer GUID is required", 400);
-            }
-            return await CybridClient.updateCustomer(customerGuid, data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static updateCustomer(customerGuid: string, data: PatchCustomerBankModel): Promise<CustomerBankModel> {
+        return toHttpError(() => {
+            requireGuid(customerGuid, "Customer");
+            return CybridClient.updateCustomer(customerGuid, data);
+        });
     }
 
     // --- Accounts ---
 
-    static async createAccount(data: PostAccountBankModel): Promise<AccountBankModel> {
-        try {
-            return await CybridClient.createAccount(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createAccount(data: PostAccountBankModel): Promise<AccountBankModel> {
+        return toHttpError(() => CybridClient.createAccount(data));
     }
 
-    static async getAccount(accountGuid: string): Promise<AccountBankModel> {
-        try {
-            if (!accountGuid) {
-                throw new HTMLStatusError("Account GUID is required", 400);
-            }
-            return await CybridClient.getAccount(accountGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getAccount(accountGuid: string): Promise<AccountBankModel> {
+        return toHttpError(() => {
+            requireGuid(accountGuid, "Account");
+            return CybridClient.getAccount(accountGuid);
+        });
     }
 
-    static async listAccounts(customerGuid?: string, page?: number, perPage?: number): Promise<AccountListBankModel> {
-        try {
-            return await CybridClient.listAccounts(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listAccounts(customerGuid?: string, page?: number, perPage?: number): Promise<AccountListBankModel> {
+        return toHttpError(() => CybridClient.listAccounts(customerGuid, page, perPage));
     }
 
     // --- Quotes ---
 
-    static async createQuote(data: PostQuoteBankModel): Promise<QuoteBankModel> {
-        try {
-            return await CybridClient.createQuote(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createQuote(data: PostQuoteBankModel): Promise<QuoteBankModel> {
+        return toHttpError(() => CybridClient.createQuote(data));
     }
 
-    static async getQuote(quoteGuid: string): Promise<QuoteBankModel> {
-        try {
-            if (!quoteGuid) {
-                throw new HTMLStatusError("Quote GUID is required", 400);
-            }
-            return await CybridClient.getQuote(quoteGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getQuote(quoteGuid: string): Promise<QuoteBankModel> {
+        return toHttpError(() => {
+            requireGuid(quoteGuid, "Quote");
+            return CybridClient.getQuote(quoteGuid);
+        });
     }
 
-    static async listQuotes(customerGuid?: string, page?: number, perPage?: number): Promise<QuoteListBankModel> {
-        try {
-            return await CybridClient.listQuotes(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listQuotes(customerGuid?: string, page?: number, perPage?: number): Promise<QuoteListBankModel> {
+        return toHttpError(() => CybridClient.listQuotes(customerGuid, page, perPage));
     }
 
     // --- Trades ---
 
-    static async createTrade(data: PostTradeBankModel): Promise<TradeBankModel> {
-        try {
-            return await CybridClient.createTrade(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createTrade(data: PostTradeBankModel): Promise<TradeBankModel> {
+        return toHttpError(() => CybridClient.createTrade(data));
     }
 
-    static async getTrade(tradeGuid: string): Promise<TradeBankModel> {
-        try {
-            if (!tradeGuid) {
-                throw new HTMLStatusError("Trade GUID is required", 400);
-            }
-            return await CybridClient.getTrade(tradeGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getTrade(tradeGuid: string): Promise<TradeBankModel> {
+        return toHttpError(() => {
+            requireGuid(tradeGuid, "Trade");
+            return CybridClient.getTrade(tradeGuid);
+        });
     }
 
-    static async listTrades(customerGuid?: string, page?: number, perPage?: number): Promise<TradeListBankModel> {
-        try {
-            return await CybridClient.listTrades(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listTrades(customerGuid?: string, page?: number, perPage?: number): Promise<TradeListBankModel> {
+        return toHttpError(() => CybridClient.listTrades(customerGuid, page, perPage));
     }
 
     // --- Transfers ---
 
-    static async createTransfer(data: PostTransferBankModel): Promise<TransferBankModel> {
-        try {
-            return await CybridClient.createTransfer(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createTransfer(data: PostTransferBankModel): Promise<TransferBankModel> {
+        return toHttpError(() => CybridClient.createTransfer(data));
     }
 
-    static async getTransfer(transferGuid: string): Promise<TransferBankModel> {
-        try {
-            if (!transferGuid) {
-                throw new HTMLStatusError("Transfer GUID is required", 400);
-            }
-            return await CybridClient.getTransfer(transferGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getTransfer(transferGuid: string): Promise<TransferBankModel> {
+        return toHttpError(() => {
+            requireGuid(transferGuid, "Transfer");
+            return CybridClient.getTransfer(transferGuid);
+        });
     }
 
-    static async listTransfers(customerGuid?: string, page?: number, perPage?: number): Promise<TransferListBankModel> {
-        try {
-            return await CybridClient.listTransfers(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listTransfers(customerGuid?: string, page?: number, perPage?: number): Promise<TransferListBankModel> {
+        return toHttpError(() => CybridClient.listTransfers(customerGuid, page, perPage));
     }
 
-    static async updateTransfer(transferGuid: string, data: PatchTransferBankModel): Promise<TransferBankModel> {
-        try {
-            if (!transferGuid) {
-                throw new HTMLStatusError("Transfer GUID is required", 400);
-            }
-            return await CybridClient.updateTransfer(transferGuid, data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static updateTransfer(transferGuid: string, data: PatchTransferBankModel): Promise<TransferBankModel> {
+        return toHttpError(() => {
+            requireGuid(transferGuid, "Transfer");
+            return CybridClient.updateTransfer(transferGuid, data);
+        });
     }
 
     // --- Book Transfers (fiat customer-to-customer) ---
 
-    static async transferFiat(
+    static transferFiat(
         sourceAccountGuid: string,
         destinationAccountGuid: string,
         amount: number,
         asset?: string,
     ): Promise<TransferBankModel> {
-        try {
-            if (!sourceAccountGuid) {
-                throw new HTMLStatusError("Source account GUID is required", 400);
-            }
-            if (!destinationAccountGuid) {
-                throw new HTMLStatusError("Destination account GUID is required", 400);
-            }
+        return toHttpError(() => {
+            requireGuid(sourceAccountGuid, "Source account");
+            requireGuid(destinationAccountGuid, "Destination account");
+
             if (!amount || amount <= 0) {
                 throw new HTMLStatusError("Amount must be a positive number", 400);
             }
             if (!Number.isInteger(amount) || !Number.isSafeInteger(amount)) {
                 throw new HTMLStatusError("Amount must be a safe integer (in cents)", 400);
             }
-            if (amount > 1_000_000_00) {
-                throw new HTMLStatusError("Amount exceeds maximum transfer limit of $1,000,000", 400);
+            if (amount > 5_000_00) {
+                throw new HTMLStatusError("Amount exceeds maximum transfer limit of $5,000", 400);
             }
-            return await CybridClient.createBookTransfer(sourceAccountGuid, destinationAccountGuid, amount, asset);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+            return CybridClient.createBookTransfer(sourceAccountGuid, destinationAccountGuid, amount, asset);
+        });
     }
 
     // --- Identity Verification ---
 
-    static async createIdentityVerification(data: PostIdentityVerificationBankModel): Promise<IdentityVerificationBankModel> {
-        try {
-            return await CybridClient.createIdentityVerification(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createIdentityVerification(data: PostIdentityVerificationBankModel): Promise<IdentityVerificationBankModel> {
+        return toHttpError(() => CybridClient.createIdentityVerification(data));
     }
 
-    static async getIdentityVerification(verificationGuid: string): Promise<IdentityVerificationWithDetailsBankModel> {
-        try {
-            if (!verificationGuid) {
-                throw new HTMLStatusError("Verification GUID is required", 400);
-            }
-            return await CybridClient.getIdentityVerification(verificationGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getIdentityVerification(verificationGuid: string): Promise<IdentityVerificationWithDetailsBankModel> {
+        return toHttpError(() => {
+            requireGuid(verificationGuid, "Verification");
+            return CybridClient.getIdentityVerification(verificationGuid);
+        });
     }
 
-    static async listIdentityVerifications(customerGuid?: string, page?: number, perPage?: number): Promise<IdentityVerificationListBankModel> {
-        try {
-            return await CybridClient.listIdentityVerifications(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listIdentityVerifications(customerGuid?: string, page?: number, perPage?: number): Promise<IdentityVerificationListBankModel> {
+        return toHttpError(() => CybridClient.listIdentityVerifications(customerGuid, page, perPage));
     }
 
     // --- Symbols ---
 
-    static async listSymbols(): Promise<Array<string>> {
-        try {
-            return await CybridClient.listSymbols();
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listSymbols(): Promise<Array<string>> {
+        return toHttpError(() => CybridClient.listSymbols());
     }
 
     // --- Assets ---
 
-    static async listAssets(page?: number, perPage?: number, code?: string): Promise<AssetListBankModel> {
-        try {
-            return await CybridClient.listAssets(page, perPage, code);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listAssets(page?: number, perPage?: number, code?: string): Promise<AssetListBankModel> {
+        return toHttpError(() => CybridClient.listAssets(page, perPage, code));
     }
 
     // --- Prices ---
 
-    static async listPrices(symbol?: string): Promise<Array<SymbolPriceBankModel>> {
-        try {
-            return await CybridClient.listPrices(symbol);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listPrices(symbol?: string): Promise<Array<SymbolPriceBankModel>> {
+        return toHttpError(() => CybridClient.listPrices(symbol));
     }
 
     // --- Deposit Addresses ---
 
-    static async createDepositAddress(data: PostDepositAddressBankModel): Promise<DepositAddressBankModel> {
-        try {
-            return await CybridClient.createDepositAddress(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createDepositAddress(data: PostDepositAddressBankModel): Promise<DepositAddressBankModel> {
+        return toHttpError(() => CybridClient.createDepositAddress(data));
     }
 
-    static async getDepositAddress(depositAddressGuid: string): Promise<DepositAddressBankModel> {
-        try {
-            if (!depositAddressGuid) {
-                throw new HTMLStatusError("Deposit Address GUID is required", 400);
-            }
-            return await CybridClient.getDepositAddress(depositAddressGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getDepositAddress(depositAddressGuid: string): Promise<DepositAddressBankModel> {
+        return toHttpError(() => {
+            requireGuid(depositAddressGuid, "Deposit Address");
+            return CybridClient.getDepositAddress(depositAddressGuid);
+        });
     }
 
-    static async listDepositAddresses(customerGuid?: string, page?: number, perPage?: number): Promise<DepositAddressListBankModel> {
-        try {
-            return await CybridClient.listDepositAddresses(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listDepositAddresses(customerGuid?: string, page?: number, perPage?: number): Promise<DepositAddressListBankModel> {
+        return toHttpError(() => CybridClient.listDepositAddresses(customerGuid, page, perPage));
     }
 
     // --- Deposit Bank Accounts ---
 
-    static async createDepositBankAccount(data: PostDepositBankAccountBankModel): Promise<DepositBankAccountBankModel> {
-        try {
-            return await CybridClient.createDepositBankAccount(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createDepositBankAccount(data: PostDepositBankAccountBankModel): Promise<DepositBankAccountBankModel> {
+        return toHttpError(() => CybridClient.createDepositBankAccount(data));
     }
 
-    static async getDepositBankAccount(depositBankAccountGuid: string): Promise<DepositBankAccountBankModel> {
-        try {
-            if (!depositBankAccountGuid) {
-                throw new HTMLStatusError("Deposit Bank Account GUID is required", 400);
-            }
-            return await CybridClient.getDepositBankAccount(depositBankAccountGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getDepositBankAccount(depositBankAccountGuid: string): Promise<DepositBankAccountBankModel> {
+        return toHttpError(() => {
+            requireGuid(depositBankAccountGuid, "Deposit Bank Account");
+            return CybridClient.getDepositBankAccount(depositBankAccountGuid);
+        });
     }
 
-    static async listDepositBankAccounts(customerGuid?: string, page?: number, perPage?: number): Promise<DepositBankAccountListBankModel> {
-        try {
-            return await CybridClient.listDepositBankAccounts(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listDepositBankAccounts(customerGuid?: string, page?: number, perPage?: number): Promise<DepositBankAccountListBankModel> {
+        return toHttpError(() => CybridClient.listDepositBankAccounts(customerGuid, page, perPage));
     }
 
     // --- External Bank Accounts ---
 
-    static async createExternalBankAccount(data: PostExternalBankAccountBankModel): Promise<ExternalBankAccountBankModel> {
-        try {
-            return await CybridClient.createExternalBankAccount(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createExternalBankAccount(data: PostExternalBankAccountBankModel): Promise<ExternalBankAccountBankModel> {
+        return toHttpError(() => CybridClient.createExternalBankAccount(data));
     }
 
-    static async getExternalBankAccount(
+    static getExternalBankAccount(
         externalBankAccountGuid: string,
         includeBalances = false,
         forceBalanceRefresh = false,
         includePii = false,
     ): Promise<ExternalBankAccountBankModel> {
-        try {
-            if (!externalBankAccountGuid) {
-                throw new HTMLStatusError("External Bank Account GUID is required", 400);
-            }
-            return await CybridClient.getExternalBankAccount(externalBankAccountGuid, includeBalances, forceBalanceRefresh, includePii);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+        return toHttpError(() => {
+            requireGuid(externalBankAccountGuid, "External Bank Account");
+            return CybridClient.getExternalBankAccount(externalBankAccountGuid, includeBalances, forceBalanceRefresh, includePii);
+        });
     }
 
-    static async listExternalBankAccounts(customerGuid?: string, page?: number, perPage?: number): Promise<ExternalBankAccountListBankModel> {
-        try {
-            return await CybridClient.listExternalBankAccounts(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listExternalBankAccounts(customerGuid?: string, page?: number, perPage?: number): Promise<ExternalBankAccountListBankModel> {
+        return toHttpError(() => CybridClient.listExternalBankAccounts(customerGuid, page, perPage));
     }
 
-    static async patchExternalBankAccount(
+    static patchExternalBankAccount(
         externalBankAccountGuid: string,
         data: PatchExternalBankAccountBankModel,
     ): Promise<ExternalBankAccountBankModel> {
-        try {
-            if (!externalBankAccountGuid) {
-                throw new HTMLStatusError("External Bank Account GUID is required", 400);
-            }
-            return await CybridClient.patchExternalBankAccount(externalBankAccountGuid, data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+        return toHttpError(() => {
+            requireGuid(externalBankAccountGuid, "External Bank Account");
+            return CybridClient.patchExternalBankAccount(externalBankAccountGuid, data);
+        });
     }
 
-    static async deleteExternalBankAccount(externalBankAccountGuid: string): Promise<ExternalBankAccountBankModel> {
-        try {
-            if (!externalBankAccountGuid) {
-                throw new HTMLStatusError("External Bank Account GUID is required", 400);
-            }
-            return await CybridClient.deleteExternalBankAccount(externalBankAccountGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static deleteExternalBankAccount(externalBankAccountGuid: string): Promise<ExternalBankAccountBankModel> {
+        return toHttpError(() => {
+            requireGuid(externalBankAccountGuid, "External Bank Account");
+            return CybridClient.deleteExternalBankAccount(externalBankAccountGuid);
+        });
     }
 
     // --- External Wallets ---
 
-    static async createExternalWallet(data: PostExternalWalletBankModel): Promise<ExternalWalletBankModel> {
-        try {
-            return await CybridClient.createExternalWallet(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createExternalWallet(data: PostExternalWalletBankModel): Promise<ExternalWalletBankModel> {
+        return toHttpError(() => CybridClient.createExternalWallet(data));
     }
 
-    static async getExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
-        try {
-            if (!externalWalletGuid) {
-                throw new HTMLStatusError("External Wallet GUID is required", 400);
-            }
-            return await CybridClient.getExternalWallet(externalWalletGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
+        return toHttpError(() => {
+            requireGuid(externalWalletGuid, "External Wallet");
+            return CybridClient.getExternalWallet(externalWalletGuid);
+        });
     }
 
-    static async listExternalWallets(customerGuid?: string, page?: number, perPage?: number): Promise<ExternalWalletListBankModel> {
-        try {
-            return await CybridClient.listExternalWallets(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listExternalWallets(customerGuid?: string, page?: number, perPage?: number): Promise<ExternalWalletListBankModel> {
+        return toHttpError(() => CybridClient.listExternalWallets(customerGuid, page, perPage));
     }
 
-    static async deleteExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
-        try {
-            if (!externalWalletGuid) {
-                throw new HTMLStatusError("External Wallet GUID is required", 400);
-            }
-            return await CybridClient.deleteExternalWallet(externalWalletGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static deleteExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
+        return toHttpError(() => {
+            requireGuid(externalWalletGuid, "External Wallet");
+            return CybridClient.deleteExternalWallet(externalWalletGuid);
+        });
     }
 
     // --- Workflows ---
 
-    static async createWorkflow(data: PostWorkflowBankModel): Promise<WorkflowBankModel> {
-        try {
-            return await CybridClient.createWorkflow(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createWorkflow(data: PostWorkflowBankModel): Promise<WorkflowBankModel> {
+        return toHttpError(() => CybridClient.createWorkflow(data));
     }
 
-    static async getWorkflow(workflowGuid: string): Promise<WorkflowWithDetailsBankModel> {
-        try {
-            if (!workflowGuid) {
-                throw new HTMLStatusError("Workflow GUID is required", 400);
-            }
-            return await CybridClient.getWorkflow(workflowGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getWorkflow(workflowGuid: string): Promise<WorkflowWithDetailsBankModel> {
+        return toHttpError(() => {
+            requireGuid(workflowGuid, "Workflow");
+            return CybridClient.getWorkflow(workflowGuid);
+        });
     }
 
-    static async listWorkflows(customerGuid?: string, page?: number, perPage?: number): Promise<WorkflowsListBankModel> {
-        try {
-            return await CybridClient.listWorkflows(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listWorkflows(customerGuid?: string, page?: number, perPage?: number): Promise<WorkflowsListBankModel> {
+        return toHttpError(() => CybridClient.listWorkflows(customerGuid, page, perPage));
     }
 
     // --- Banks ---
 
-    static async createBank(data: PostBankBankModel): Promise<BankBankModel> {
-        try {
-            return await CybridClient.createBank(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createBank(data: PostBankBankModel): Promise<BankBankModel> {
+        return toHttpError(() => CybridClient.createBank(data));
     }
 
-    static async getBank(bankGuid: string): Promise<BankBankModel> {
-        try {
-            if (!bankGuid) {
-                throw new HTMLStatusError("Bank GUID is required", 400);
-            }
-            return await CybridClient.getBank(bankGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getBank(bankGuid: string): Promise<BankBankModel> {
+        return toHttpError(() => {
+            requireGuid(bankGuid, "Bank");
+            return CybridClient.getBank(bankGuid);
+        });
     }
 
-    static async listBanks(page?: number, perPage?: number, type?: string): Promise<BankListBankModel> {
-        try {
-            return await CybridClient.listBanks(page, perPage, type);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listBanks(page?: number, perPage?: number, type?: string): Promise<BankListBankModel> {
+        return toHttpError(() => CybridClient.listBanks(page, perPage, type));
     }
 
-    static async updateBank(bankGuid: string, data: PatchBankBankModel): Promise<BankBankModel> {
-        try {
-            if (!bankGuid) {
-                throw new HTMLStatusError("Bank GUID is required", 400);
-            }
-            return await CybridClient.updateBank(bankGuid, data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static updateBank(bankGuid: string, data: PatchBankBankModel): Promise<BankBankModel> {
+        return toHttpError(() => {
+            requireGuid(bankGuid, "Bank");
+            return CybridClient.updateBank(bankGuid, data);
+        });
     }
 
     // --- Counterparties ---
 
-    static async createCounterparty(data: PostCounterpartyBankModel): Promise<CounterpartyBankModel> {
-        try {
-            return await CybridClient.createCounterparty(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createCounterparty(data: PostCounterpartyBankModel): Promise<CounterpartyBankModel> {
+        return toHttpError(() => CybridClient.createCounterparty(data));
     }
 
-    static async getCounterparty(counterpartyGuid: string, includePii = false): Promise<CounterpartyBankModel> {
-        try {
-            if (!counterpartyGuid) {
-                throw new HTMLStatusError("Counterparty GUID is required", 400);
-            }
-            return await CybridClient.getCounterparty(counterpartyGuid, includePii);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getCounterparty(counterpartyGuid: string, includePii = false): Promise<CounterpartyBankModel> {
+        return toHttpError(() => {
+            requireGuid(counterpartyGuid, "Counterparty");
+            return CybridClient.getCounterparty(counterpartyGuid, includePii);
+        });
     }
 
-    static async listCounterparties(customerGuid?: string, page?: number, perPage?: number): Promise<CounterpartyListBankModel> {
-        try {
-            return await CybridClient.listCounterparties(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listCounterparties(customerGuid?: string, page?: number, perPage?: number): Promise<CounterpartyListBankModel> {
+        return toHttpError(() => CybridClient.listCounterparties(customerGuid, page, perPage));
     }
 
     // --- Persona Sessions ---
 
-    static async createPersonaSession(data: PostPersonaSessionBankModel): Promise<PersonaSessionBankModel> {
-        try {
-            return await CybridClient.createPersonaSession(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createPersonaSession(data: PostPersonaSessionBankModel): Promise<PersonaSessionBankModel> {
+        return toHttpError(() => CybridClient.createPersonaSession(data));
     }
 
     // --- Files ---
 
-    static async createFile(data: PostFileBankModel): Promise<PlatformFileBankModel> {
-        try {
-            return await CybridClient.createFile(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createFile(data: PostFileBankModel): Promise<PlatformFileBankModel> {
+        return toHttpError(() => CybridClient.createFile(data));
     }
 
-    static async getFile(fileGuid: string, includeDownloadUrl?: string): Promise<PlatformFileBankModel> {
-        try {
-            if (!fileGuid) {
-                throw new HTMLStatusError("File GUID is required", 400);
-            }
-            return await CybridClient.getFile(fileGuid, includeDownloadUrl);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getFile(fileGuid: string, includeDownloadUrl?: string): Promise<PlatformFileBankModel> {
+        return toHttpError(() => {
+            requireGuid(fileGuid, "File");
+            return CybridClient.getFile(fileGuid, includeDownloadUrl);
+        });
     }
 
-    static async listFiles(customerGuid?: string, page?: number, perPage?: number): Promise<PlatformFileListBankModel> {
-        try {
-            return await CybridClient.listFiles(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listFiles(customerGuid?: string, page?: number, perPage?: number): Promise<PlatformFileListBankModel> {
+        return toHttpError(() => CybridClient.listFiles(customerGuid, page, perPage));
     }
 
     // --- Executions ---
 
-    static async createExecution(data: PostExecutionBankModel): Promise<ExecutionBankModel> {
-        try {
-            return await CybridClient.createExecution(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createExecution(data: PostExecutionBankModel): Promise<ExecutionBankModel> {
+        return toHttpError(() => CybridClient.createExecution(data));
     }
 
-    static async getExecution(executionGuid: string): Promise<ExecutionBankModel> {
-        try {
-            if (!executionGuid) {
-                throw new HTMLStatusError("Execution GUID is required", 400);
-            }
-            return await CybridClient.getExecution(executionGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getExecution(executionGuid: string): Promise<ExecutionBankModel> {
+        return toHttpError(() => {
+            requireGuid(executionGuid, "Execution");
+            return CybridClient.getExecution(executionGuid);
+        });
     }
 
-    static async listExecutions(customerGuid?: string, page?: number, perPage?: number): Promise<ExecutionListBankModel> {
-        try {
-            return await CybridClient.listExecutions(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listExecutions(customerGuid?: string, page?: number, perPage?: number): Promise<ExecutionListBankModel> {
+        return toHttpError(() => CybridClient.listExecutions(customerGuid, page, perPage));
     }
 
     // --- Invoices ---
 
-    static async createInvoice(data: PostInvoiceBankModel): Promise<InvoiceBankModel> {
-        try {
-            return await CybridClient.createInvoice(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createInvoice(data: PostInvoiceBankModel): Promise<InvoiceBankModel> {
+        return toHttpError(() => CybridClient.createInvoice(data));
     }
 
-    static async getInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
-        try {
-            if (!invoiceGuid) {
-                throw new HTMLStatusError("Invoice GUID is required", 400);
-            }
-            return await CybridClient.getInvoice(invoiceGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
+        return toHttpError(() => {
+            requireGuid(invoiceGuid, "Invoice");
+            return CybridClient.getInvoice(invoiceGuid);
+        });
     }
 
-    static async listInvoices(customerGuid?: string, page?: number, perPage?: number): Promise<InvoiceListBankModel> {
-        try {
-            return await CybridClient.listInvoices(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listInvoices(customerGuid?: string, page?: number, perPage?: number): Promise<InvoiceListBankModel> {
+        return toHttpError(() => CybridClient.listInvoices(customerGuid, page, perPage));
     }
 
-    static async cancelInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
-        try {
-            if (!invoiceGuid) {
-                throw new HTMLStatusError("Invoice GUID is required", 400);
-            }
-            return await CybridClient.cancelInvoice(invoiceGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static cancelInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
+        return toHttpError(() => {
+            requireGuid(invoiceGuid, "Invoice");
+            return CybridClient.cancelInvoice(invoiceGuid);
+        });
     }
 
     // --- Payment Instructions ---
 
-    static async createPaymentInstruction(data: PostPaymentInstructionBankModel): Promise<PaymentInstructionBankModel> {
-        try {
-            return await CybridClient.createPaymentInstruction(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createPaymentInstruction(data: PostPaymentInstructionBankModel): Promise<PaymentInstructionBankModel> {
+        return toHttpError(() => CybridClient.createPaymentInstruction(data));
     }
 
-    static async getPaymentInstruction(paymentInstructionGuid: string): Promise<PaymentInstructionBankModel> {
-        try {
-            if (!paymentInstructionGuid) {
-                throw new HTMLStatusError("Payment Instruction GUID is required", 400);
-            }
-            return await CybridClient.getPaymentInstruction(paymentInstructionGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getPaymentInstruction(paymentInstructionGuid: string): Promise<PaymentInstructionBankModel> {
+        return toHttpError(() => {
+            requireGuid(paymentInstructionGuid, "Payment Instruction");
+            return CybridClient.getPaymentInstruction(paymentInstructionGuid);
+        });
     }
 
-    static async listPaymentInstructions(
+    static listPaymentInstructions(
         customerGuid?: string,
         invoiceGuid?: string,
         page?: number,
         perPage?: number,
     ): Promise<PaymentInstructionListBankModel> {
-        try {
-            return await CybridClient.listPaymentInstructions(customerGuid, invoiceGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+        return toHttpError(() => CybridClient.listPaymentInstructions(customerGuid, invoiceGuid, page, perPage));
     }
 
     // --- Plans ---
 
-    static async createPlan(data: PostPlanBankModel): Promise<PlanBankModel> {
-        try {
-            return await CybridClient.createPlan(data);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static createPlan(data: PostPlanBankModel): Promise<PlanBankModel> {
+        return toHttpError(() => CybridClient.createPlan(data));
     }
 
-    static async getPlan(planGuid: string): Promise<PlanBankModel> {
-        try {
-            if (!planGuid) {
-                throw new HTMLStatusError("Plan GUID is required", 400);
-            }
-            return await CybridClient.getPlan(planGuid);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static getPlan(planGuid: string): Promise<PlanBankModel> {
+        return toHttpError(() => {
+            requireGuid(planGuid, "Plan");
+            return CybridClient.getPlan(planGuid);
+        });
     }
 
-    static async listPlans(customerGuid?: string, page?: number, perPage?: number): Promise<PlanListBankModel> {
-        try {
-            return await CybridClient.listPlans(customerGuid, page, perPage);
-        } catch (error) {
-            if (error instanceof HTMLStatusError) throw error;
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
+    static listPlans(customerGuid?: string, page?: number, perPage?: number): Promise<PlanListBankModel> {
+        return toHttpError(() => CybridClient.listPlans(customerGuid, page, perPage));
     }
 }
