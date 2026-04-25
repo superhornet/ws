@@ -30,6 +30,164 @@ import { requireBody } from "../libs/requestValidation.ts";
 
 export const router = express.Router();
 
+// --- Accounts ---
+
+router.post("/cybrid/account", async (req, res) => {
+    try {
+        requireBody(req);
+        const data: CybridAPIType = req.body;
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/account", data.session);
+        const account = await Cybrid.createAccount(req.body);
+        JSONResponse.creationSuccess(req, res, "Account created", account as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/account/:account_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const accountGuid = req.params.account_guid;
+        requireGuid(accountGuid, "Account");
+        new Audit(`GET /api/cybrid/account/${accountGuid}`, session);
+        const account = await Cybrid.getAccount(accountGuid);
+        JSONResponse.goodToGo(req, res, "OK", account as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/accounts", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/accounts", session);
+        const customerGuid = req.query.customer_guid as string | undefined;
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const accounts = await Cybrid.listAccounts(customerGuid, page, perPage);
+        JSONResponse.goodToGo(req, res, "OK", accounts as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Assets ---
+
+router.get("/cybrid/assets", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/assets", session);
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const code = req.query.code as string | undefined;
+        const assets = await Cybrid.listAssets(page, perPage, code);
+        JSONResponse.goodToGo(req, res, "OK", assets as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Banks ---
+
+router.post("/cybrid/bank", async (req, res) => {
+    try {
+        requireBody(req);
+        const data = req.body as PostBankBankModel & { session?: string };
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/bank", data.session);
+        const bank = await Cybrid.createBank(data);
+        JSONResponse.creationSuccess(req, res, "Bank created", bank as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/bank/:bank_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const bankGuid = req.params.bank_guid;
+        requireGuid(bankGuid, "Bank");
+        new Audit(`GET /api/cybrid/bank/${bankGuid}`, session);
+        const bank = await Cybrid.getBank(bankGuid);
+        JSONResponse.goodToGo(req, res, "OK", bank as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/banks", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/banks", session);
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const type = req.query.type as string | undefined;
+        const banks = await Cybrid.listBanks(page, perPage, type);
+        JSONResponse.goodToGo(req, res, "OK", banks as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.patch("/cybrid/bank/:bank_guid", async (req, res) => {
+    try {
+        requireBody(req);
+        const data = req.body as PatchBankBankModel & { session?: string };
+        requireSessionFromBody(data);
+        const bankGuid = req.params.bank_guid;
+        requireGuid(bankGuid, "Bank");
+        new Audit(`PATCH /api/cybrid/bank/${bankGuid}`, data.session);
+        const bank = await Cybrid.updateBank(bankGuid, data);
+        JSONResponse.goodToGo(req, res, "Bank updated", bank as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Counterparties ---
+
+router.post("/cybrid/counterparty", async (req, res) => {
+    try {
+        requireBody(req);
+        const data = req.body as PostCounterpartyBankModel & { session?: string };
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/counterparty", data.session);
+        const counterparty = await Cybrid.createCounterparty(data);
+        JSONResponse.creationSuccess(req, res, "Counterparty created", counterparty as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/counterparty/:counterparty_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const counterpartyGuid = req.params.counterparty_guid;
+        requireGuid(counterpartyGuid, "Counterparty");
+        new Audit(`GET /api/cybrid/counterparty/${counterpartyGuid}`, session);
+        const includePii = req.query.include_pii === "true";
+        const counterparty = await Cybrid.getCounterparty(counterpartyGuid, includePii);
+        JSONResponse.goodToGo(req, res, "OK", counterparty as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/counterparties", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/counterparties", session);
+        const customerGuid = req.query.customer_guid as string | undefined;
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const counterparties = await Cybrid.listCounterparties(customerGuid, page, perPage);
+        JSONResponse.goodToGo(req, res, "OK", counterparties as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
 // --- Customers ---
 
 router.post("/cybrid/customer", async (req, res) => {
@@ -80,310 +238,6 @@ router.patch("/cybrid/customer/:customer_guid", async (req, res) => {
         new Audit(`PATCH /api/cybrid/customer/${customerGuid}`, data.session);
         const customer = await Cybrid.updateCustomer(customerGuid, data);
         JSONResponse.goodToGo(req, res, "Customer updated", customer as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Accounts ---
-
-router.post("/cybrid/account", async (req, res) => {
-    try {
-        requireBody(req);
-        const data: CybridAPIType = req.body;
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/account", data.session);
-        const account = await Cybrid.createAccount(req.body);
-        JSONResponse.creationSuccess(req, res, "Account created", account as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/account/:account_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const accountGuid = req.params.account_guid;
-        requireGuid(accountGuid, "Account");
-        new Audit(`GET /api/cybrid/account/${accountGuid}`, session);
-        const account = await Cybrid.getAccount(accountGuid);
-        JSONResponse.goodToGo(req, res, "OK", account as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/accounts", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/accounts", session);
-        const customerGuid = req.query.customer_guid as string | undefined;
-        const page = req.query.page ? Number(req.query.page) : undefined;
-        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const accounts = await Cybrid.listAccounts(customerGuid, page, perPage);
-        JSONResponse.goodToGo(req, res, "OK", accounts as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Quotes ---
-
-router.post("/cybrid/quote", async (req, res) => {
-    try {
-        requireBody(req);
-        const data: CybridAPIType = req.body;
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/quote", data.session);
-        await withIdempotency(req, res, data.session, "/cybrid/quote", async () => {
-            const quote = await Cybrid.createQuote(req.body);
-            return { code: 201, data: quote as unknown as JSON, message: "Quote created" };
-        });
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/quote/:quote_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const quoteGuid = req.params.quote_guid;
-        requireGuid(quoteGuid, "Quote");
-        new Audit(`GET /api/cybrid/quote/${quoteGuid}`, session);
-        const quote = await Cybrid.getQuote(quoteGuid);
-        JSONResponse.goodToGo(req, res, "OK", quote as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/quotes", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/quotes", session);
-        const customerGuid = req.query.customer_guid as string | undefined;
-        const page = req.query.page ? Number(req.query.page) : undefined;
-        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const quotes = await Cybrid.listQuotes(customerGuid, page, perPage);
-        JSONResponse.goodToGo(req, res, "OK", quotes as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Trades ---
-
-router.post("/cybrid/trade", async (req, res) => {
-    try {
-        requireBody(req);
-        const data: CybridAPIType = req.body;
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/trade", data.session);
-        await withIdempotency(req, res, data.session, "/cybrid/trade", async () => {
-            const trade = await Cybrid.createTrade(req.body);
-            return { code: 201, data: trade as unknown as JSON, message: "Trade created" };
-        });
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/trade/:trade_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const tradeGuid = req.params.trade_guid;
-        requireGuid(tradeGuid, "Trade");
-        new Audit(`GET /api/cybrid/trade/${tradeGuid}`, session);
-        const trade = await Cybrid.getTrade(tradeGuid);
-        JSONResponse.goodToGo(req, res, "OK", trade as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/trades", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/trades", session);
-        const customerGuid = req.query.customer_guid as string | undefined;
-        const trades = await Cybrid.listTrades(customerGuid);
-        JSONResponse.goodToGo(req, res, "OK", trades as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Transfers ---
-
-router.post("/cybrid/transfer", async (req, res) => {
-    try {
-        requireBody(req);
-        const data: CybridAPIType = req.body;
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/transfer", data.session);
-        await withIdempotency(req, res, data.session, "/cybrid/transfer", async () => {
-            const transfer = await Cybrid.createTransfer(req.body);
-            return { code: 201, data: transfer as unknown as JSON, message: "Transfer created" };
-        });
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/transfer/:transfer_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const transferGuid = req.params.transfer_guid;
-        requireGuid(transferGuid, "Transfer");
-        new Audit(`GET /api/cybrid/transfer/${transferGuid}`, session);
-        const transfer = await Cybrid.getTransfer(transferGuid);
-        JSONResponse.goodToGo(req, res, "OK", transfer as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/transfers", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/transfers", session);
-        const customerGuid = req.query.customer_guid as string | undefined;
-        const transfers = await Cybrid.listTransfers(customerGuid);
-        JSONResponse.goodToGo(req, res, "OK", transfers as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.patch("/cybrid/transfer/:transfer_guid", async (req, res) => {
-    try {
-        requireBody(req);
-        const data = req.body as PatchTransferBankModel & { session?: string };
-        requireSessionFromBody(data);
-        const transferGuid = req.params.transfer_guid;
-        requireGuid(transferGuid, "Transfer");
-        new Audit(`PATCH /api/cybrid/transfer/${transferGuid}`, data.session);
-        const transfer = await Cybrid.updateTransfer(transferGuid, data);
-        JSONResponse.goodToGo(req, res, "Transfer updated", transfer as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Fiat Book Transfer (customer-to-customer) ---
-
-router.post("/cybrid/fiat-transfer", async (req, res) => {
-    try {
-        requireBody(req);
-        const data: FiatTransferRequest = req.body;
-        requireSessionFromBody(data);
-        if (!data.source_account_guid || !data.destination_account_guid) {
-            throw new HTMLStatusError("Source and destination account GUIDs are required", 400);
-        }
-        if (!data.amount || data.amount <= 0) {
-            throw new HTMLStatusError("Amount must be a positive number", 400);
-        }
-        if (!Number.isInteger(data.amount) || !Number.isSafeInteger(data.amount)) {
-            throw new HTMLStatusError("Amount must be a safe integer (in cents)", 400);
-        }
-        if (data.amount > 5_000_00) {
-            throw new HTMLStatusError("Amount exceeds maximum transfer limit of $5,000", 400);
-        }
-        new Audit("POST /api/cybrid/fiat-transfer", data.session);
-        await withIdempotency(req, res, data.session, "/cybrid/fiat-transfer", async () => {
-            const transfer = await Cybrid.transferFiat(
-                data.source_account_guid,
-                data.destination_account_guid,
-                data.amount,
-                data.asset,
-            );
-            return { code: 201, data: transfer as unknown as JSON, message: "Fiat transfer created" };
-        });
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Identity Verification ---
-
-router.post("/cybrid/identity-verification", async (req, res) => {
-    try {
-        requireBody(req);
-        const data: CybridAPIType = req.body;
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/identity-verification", data.session);
-        const verification = await Cybrid.createIdentityVerification(req.body);
-        JSONResponse.creationSuccess(req, res, "Identity verification created", verification as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Symbols ---
-
-router.get("/cybrid/symbols", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/symbols", session);
-        const symbols = await Cybrid.listSymbols();
-        JSONResponse.goodToGo(req, res, "OK", symbols as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/identity-verification/:verification_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const verificationGuid = req.params.verification_guid;
-        requireGuid(verificationGuid, "Verification");
-        new Audit(`GET /api/cybrid/identity-verification/${verificationGuid}`, session);
-        const verification = await Cybrid.getIdentityVerification(verificationGuid);
-        JSONResponse.goodToGo(req, res, "OK", verification as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/identity-verifications", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/identity-verifications", session);
-        const customerGuid = req.query.customer_guid as string | undefined;
-        const page = req.query.page ? Number(req.query.page) : undefined;
-        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const verifications = await Cybrid.listIdentityVerifications(customerGuid, page, perPage);
-        JSONResponse.goodToGo(req, res, "OK", verifications as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Assets ---
-
-router.get("/cybrid/assets", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/assets", session);
-        const page = req.query.page ? Number(req.query.page) : undefined;
-        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const code = req.query.code as string | undefined;
-        const assets = await Cybrid.listAssets(page, perPage, code);
-        JSONResponse.goodToGo(req, res, "OK", assets as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Prices ---
-
-router.get("/cybrid/prices", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/prices", session);
-        const symbol = req.query.symbol as string | undefined;
-        const prices = await Cybrid.listPrices(symbol);
-        JSONResponse.goodToGo(req, res, "OK", prices as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -468,6 +322,48 @@ router.get("/cybrid/deposit-bank-accounts", async (req, res) => {
         const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
         const accounts = await Cybrid.listDepositBankAccounts(customerGuid, page, perPage);
         JSONResponse.goodToGo(req, res, "OK", accounts as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Executions ---
+
+router.post("/cybrid/execution", async (req, res) => {
+    try {
+        requireBody(req);
+        const data = req.body as PostExecutionBankModel & { session?: string };
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/execution", data.session);
+        const execution = await Cybrid.createExecution(data);
+        JSONResponse.creationSuccess(req, res, "Execution created", execution as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/execution/:execution_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const executionGuid = req.params.execution_guid;
+        requireGuid(executionGuid, "Execution");
+        new Audit(`GET /api/cybrid/execution/${executionGuid}`, session);
+        const execution = await Cybrid.getExecution(executionGuid);
+        JSONResponse.goodToGo(req, res, "OK", execution as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/executions", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/executions", session);
+        const customerGuid = req.query.customer_guid as string | undefined;
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const executions = await Cybrid.listExecutions(customerGuid, page, perPage);
+        JSONResponse.goodToGo(req, res, "OK", executions as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -606,158 +502,35 @@ router.delete("/cybrid/external-wallet/:external_wallet_guid", async (req, res) 
     }
 });
 
-// --- Workflows ---
+// --- Fiat Book Transfer (customer-to-customer) ---
 
-router.post("/cybrid/workflow", async (req, res) => {
+router.post("/cybrid/fiat-transfer", async (req, res) => {
     try {
         requireBody(req);
-        const data = req.body as PostWorkflowBankModel & { session?: string };
+        const data: FiatTransferRequest = req.body;
         requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/workflow", data.session);
-        const workflow = await Cybrid.createWorkflow(data);
-        JSONResponse.creationSuccess(req, res, "Workflow created", workflow as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/workflow/:workflow_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const workflowGuid = req.params.workflow_guid;
-        requireGuid(workflowGuid, "Workflow");
-        new Audit(`GET /api/cybrid/workflow/${workflowGuid}`, session);
-        const workflow = await Cybrid.getWorkflow(workflowGuid);
-        JSONResponse.goodToGo(req, res, "OK", workflow as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/workflows", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/workflows", session);
-        const customerGuid = req.query.customer_guid as string | undefined;
-        const page = req.query.page ? Number(req.query.page) : undefined;
-        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const workflows = await Cybrid.listWorkflows(customerGuid, page, perPage);
-        JSONResponse.goodToGo(req, res, "OK", workflows as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Banks ---
-
-router.post("/cybrid/bank", async (req, res) => {
-    try {
-        requireBody(req);
-        const data = req.body as PostBankBankModel & { session?: string };
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/bank", data.session);
-        const bank = await Cybrid.createBank(data);
-        JSONResponse.creationSuccess(req, res, "Bank created", bank as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/bank/:bank_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const bankGuid = req.params.bank_guid;
-        requireGuid(bankGuid, "Bank");
-        new Audit(`GET /api/cybrid/bank/${bankGuid}`, session);
-        const bank = await Cybrid.getBank(bankGuid);
-        JSONResponse.goodToGo(req, res, "OK", bank as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/banks", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/banks", session);
-        const page = req.query.page ? Number(req.query.page) : undefined;
-        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const type = req.query.type as string | undefined;
-        const banks = await Cybrid.listBanks(page, perPage, type);
-        JSONResponse.goodToGo(req, res, "OK", banks as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.patch("/cybrid/bank/:bank_guid", async (req, res) => {
-    try {
-        requireBody(req);
-        const data = req.body as PatchBankBankModel & { session?: string };
-        requireSessionFromBody(data);
-        const bankGuid = req.params.bank_guid;
-        requireGuid(bankGuid, "Bank");
-        new Audit(`PATCH /api/cybrid/bank/${bankGuid}`, data.session);
-        const bank = await Cybrid.updateBank(bankGuid, data);
-        JSONResponse.goodToGo(req, res, "Bank updated", bank as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Counterparties ---
-
-router.post("/cybrid/counterparty", async (req, res) => {
-    try {
-        requireBody(req);
-        const data = req.body as PostCounterpartyBankModel & { session?: string };
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/counterparty", data.session);
-        const counterparty = await Cybrid.createCounterparty(data);
-        JSONResponse.creationSuccess(req, res, "Counterparty created", counterparty as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/counterparty/:counterparty_guid", async (req, res) => {
-    try {
-        const session = getSession(req);
-        const counterpartyGuid = req.params.counterparty_guid;
-        requireGuid(counterpartyGuid, "Counterparty");
-        new Audit(`GET /api/cybrid/counterparty/${counterpartyGuid}`, session);
-        const includePii = req.query.include_pii === "true";
-        const counterparty = await Cybrid.getCounterparty(counterpartyGuid, includePii);
-        JSONResponse.goodToGo(req, res, "OK", counterparty as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-router.get("/cybrid/counterparties", async (req, res) => {
-    try {
-        const session = getSession(req);
-        new Audit("GET /api/cybrid/counterparties", session);
-        const customerGuid = req.query.customer_guid as string | undefined;
-        const page = req.query.page ? Number(req.query.page) : undefined;
-        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const counterparties = await Cybrid.listCounterparties(customerGuid, page, perPage);
-        JSONResponse.goodToGo(req, res, "OK", counterparties as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-
-// --- Persona Sessions ---
-
-router.post("/cybrid/persona-session", async (req, res) => {
-    try {
-        requireBody(req);
-        const data = req.body as PostPersonaSessionBankModel & { session?: string };
-        requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/persona-session", data.session);
-        const personaSession = await Cybrid.createPersonaSession(data);
-        JSONResponse.creationSuccess(req, res, "Persona session created", personaSession as unknown as JSON);
+        if (!data.source_account_guid || !data.destination_account_guid) {
+            throw new HTMLStatusError("Source and destination account GUIDs are required", 400);
+        }
+        if (!data.amount || data.amount <= 0) {
+            throw new HTMLStatusError("Amount must be a positive number", 400);
+        }
+        if (!Number.isInteger(data.amount) || !Number.isSafeInteger(data.amount)) {
+            throw new HTMLStatusError("Amount must be a safe integer (in cents)", 400);
+        }
+        if (data.amount > 5_000_00) {
+            throw new HTMLStatusError("Amount exceeds maximum transfer limit of $5,000", 400);
+        }
+        new Audit("POST /api/cybrid/fiat-transfer", data.session);
+        await withIdempotency(req, res, data.session, "/cybrid/fiat-transfer", async () => {
+            const transfer = await Cybrid.transferFiat(
+                data.source_account_guid,
+                data.destination_account_guid,
+                data.amount,
+                data.asset,
+            );
+            return { code: 201, data: transfer as unknown as JSON, message: "Fiat transfer created" };
+        });
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -806,43 +579,43 @@ router.get("/cybrid/files", async (req, res) => {
     }
 });
 
-// --- Executions ---
+// --- Identity Verification ---
 
-router.post("/cybrid/execution", async (req, res) => {
+router.post("/cybrid/identity-verification", async (req, res) => {
     try {
         requireBody(req);
-        const data = req.body as PostExecutionBankModel & { session?: string };
+        const data: CybridAPIType = req.body;
         requireSessionFromBody(data);
-        new Audit("POST /api/cybrid/execution", data.session);
-        const execution = await Cybrid.createExecution(data);
-        JSONResponse.creationSuccess(req, res, "Execution created", execution as unknown as JSON);
+        new Audit("POST /api/cybrid/identity-verification", data.session);
+        const verification = await Cybrid.createIdentityVerification(req.body);
+        JSONResponse.creationSuccess(req, res, "Identity verification created", verification as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
 
-router.get("/cybrid/execution/:execution_guid", async (req, res) => {
+router.get("/cybrid/identity-verification/:verification_guid", async (req, res) => {
     try {
         const session = getSession(req);
-        const executionGuid = req.params.execution_guid;
-        requireGuid(executionGuid, "Execution");
-        new Audit(`GET /api/cybrid/execution/${executionGuid}`, session);
-        const execution = await Cybrid.getExecution(executionGuid);
-        JSONResponse.goodToGo(req, res, "OK", execution as unknown as JSON);
+        const verificationGuid = req.params.verification_guid;
+        requireGuid(verificationGuid, "Verification");
+        new Audit(`GET /api/cybrid/identity-verification/${verificationGuid}`, session);
+        const verification = await Cybrid.getIdentityVerification(verificationGuid);
+        JSONResponse.goodToGo(req, res, "OK", verification as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
 
-router.get("/cybrid/executions", async (req, res) => {
+router.get("/cybrid/identity-verifications", async (req, res) => {
     try {
         const session = getSession(req);
-        new Audit("GET /api/cybrid/executions", session);
+        new Audit("GET /api/cybrid/identity-verifications", session);
         const customerGuid = req.query.customer_guid as string | undefined;
         const page = req.query.page ? Number(req.query.page) : undefined;
         const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
-        const executions = await Cybrid.listExecutions(customerGuid, page, perPage);
-        JSONResponse.goodToGo(req, res, "OK", executions as unknown as JSON);
+        const verifications = await Cybrid.listIdentityVerifications(customerGuid, page, perPage);
+        JSONResponse.goodToGo(req, res, "OK", verifications as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -946,6 +719,21 @@ router.get("/cybrid/payment-instructions", async (req, res) => {
     }
 });
 
+// --- Persona Sessions ---
+
+router.post("/cybrid/persona-session", async (req, res) => {
+    try {
+        requireBody(req);
+        const data = req.body as PostPersonaSessionBankModel & { session?: string };
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/persona-session", data.session);
+        const personaSession = await Cybrid.createPersonaSession(data);
+        JSONResponse.creationSuccess(req, res, "Persona session created", personaSession as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
 // --- Plans ---
 
 router.post("/cybrid/plan", async (req, res) => {
@@ -987,3 +775,215 @@ router.get("/cybrid/plans", async (req, res) => {
         processError(req, res, error as HTMLStatusError);
     }
 });
+// --- Prices ---
+
+router.get("/cybrid/prices", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/prices", session);
+        const symbol = req.query.symbol as string | undefined;
+        const prices = await Cybrid.listPrices(symbol);
+        JSONResponse.goodToGo(req, res, "OK", prices as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Quotes ---
+
+router.post("/cybrid/quote", async (req, res) => {
+    try {
+        requireBody(req);
+        const data: CybridAPIType = req.body;
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/quote", data.session);
+        await withIdempotency(req, res, data.session, "/cybrid/quote", async () => {
+            const quote = await Cybrid.createQuote(req.body);
+            return { code: 201, data: quote as unknown as JSON, message: "Quote created" };
+        });
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/quote/:quote_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const quoteGuid = req.params.quote_guid;
+        requireGuid(quoteGuid, "Quote");
+        new Audit(`GET /api/cybrid/quote/${quoteGuid}`, session);
+        const quote = await Cybrid.getQuote(quoteGuid);
+        JSONResponse.goodToGo(req, res, "OK", quote as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/quotes", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/quotes", session);
+        const customerGuid = req.query.customer_guid as string | undefined;
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const quotes = await Cybrid.listQuotes(customerGuid, page, perPage);
+        JSONResponse.goodToGo(req, res, "OK", quotes as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Symbols ---
+
+router.get("/cybrid/symbols", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/symbols", session);
+        const symbols = await Cybrid.listSymbols();
+        JSONResponse.goodToGo(req, res, "OK", symbols as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Trades ---
+
+router.post("/cybrid/trade", async (req, res) => {
+    try {
+        requireBody(req);
+        const data: CybridAPIType = req.body;
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/trade", data.session);
+        await withIdempotency(req, res, data.session, "/cybrid/trade", async () => {
+            const trade = await Cybrid.createTrade(req.body);
+            return { code: 201, data: trade as unknown as JSON, message: "Trade created" };
+        });
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/trade/:trade_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const tradeGuid = req.params.trade_guid;
+        requireGuid(tradeGuid, "Trade");
+        new Audit(`GET /api/cybrid/trade/${tradeGuid}`, session);
+        const trade = await Cybrid.getTrade(tradeGuid);
+        JSONResponse.goodToGo(req, res, "OK", trade as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/trades", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/trades", session);
+        const customerGuid = req.query.customer_guid as string | undefined;
+        const trades = await Cybrid.listTrades(customerGuid);
+        JSONResponse.goodToGo(req, res, "OK", trades as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Transfers ---
+
+router.post("/cybrid/transfer", async (req, res) => {
+    try {
+        requireBody(req);
+        const data: CybridAPIType = req.body;
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/transfer", data.session);
+        await withIdempotency(req, res, data.session, "/cybrid/transfer", async () => {
+            const transfer = await Cybrid.createTransfer(req.body);
+            return { code: 201, data: transfer as unknown as JSON, message: "Transfer created" };
+        });
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/transfer/:transfer_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const transferGuid = req.params.transfer_guid;
+        requireGuid(transferGuid, "Transfer");
+        new Audit(`GET /api/cybrid/transfer/${transferGuid}`, session);
+        const transfer = await Cybrid.getTransfer(transferGuid);
+        JSONResponse.goodToGo(req, res, "OK", transfer as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/transfers", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/transfers", session);
+        const customerGuid = req.query.customer_guid as string | undefined;
+        const transfers = await Cybrid.listTransfers(customerGuid);
+        JSONResponse.goodToGo(req, res, "OK", transfers as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.patch("/cybrid/transfer/:transfer_guid", async (req, res) => {
+    try {
+        requireBody(req);
+        const data = req.body as PatchTransferBankModel & { session?: string };
+        requireSessionFromBody(data);
+        const transferGuid = req.params.transfer_guid;
+        requireGuid(transferGuid, "Transfer");
+        new Audit(`PATCH /api/cybrid/transfer/${transferGuid}`, data.session);
+        const transfer = await Cybrid.updateTransfer(transferGuid, data);
+        JSONResponse.goodToGo(req, res, "Transfer updated", transfer as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+// --- Workflows ---
+
+router.post("/cybrid/workflow", async (req, res) => {
+    try {
+        requireBody(req);
+        const data = req.body as PostWorkflowBankModel & { session?: string };
+        requireSessionFromBody(data);
+        new Audit("POST /api/cybrid/workflow", data.session);
+        const workflow = await Cybrid.createWorkflow(data);
+        JSONResponse.creationSuccess(req, res, "Workflow created", workflow as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/workflow/:workflow_guid", async (req, res) => {
+    try {
+        const session = getSession(req);
+        const workflowGuid = req.params.workflow_guid;
+        requireGuid(workflowGuid, "Workflow");
+        new Audit(`GET /api/cybrid/workflow/${workflowGuid}`, session);
+        const workflow = await Cybrid.getWorkflow(workflowGuid);
+        JSONResponse.goodToGo(req, res, "OK", workflow as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
+router.get("/cybrid/workflows", async (req, res) => {
+    try {
+        const session = getSession(req);
+        new Audit("GET /api/cybrid/workflows", session);
+        const customerGuid = req.query.customer_guid as string | undefined;
+        const page = req.query.page ? Number(req.query.page) : undefined;
+        const perPage = req.query.per_page ? Number(req.query.per_page) : undefined;
+        const workflows = await Cybrid.listWorkflows(customerGuid, page, perPage);
+        JSONResponse.goodToGo(req, res, "OK", workflows as unknown as JSON);
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError);
+    }
+});
+
