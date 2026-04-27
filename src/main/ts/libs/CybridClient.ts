@@ -153,60 +153,12 @@ async function getConfiguration(): Promise<Configuration> {
     });
 }
 
-async function customersApi(): Promise<CustomersBankApi> {
-    return new CustomersBankApi(await getConfiguration());
-}
-
 async function accountsApi(): Promise<AccountsBankApi> {
     return new AccountsBankApi(await getConfiguration());
 }
 
-async function quotesApi(): Promise<QuotesBankApi> {
-    return new QuotesBankApi(await getConfiguration());
-}
-
-async function tradesApi(): Promise<TradesBankApi> {
-    return new TradesBankApi(await getConfiguration());
-}
-
-async function transfersApi(): Promise<TransfersBankApi> {
-    return new TransfersBankApi(await getConfiguration());
-}
-
-async function identityVerificationsApi(): Promise<IdentityVerificationsBankApi> {
-    return new IdentityVerificationsBankApi(await getConfiguration());
-}
-
-async function symbolsApi(): Promise<SymbolsBankApi> {
-    return new SymbolsBankApi(await getConfiguration());
-}
-
 async function assetsApi(): Promise<AssetsBankApi> {
     return new AssetsBankApi(await getConfiguration());
-}
-
-async function pricesApi(): Promise<PricesBankApi> {
-    return new PricesBankApi(await getConfiguration());
-}
-
-async function depositAddressesApi(): Promise<DepositAddressesBankApi> {
-    return new DepositAddressesBankApi(await getConfiguration());
-}
-
-async function depositBankAccountsApi(): Promise<DepositBankAccountsBankApi> {
-    return new DepositBankAccountsBankApi(await getConfiguration());
-}
-
-async function externalBankAccountsApi(): Promise<ExternalBankAccountsBankApi> {
-    return new ExternalBankAccountsBankApi(await getConfiguration());
-}
-
-async function externalWalletsApi(): Promise<ExternalWalletsBankApi> {
-    return new ExternalWalletsBankApi(await getConfiguration());
-}
-
-async function workflowsApi(): Promise<WorkflowsBankApi> {
-    return new WorkflowsBankApi(await getConfiguration());
 }
 
 async function banksApi(): Promise<BanksBankApi> {
@@ -217,16 +169,36 @@ async function counterpartiesApi(): Promise<CounterpartiesBankApi> {
     return new CounterpartiesBankApi(await getConfiguration());
 }
 
-async function personaSessionsApi(): Promise<PersonaSessionsBankApi> {
-    return new PersonaSessionsBankApi(await getConfiguration());
+async function customersApi(): Promise<CustomersBankApi> {
+    return new CustomersBankApi(await getConfiguration());
+}
+
+async function depositAddressesApi(): Promise<DepositAddressesBankApi> {
+    return new DepositAddressesBankApi(await getConfiguration());
+}
+
+async function depositBankAccountsApi(): Promise<DepositBankAccountsBankApi> {
+    return new DepositBankAccountsBankApi(await getConfiguration());
+}
+
+async function executionsApi(): Promise<ExecutionsBankApi> {
+    return new ExecutionsBankApi(await getConfiguration());
+}
+
+async function externalBankAccountsApi(): Promise<ExternalBankAccountsBankApi> {
+    return new ExternalBankAccountsBankApi(await getConfiguration());
+}
+
+async function externalWalletsApi(): Promise<ExternalWalletsBankApi> {
+    return new ExternalWalletsBankApi(await getConfiguration());
 }
 
 async function filesApi(): Promise<FilesBankApi> {
     return new FilesBankApi(await getConfiguration());
 }
 
-async function executionsApi(): Promise<ExecutionsBankApi> {
-    return new ExecutionsBankApi(await getConfiguration());
+async function identityVerificationsApi(): Promise<IdentityVerificationsBankApi> {
+    return new IdentityVerificationsBankApi(await getConfiguration());
 }
 
 async function invoicesApi(): Promise<InvoicesBankApi> {
@@ -237,26 +209,36 @@ async function paymentInstructionsApi(): Promise<PaymentInstructionsBankApi> {
     return new PaymentInstructionsBankApi(await getConfiguration());
 }
 
+async function personaSessionsApi(): Promise<PersonaSessionsBankApi> {
+    return new PersonaSessionsBankApi(await getConfiguration());
+}
+
 async function plansApi(): Promise<PlansBankApi> {
     return new PlansBankApi(await getConfiguration());
 }
 
-// --- Customers ---
-
-export async function createCustomer(postCustomerBankModel: PostCustomerBankModel): Promise<CustomerBankModel> {
-    return firstValueFrom((await customersApi()).createCustomer({ postCustomerBankModel }));
+async function pricesApi(): Promise<PricesBankApi> {
+    return new PricesBankApi(await getConfiguration());
 }
 
-export async function getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
-    return firstValueFrom((await customersApi()).getCustomer({ customerGuid, includePii }));
+async function quotesApi(): Promise<QuotesBankApi> {
+    return new QuotesBankApi(await getConfiguration());
 }
 
-export async function listCustomers(page = 0, perPage = 25): Promise<CustomerListBankModel> {
-    return firstValueFrom((await customersApi()).listCustomers({ page, perPage }));
+async function symbolsApi(): Promise<SymbolsBankApi> {
+    return new SymbolsBankApi(await getConfiguration());
 }
 
-export async function updateCustomer(customerGuid: string, patchCustomerBankModel: PatchCustomerBankModel): Promise<CustomerBankModel> {
-    return firstValueFrom((await customersApi()).updateCustomer({ customerGuid, patchCustomerBankModel }));
+async function tradesApi(): Promise<TradesBankApi> {
+    return new TradesBankApi(await getConfiguration());
+}
+
+async function transfersApi(): Promise<TransfersBankApi> {
+    return new TransfersBankApi(await getConfiguration());
+}
+
+async function workflowsApi(): Promise<WorkflowsBankApi> {
+    return new WorkflowsBankApi(await getConfiguration());
 }
 
 // --- Accounts ---
@@ -273,50 +255,28 @@ export async function listAccounts(customerGuid?: string, page = 0, perPage = 25
     return firstValueFrom((await accountsApi()).listAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
-// --- Quotes ---
+// --- Assets ---
 
-export async function createQuote(postQuoteBankModel: PostQuoteBankModel): Promise<QuoteBankModel> {
-    return firstValueFrom((await quotesApi()).createQuote({ postQuoteBankModel }));
+export async function listAssets(page = 0, perPage = 25, code?: string): Promise<AssetListBankModel> {
+    return firstValueFrom((await assetsApi()).listAssets({ page, perPage, ...(code ? { code } : {}) }));
 }
 
-export async function getQuote(quoteGuid: string): Promise<QuoteBankModel> {
-    return firstValueFrom((await quotesApi()).getQuote({ quoteGuid }));
+// --- Banks ---
+
+export async function createBank(postBankBankModel: PostBankBankModel): Promise<BankBankModel> {
+    return firstValueFrom((await banksApi()).createBank({ postBankBankModel }));
 }
 
-export async function listQuotes(customerGuid?: string, page = 0, perPage = 25): Promise<QuoteListBankModel> {
-    return firstValueFrom((await quotesApi()).listQuotes({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+export async function getBank(bankGuid: string): Promise<BankBankModel> {
+    return firstValueFrom((await banksApi()).getBank({ bankGuid }));
 }
 
-// --- Trades ---
-
-export async function createTrade(postTradeBankModel: PostTradeBankModel): Promise<TradeBankModel> {
-    return firstValueFrom((await tradesApi()).createTrade({ postTradeBankModel }));
+export async function listBanks(page = 0, perPage = 25, type?: string): Promise<BankListBankModel> {
+    return firstValueFrom((await banksApi()).listBanks({ page, perPage, ...(type ? { type } : {}) }));
 }
 
-export async function getTrade(tradeGuid: string): Promise<TradeBankModel> {
-    return firstValueFrom((await tradesApi()).getTrade({ tradeGuid }));
-}
-
-export async function listTrades(customerGuid?: string, page = 0, perPage = 25): Promise<TradeListBankModel> {
-    return firstValueFrom((await tradesApi()).listTrades({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
-}
-
-// --- Transfers ---
-
-export async function createTransfer(postTransferBankModel: PostTransferBankModel): Promise<TransferBankModel> {
-    return firstValueFrom((await transfersApi()).createTransfer({ postTransferBankModel }));
-}
-
-export async function getTransfer(transferGuid: string): Promise<TransferBankModel> {
-    return firstValueFrom((await transfersApi()).getTransfer({ transferGuid }));
-}
-
-export async function listTransfers(customerGuid?: string, page = 0, perPage = 25): Promise<TransferListBankModel> {
-    return firstValueFrom((await transfersApi()).listTransfers({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
-}
-
-export async function updateTransfer(transferGuid: string, patchTransferBankModel: PatchTransferBankModel): Promise<TransferBankModel> {
-    return firstValueFrom((await transfersApi()).updateTransfer({ transferGuid, patchTransferBankModel }));
+export async function updateBank(bankGuid: string, patchBankBankModel: PatchBankBankModel): Promise<BankBankModel> {
+    return firstValueFrom((await banksApi()).updateBank({ bankGuid, patchBankBankModel }));
 }
 
 // --- Book Transfers (fiat customer-to-customer) ---
@@ -359,36 +319,36 @@ export async function createBookTransfer(
     });
 }
 
-// --- Identity Verification ---
+// --- Counterparties ---
 
-export async function createIdentityVerification(postIdentityVerificationBankModel: PostIdentityVerificationBankModel): Promise<IdentityVerificationBankModel> {
-    return firstValueFrom((await identityVerificationsApi()).createIdentityVerification({ postIdentityVerificationBankModel }));
+export async function createCounterparty(postCounterpartyBankModel: PostCounterpartyBankModel): Promise<CounterpartyBankModel> {
+    return firstValueFrom((await counterpartiesApi()).createCounterparty({ postCounterpartyBankModel }));
 }
 
-export async function getIdentityVerification(identityVerificationGuid: string): Promise<IdentityVerificationWithDetailsBankModel> {
-    return firstValueFrom((await identityVerificationsApi()).getIdentityVerification({ identityVerificationGuid }));
+export async function getCounterparty(counterpartyGuid: string, includePii = false): Promise<CounterpartyBankModel> {
+    return firstValueFrom((await counterpartiesApi()).getCounterparty({ counterpartyGuid, includePii }));
 }
 
-export async function listIdentityVerifications(customerGuid?: string, page = 0, perPage = 25): Promise<IdentityVerificationListBankModel> {
-    return firstValueFrom((await identityVerificationsApi()).listIdentityVerifications({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+export async function listCounterparties(customerGuid?: string, page = 0, perPage = 25): Promise<CounterpartyListBankModel> {
+    return firstValueFrom((await counterpartiesApi()).listCounterparties({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
-// --- Symbols ---
+// --- Customers ---
 
-export async function listSymbols(): Promise<Array<string>> {
-    return firstValueFrom((await symbolsApi()).listSymbols());
+export async function createCustomer(postCustomerBankModel: PostCustomerBankModel): Promise<CustomerBankModel> {
+    return firstValueFrom((await customersApi()).createCustomer({ postCustomerBankModel }));
 }
 
-// --- Assets ---
-
-export async function listAssets(page = 0, perPage = 25, code?: string): Promise<AssetListBankModel> {
-    return firstValueFrom((await assetsApi()).listAssets({ page, perPage, ...(code ? { code } : {}) }));
+export async function getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
+    return firstValueFrom((await customersApi()).getCustomer({ customerGuid, includePii }));
 }
 
-// --- Prices ---
+export async function listCustomers(page = 0, perPage = 25): Promise<CustomerListBankModel> {
+    return firstValueFrom((await customersApi()).listCustomers({ page, perPage }));
+}
 
-export async function listPrices(symbol?: string): Promise<Array<SymbolPriceBankModel>> {
-    return firstValueFrom((await pricesApi()).listPrices({ ...(symbol ? { symbol } : {}) }));
+export async function updateCustomer(customerGuid: string, patchCustomerBankModel: PatchCustomerBankModel): Promise<CustomerBankModel> {
+    return firstValueFrom((await customersApi()).updateCustomer({ customerGuid, patchCustomerBankModel }));
 }
 
 // --- Deposit Addresses ---
@@ -419,10 +379,28 @@ export async function listDepositBankAccounts(customerGuid?: string, page = 0, p
     return firstValueFrom((await depositBankAccountsApi()).listDepositBankAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
+// --- Executions ---
+
+export async function createExecution(postExecutionBankModel: PostExecutionBankModel): Promise<ExecutionBankModel> {
+    return firstValueFrom((await executionsApi()).createExecution({ postExecutionBankModel }));
+}
+
+export async function getExecution(executionGuid: string): Promise<ExecutionBankModel> {
+    return firstValueFrom((await executionsApi()).getExecution({ executionGuid }));
+}
+
+export async function listExecutions(customerGuid?: string, page = 0, perPage = 25): Promise<ExecutionListBankModel> {
+    return firstValueFrom((await executionsApi()).listExecutions({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+}
+
 // --- External Bank Accounts ---
 
 export async function createExternalBankAccount(postExternalBankAccountBankModel: PostExternalBankAccountBankModel): Promise<ExternalBankAccountBankModel> {
     return firstValueFrom((await externalBankAccountsApi()).createExternalBankAccount({ postExternalBankAccountBankModel }));
+}
+
+export async function deleteExternalBankAccount(externalBankAccountGuid: string): Promise<ExternalBankAccountBankModel> {
+    return firstValueFrom((await externalBankAccountsApi()).deleteExternalBankAccount({ externalBankAccountGuid }));
 }
 
 export async function getExternalBankAccount(
@@ -453,14 +431,14 @@ export async function patchExternalBankAccount(
     }));
 }
 
-export async function deleteExternalBankAccount(externalBankAccountGuid: string): Promise<ExternalBankAccountBankModel> {
-    return firstValueFrom((await externalBankAccountsApi()).deleteExternalBankAccount({ externalBankAccountGuid }));
-}
-
 // --- External Wallets ---
 
 export async function createExternalWallet(postExternalWalletBankModel: PostExternalWalletBankModel): Promise<ExternalWalletBankModel> {
     return firstValueFrom((await externalWalletsApi()).createExternalWallet({ postExternalWalletBankModel }));
+}
+
+export async function deleteExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
+    return firstValueFrom((await externalWalletsApi()).deleteExternalWallet({ externalWalletGuid }));
 }
 
 export async function getExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
@@ -469,62 +447,6 @@ export async function getExternalWallet(externalWalletGuid: string): Promise<Ext
 
 export async function listExternalWallets(customerGuid?: string, page = 0, perPage = 25): Promise<ExternalWalletListBankModel> {
     return firstValueFrom((await externalWalletsApi()).listExternalWallets({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
-}
-
-export async function deleteExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
-    return firstValueFrom((await externalWalletsApi()).deleteExternalWallet({ externalWalletGuid }));
-}
-
-// --- Workflows ---
-
-export async function createWorkflow(postWorkflowBankModel: PostWorkflowBankModel): Promise<WorkflowBankModel> {
-    return firstValueFrom((await workflowsApi()).createWorkflow({ postWorkflowBankModel }));
-}
-
-export async function getWorkflow(workflowGuid: string): Promise<WorkflowWithDetailsBankModel> {
-    return firstValueFrom((await workflowsApi()).getWorkflow({ workflowGuid }));
-}
-
-export async function listWorkflows(customerGuid?: string, page = 0, perPage = 25): Promise<WorkflowsListBankModel> {
-    return firstValueFrom((await workflowsApi()).listWorkflows({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
-}
-
-// --- Banks ---
-
-export async function createBank(postBankBankModel: PostBankBankModel): Promise<BankBankModel> {
-    return firstValueFrom((await banksApi()).createBank({ postBankBankModel }));
-}
-
-export async function getBank(bankGuid: string): Promise<BankBankModel> {
-    return firstValueFrom((await banksApi()).getBank({ bankGuid }));
-}
-
-export async function listBanks(page = 0, perPage = 25, type?: string): Promise<BankListBankModel> {
-    return firstValueFrom((await banksApi()).listBanks({ page, perPage, ...(type ? { type } : {}) }));
-}
-
-export async function updateBank(bankGuid: string, patchBankBankModel: PatchBankBankModel): Promise<BankBankModel> {
-    return firstValueFrom((await banksApi()).updateBank({ bankGuid, patchBankBankModel }));
-}
-
-// --- Counterparties ---
-
-export async function createCounterparty(postCounterpartyBankModel: PostCounterpartyBankModel): Promise<CounterpartyBankModel> {
-    return firstValueFrom((await counterpartiesApi()).createCounterparty({ postCounterpartyBankModel }));
-}
-
-export async function getCounterparty(counterpartyGuid: string, includePii = false): Promise<CounterpartyBankModel> {
-    return firstValueFrom((await counterpartiesApi()).getCounterparty({ counterpartyGuid, includePii }));
-}
-
-export async function listCounterparties(customerGuid?: string, page = 0, perPage = 25): Promise<CounterpartyListBankModel> {
-    return firstValueFrom((await counterpartiesApi()).listCounterparties({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
-}
-
-// --- Persona Sessions ---
-
-export async function createPersonaSession(postPersonaSessionBankModel: PostPersonaSessionBankModel): Promise<PersonaSessionBankModel> {
-    return firstValueFrom((await personaSessionsApi()).createPersonaSession({ postPersonaSessionBankModel }));
 }
 
 // --- Files ---
@@ -541,21 +463,25 @@ export async function listFiles(customerGuid?: string, page = 0, perPage = 25): 
     return firstValueFrom((await filesApi()).listFiles({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
-// --- Executions ---
+// --- Identity Verification ---
 
-export async function createExecution(postExecutionBankModel: PostExecutionBankModel): Promise<ExecutionBankModel> {
-    return firstValueFrom((await executionsApi()).createExecution({ postExecutionBankModel }));
+export async function createIdentityVerification(postIdentityVerificationBankModel: PostIdentityVerificationBankModel): Promise<IdentityVerificationBankModel> {
+    return firstValueFrom((await identityVerificationsApi()).createIdentityVerification({ postIdentityVerificationBankModel }));
 }
 
-export async function getExecution(executionGuid: string): Promise<ExecutionBankModel> {
-    return firstValueFrom((await executionsApi()).getExecution({ executionGuid }));
+export async function getIdentityVerification(identityVerificationGuid: string): Promise<IdentityVerificationWithDetailsBankModel> {
+    return firstValueFrom((await identityVerificationsApi()).getIdentityVerification({ identityVerificationGuid }));
 }
 
-export async function listExecutions(customerGuid?: string, page = 0, perPage = 25): Promise<ExecutionListBankModel> {
-    return firstValueFrom((await executionsApi()).listExecutions({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+export async function listIdentityVerifications(customerGuid?: string, page = 0, perPage = 25): Promise<IdentityVerificationListBankModel> {
+    return firstValueFrom((await identityVerificationsApi()).listIdentityVerifications({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
 // --- Invoices ---
+
+export async function cancelInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
+    return firstValueFrom((await invoicesApi()).cancelInvoice({ invoiceGuid }));
+}
 
 export async function createInvoice(postInvoiceBankModel: PostInvoiceBankModel): Promise<InvoiceBankModel> {
     return firstValueFrom((await invoicesApi()).createInvoice({ postInvoiceBankModel }));
@@ -567,10 +493,6 @@ export async function getInvoice(invoiceGuid: string): Promise<InvoiceBankModel>
 
 export async function listInvoices(customerGuid?: string, page = 0, perPage = 25): Promise<InvoiceListBankModel> {
     return firstValueFrom((await invoicesApi()).listInvoices({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
-}
-
-export async function cancelInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
-    return firstValueFrom((await invoicesApi()).cancelInvoice({ invoiceGuid }));
 }
 
 // --- Payment Instructions ---
@@ -597,6 +519,12 @@ export async function listPaymentInstructions(
     }));
 }
 
+// --- Persona Sessions ---
+
+export async function createPersonaSession(postPersonaSessionBankModel: PostPersonaSessionBankModel): Promise<PersonaSessionBankModel> {
+    return firstValueFrom((await personaSessionsApi()).createPersonaSession({ postPersonaSessionBankModel }));
+}
+
 // --- Plans ---
 
 export async function createPlan(postPlanBankModel: PostPlanBankModel): Promise<PlanBankModel> {
@@ -609,6 +537,78 @@ export async function getPlan(planGuid: string): Promise<PlanBankModel> {
 
 export async function listPlans(customerGuid?: string, page = 0, perPage = 25): Promise<PlanListBankModel> {
     return firstValueFrom((await plansApi()).listPlans({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+}
+
+// --- Prices ---
+
+export async function listPrices(symbol?: string): Promise<Array<SymbolPriceBankModel>> {
+    return firstValueFrom((await pricesApi()).listPrices({ ...(symbol ? { symbol } : {}) }));
+}
+
+// --- Quotes ---
+
+export async function createQuote(postQuoteBankModel: PostQuoteBankModel): Promise<QuoteBankModel> {
+    return firstValueFrom((await quotesApi()).createQuote({ postQuoteBankModel }));
+}
+
+export async function getQuote(quoteGuid: string): Promise<QuoteBankModel> {
+    return firstValueFrom((await quotesApi()).getQuote({ quoteGuid }));
+}
+
+export async function listQuotes(customerGuid?: string, page = 0, perPage = 25): Promise<QuoteListBankModel> {
+    return firstValueFrom((await quotesApi()).listQuotes({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+}
+
+// --- Symbols ---
+
+export async function listSymbols(): Promise<Array<string>> {
+    return firstValueFrom((await symbolsApi()).listSymbols());
+}
+
+// --- Trades ---
+
+export async function createTrade(postTradeBankModel: PostTradeBankModel): Promise<TradeBankModel> {
+    return firstValueFrom((await tradesApi()).createTrade({ postTradeBankModel }));
+}
+
+export async function getTrade(tradeGuid: string): Promise<TradeBankModel> {
+    return firstValueFrom((await tradesApi()).getTrade({ tradeGuid }));
+}
+
+export async function listTrades(customerGuid?: string, page = 0, perPage = 25): Promise<TradeListBankModel> {
+    return firstValueFrom((await tradesApi()).listTrades({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+}
+
+// --- Transfers ---
+
+export async function createTransfer(postTransferBankModel: PostTransferBankModel): Promise<TransferBankModel> {
+    return firstValueFrom((await transfersApi()).createTransfer({ postTransferBankModel }));
+}
+
+export async function getTransfer(transferGuid: string): Promise<TransferBankModel> {
+    return firstValueFrom((await transfersApi()).getTransfer({ transferGuid }));
+}
+
+export async function listTransfers(customerGuid?: string, page = 0, perPage = 25): Promise<TransferListBankModel> {
+    return firstValueFrom((await transfersApi()).listTransfers({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+}
+
+export async function updateTransfer(transferGuid: string, patchTransferBankModel: PatchTransferBankModel): Promise<TransferBankModel> {
+    return firstValueFrom((await transfersApi()).updateTransfer({ transferGuid, patchTransferBankModel }));
+}
+
+// --- Workflows ---
+
+export async function createWorkflow(postWorkflowBankModel: PostWorkflowBankModel): Promise<WorkflowBankModel> {
+    return firstValueFrom((await workflowsApi()).createWorkflow({ postWorkflowBankModel }));
+}
+
+export async function getWorkflow(workflowGuid: string): Promise<WorkflowWithDetailsBankModel> {
+    return firstValueFrom((await workflowsApi()).getWorkflow({ workflowGuid }));
+}
+
+export async function listWorkflows(customerGuid?: string, page = 0, perPage = 25): Promise<WorkflowsListBankModel> {
+    return firstValueFrom((await workflowsApi()).listWorkflows({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
 }
 
 // Re-export SDK types for convenience

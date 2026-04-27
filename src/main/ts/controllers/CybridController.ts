@@ -775,6 +775,7 @@ router.get("/cybrid/plans", async (req, res) => {
         processError(req, res, error as HTMLStatusError);
     }
 });
+
 // --- Prices ---
 
 router.get("/cybrid/prices", async (req, res) => {
