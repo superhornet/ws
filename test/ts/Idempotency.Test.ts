@@ -252,6 +252,7 @@ describe('Idempotency on POST /api/cybrid/transfer', () => {
 
         assert.equal(res.status, 409);
         assert.match(res.body.message as string, /Conflict/);
+        assert.equal(res.headers['retry-after'], '1', 'should advise client when to retry');
         assert.equal(mockCreateTransfer.mock.callCount(), 0, 'should NOT call model');
     });
 
