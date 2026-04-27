@@ -5,6 +5,7 @@ import type { CachedResponse } from "../types/IdempotencyTypes.ts";
 
 const IDEMPOTENCY_KEY_HEADER = "idempotency-key";
 const MAX_KEY_LENGTH = 255;
+const IN_PROGRESS_RETRY_AFTER_SECONDS = 1;
 
 /**
  * Wraps a handler's mutation logic with idempotency protection.
@@ -36,12 +37,16 @@ export async function withIdempotency(
 
     if (existing) {
         if (existing.status === "completed" && existing.response_body) {
+            if (!existing.response_code) {
+                throw new HTMLStatusError("Cached response is malformed", 500);
+            }
             res.setHeader("Idempotent-Replayed", "true");
-            res.status(existing.response_code ?? 200).json(existing.response_body);
+            res.status(existing.response_code).json(existing.response_body);
             return;
         }
 
         if (existing.status === "in_progress") {
+            res.setHeader("Retry-After", String(IN_PROGRESS_RETRY_AFTER_SECONDS));
             throw new HTMLStatusError("Conflict", 409);
         }
     }
