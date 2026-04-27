@@ -57,6 +57,13 @@ class JSONResponse {
             message: message || "conflict"
         });
     }
+    public static preconditionRequired(req: Request, res: Response, message: string, data: JSON | null) {
+        res.status(428).json({
+            code: 428,
+            data,
+            message: message || "precondition required"
+        });
+    }
     public static serverError(req: Request, res: Response, message: string, data: JSON | null) {
         res.status(500).json({
             code: 500,
