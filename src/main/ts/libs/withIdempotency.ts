@@ -9,9 +9,9 @@ const MAX_KEY_LENGTH = 255;
 /**
  * Wraps a handler's mutation logic with idempotency protection.
  *
- * The Idempotency-Key header is required — requests without it are rejected
- * with 400. This prevents accidental duplicate financial operations from
- * network retries.
+ * The Idempotency-Key header is required — requests without it (or with a
+ * key exceeding MAX_KEY_LENGTH) are rejected with 428 Precondition Required.
+ * This prevents accidental duplicate financial operations from network retries.
  *
  * When the header is present:
  *   - First request: acquires lock, runs callback, caches response, returns it.
@@ -28,18 +28,8 @@ export async function withIdempotency(
 ): Promise<void> {
     const idempotencyKey = req.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
 
-    if (!idempotencyKey) {
-        throw new HTMLStatusError(
-            "Idempotency-Key header is required for this endpoint",
-            400
-        );
-    }
-
-    if (idempotencyKey.length === 0 || idempotencyKey.length > MAX_KEY_LENGTH) {
-        throw new HTMLStatusError(
-            `Idempotency-Key must be between 1 and ${MAX_KEY_LENGTH} characters`,
-            400
-        );
+    if (!idempotencyKey || idempotencyKey.length > MAX_KEY_LENGTH) {
+        throw new HTMLStatusError("Precondition required", 428);
     }
 
     const existing = await IdempotencyKey.acquire(sessionId, idempotencyKey, routePath);
@@ -52,10 +42,7 @@ export async function withIdempotency(
         }
 
         if (existing.status === "in_progress") {
-            throw new HTMLStatusError(
-                "A request with this Idempotency-Key is already in progress",
-                409
-            );
+            throw new HTMLStatusError("Conflict", 409);
         }
     }
 

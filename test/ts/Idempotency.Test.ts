@@ -179,13 +179,13 @@ describe('Idempotency on POST /api/cybrid/transfer', () => {
         mockCreateTransfer.mock.mockImplementation(async () => mockTransferResult);
     });
 
-    it('should return 400 when Idempotency-Key header is missing', async () => {
+    it('should return 428 when Idempotency-Key header is missing', async () => {
         const app = createApp();
         const res = await sendJSON(app, 'POST', '/api/cybrid/transfer', {
             session: SESSION,
         });
-        assert.equal(res.status, 400);
-        assert.match(res.body.message as string, /Idempotency-Key header is required/);
+        assert.equal(res.status, 428);
+        assert.match(res.body.message as string, /Precondition required/);
         assert.equal(mockAcquire.mock.callCount(), 0, 'should not touch idempotency DB');
         assert.equal(mockCreateTransfer.mock.callCount(), 0, 'should not call model');
     });
@@ -251,7 +251,7 @@ describe('Idempotency on POST /api/cybrid/transfer', () => {
         }, { 'Idempotency-Key': IDEM_KEY });
 
         assert.equal(res.status, 409);
-        assert.match(res.body.message as string, /already in progress/);
+        assert.match(res.body.message as string, /Conflict/);
         assert.equal(mockCreateTransfer.mock.callCount(), 0, 'should NOT call model');
     });
 
@@ -273,26 +273,26 @@ describe('Idempotency on POST /api/cybrid/transfer', () => {
         assert.equal(mockComplete.mock.callCount(), 0, 'should NOT cache error');
     });
 
-    it('should return 400 for empty Idempotency-Key', async () => {
+    it('should return 428 for empty Idempotency-Key', async () => {
         const app = createApp();
         const res = await sendJSON(app, 'POST', '/api/cybrid/transfer', {
             session: SESSION,
         }, { 'Idempotency-Key': '' });
 
-        // Empty header is treated as missing by Express (not sent), so returns 400 (header required)
+        // Empty header is treated as missing by Express (not sent), so returns 428
         // Either way the request is rejected — safe behavior
-        assert.equal(res.status, 400);
+        assert.equal(res.status, 428);
     });
 
-    it('should return 400 for oversized Idempotency-Key', async () => {
+    it('should return 428 for oversized Idempotency-Key', async () => {
         const app = createApp();
         const longKey = 'x'.repeat(256);
         const res = await sendJSON(app, 'POST', '/api/cybrid/transfer', {
             session: SESSION,
         }, { 'Idempotency-Key': longKey });
 
-        assert.equal(res.status, 400);
-        assert.match(res.body.message as string, /Idempotency-Key/);
+        assert.equal(res.status, 428);
+        assert.match(res.body.message as string, /Precondition required/);
         assert.equal(mockAcquire.mock.callCount(), 0, 'should not try to acquire');
     });
 
@@ -330,7 +330,7 @@ describe('Idempotency on POST /api/cybrid/fiat-transfer', () => {
         mockTransferFiat.mock.mockImplementation(async () => mockFiatResult);
     });
 
-    it('should return 400 when Idempotency-Key header is missing', async () => {
+    it('should return 428 when Idempotency-Key header is missing', async () => {
         const app = createApp();
         const res = await sendJSON(app, 'POST', '/api/cybrid/fiat-transfer', {
             session: SESSION,
@@ -338,8 +338,8 @@ describe('Idempotency on POST /api/cybrid/fiat-transfer', () => {
             destination_account_guid: 'dst-guid',
             amount: 2500,
         });
-        assert.equal(res.status, 400);
-        assert.match(res.body.message as string, /Idempotency-Key header is required/);
+        assert.equal(res.status, 428);
+        assert.match(res.body.message as string, /Precondition required/);
         assert.equal(mockAcquire.mock.callCount(), 0);
         assert.equal(mockTransferFiat.mock.callCount(), 0);
     });
@@ -394,13 +394,13 @@ describe('Idempotency on POST /api/cybrid/trade', () => {
         mockCreateTrade.mock.mockImplementation(async () => mockTradeResult);
     });
 
-    it('should return 400 when Idempotency-Key header is missing', async () => {
+    it('should return 428 when Idempotency-Key header is missing', async () => {
         const app = createApp();
         const res = await sendJSON(app, 'POST', '/api/cybrid/trade', {
             session: SESSION,
         });
-        assert.equal(res.status, 400);
-        assert.match(res.body.message as string, /Idempotency-Key header is required/);
+        assert.equal(res.status, 428);
+        assert.match(res.body.message as string, /Precondition required/);
         assert.equal(mockAcquire.mock.callCount(), 0);
         assert.equal(mockCreateTrade.mock.callCount(), 0);
     });
@@ -449,13 +449,13 @@ describe('Idempotency on POST /api/cybrid/quote', () => {
         mockCreateQuote.mock.mockImplementation(async () => mockQuoteResult);
     });
 
-    it('should return 400 when Idempotency-Key header is missing', async () => {
+    it('should return 428 when Idempotency-Key header is missing', async () => {
         const app = createApp();
         const res = await sendJSON(app, 'POST', '/api/cybrid/quote', {
             session: SESSION,
         });
-        assert.equal(res.status, 400);
-        assert.match(res.body.message as string, /Idempotency-Key header is required/);
+        assert.equal(res.status, 428);
+        assert.match(res.body.message as string, /Precondition required/);
         assert.equal(mockAcquire.mock.callCount(), 0);
         assert.equal(mockCreateQuote.mock.callCount(), 0);
     });

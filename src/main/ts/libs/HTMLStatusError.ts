@@ -32,6 +32,9 @@ export function processError(req: Request, res: Response, error: HTMLStatusError
             case "409":
                 JSONResponse.conflict(req, res, error.message, null);
                 break;
+            case "428":
+                JSONResponse.preconditionRequired(req, res, error.message, null);
+                break;
             case "501":
                 JSONResponse.notImplemented(req, res, error.message, null);
                 break;
