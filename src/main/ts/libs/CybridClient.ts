@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv';
 // @ts-expect-error - xhr2 has no type definitions
 import XMLHttpRequest from 'xhr2';
 (globalThis as { XMLHttpRequest?: unknown }).XMLHttpRequest = XMLHttpRequest;
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, type Observable } from 'rxjs';
 import {
     Configuration,
     CustomersBankApi,
@@ -153,130 +153,60 @@ async function getConfiguration(): Promise<Configuration> {
     });
 }
 
-async function accountsApi(): Promise<AccountsBankApi> {
-    return new AccountsBankApi(await getConfiguration());
-}
-
-async function assetsApi(): Promise<AssetsBankApi> {
-    return new AssetsBankApi(await getConfiguration());
-}
-
-async function banksApi(): Promise<BanksBankApi> {
-    return new BanksBankApi(await getConfiguration());
-}
-
-async function counterpartiesApi(): Promise<CounterpartiesBankApi> {
-    return new CounterpartiesBankApi(await getConfiguration());
-}
-
-async function customersApi(): Promise<CustomersBankApi> {
-    return new CustomersBankApi(await getConfiguration());
-}
-
-async function depositAddressesApi(): Promise<DepositAddressesBankApi> {
-    return new DepositAddressesBankApi(await getConfiguration());
-}
-
-async function depositBankAccountsApi(): Promise<DepositBankAccountsBankApi> {
-    return new DepositBankAccountsBankApi(await getConfiguration());
-}
-
-async function executionsApi(): Promise<ExecutionsBankApi> {
-    return new ExecutionsBankApi(await getConfiguration());
-}
-
-async function externalBankAccountsApi(): Promise<ExternalBankAccountsBankApi> {
-    return new ExternalBankAccountsBankApi(await getConfiguration());
-}
-
-async function externalWalletsApi(): Promise<ExternalWalletsBankApi> {
-    return new ExternalWalletsBankApi(await getConfiguration());
-}
-
-async function filesApi(): Promise<FilesBankApi> {
-    return new FilesBankApi(await getConfiguration());
-}
-
-async function identityVerificationsApi(): Promise<IdentityVerificationsBankApi> {
-    return new IdentityVerificationsBankApi(await getConfiguration());
-}
-
-async function invoicesApi(): Promise<InvoicesBankApi> {
-    return new InvoicesBankApi(await getConfiguration());
-}
-
-async function paymentInstructionsApi(): Promise<PaymentInstructionsBankApi> {
-    return new PaymentInstructionsBankApi(await getConfiguration());
-}
-
-async function personaSessionsApi(): Promise<PersonaSessionsBankApi> {
-    return new PersonaSessionsBankApi(await getConfiguration());
-}
-
-async function plansApi(): Promise<PlansBankApi> {
-    return new PlansBankApi(await getConfiguration());
-}
-
-async function pricesApi(): Promise<PricesBankApi> {
-    return new PricesBankApi(await getConfiguration());
-}
-
-async function quotesApi(): Promise<QuotesBankApi> {
-    return new QuotesBankApi(await getConfiguration());
-}
-
-async function symbolsApi(): Promise<SymbolsBankApi> {
-    return new SymbolsBankApi(await getConfiguration());
-}
-
-async function tradesApi(): Promise<TradesBankApi> {
-    return new TradesBankApi(await getConfiguration());
-}
-
-async function transfersApi(): Promise<TransfersBankApi> {
-    return new TransfersBankApi(await getConfiguration());
-}
-
-async function workflowsApi(): Promise<WorkflowsBankApi> {
-    return new WorkflowsBankApi(await getConfiguration());
+/**
+ * Bridges the Cybrid SDK's RxJS observable methods into async/await.
+ * Constructs an authenticated client from the cached OAuth configuration,
+ * invokes the caller-supplied SDK call, and resolves the first emitted value.
+ */
+async function callCybridApi<ApiClient, Result>(
+    ApiClass: new (config: Configuration) => ApiClient,
+    apiCall: (apiClient: ApiClient) => Observable<Result>,
+): Promise<Result> {
+    return firstValueFrom(apiCall(new ApiClass(await getConfiguration())));
 }
 
 // --- Accounts ---
 
 export async function createAccount(postAccountBankModel: PostAccountBankModel): Promise<AccountBankModel> {
-    return firstValueFrom((await accountsApi()).createAccount({ postAccountBankModel }));
+    return callCybridApi(AccountsBankApi, (api) => api.createAccount({ postAccountBankModel }));
 }
 
 export async function getAccount(accountGuid: string): Promise<AccountBankModel> {
-    return firstValueFrom((await accountsApi()).getAccount({ accountGuid }));
+    return callCybridApi(AccountsBankApi, (api) => api.getAccount({ accountGuid }));
 }
 
 export async function listAccounts(customerGuid?: string, page = 0, perPage = 25): Promise<AccountListBankModel> {
-    return firstValueFrom((await accountsApi()).listAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(AccountsBankApi, (api) =>
+        api.listAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Assets ---
 
 export async function listAssets(page = 0, perPage = 25, code?: string): Promise<AssetListBankModel> {
-    return firstValueFrom((await assetsApi()).listAssets({ page, perPage, ...(code ? { code } : {}) }));
+    return callCybridApi(AssetsBankApi, (api) =>
+        api.listAssets({ page, perPage, ...(code ? { code } : {}) }),
+    );
 }
 
 // --- Banks ---
 
 export async function createBank(postBankBankModel: PostBankBankModel): Promise<BankBankModel> {
-    return firstValueFrom((await banksApi()).createBank({ postBankBankModel }));
+    return callCybridApi(BanksBankApi, (api) => api.createBank({ postBankBankModel }));
 }
 
 export async function getBank(bankGuid: string): Promise<BankBankModel> {
-    return firstValueFrom((await banksApi()).getBank({ bankGuid }));
+    return callCybridApi(BanksBankApi, (api) => api.getBank({ bankGuid }));
 }
 
 export async function listBanks(page = 0, perPage = 25, type?: string): Promise<BankListBankModel> {
-    return firstValueFrom((await banksApi()).listBanks({ page, perPage, ...(type ? { type } : {}) }));
+    return callCybridApi(BanksBankApi, (api) =>
+        api.listBanks({ page, perPage, ...(type ? { type } : {}) }),
+    );
 }
 
 export async function updateBank(bankGuid: string, patchBankBankModel: PatchBankBankModel): Promise<BankBankModel> {
-    return firstValueFrom((await banksApi()).updateBank({ bankGuid, patchBankBankModel }));
+    return callCybridApi(BanksBankApi, (api) => api.updateBank({ bankGuid, patchBankBankModel }));
 }
 
 // --- Book Transfers (fiat customer-to-customer) ---
@@ -322,85 +252,109 @@ export async function createBookTransfer(
 // --- Counterparties ---
 
 export async function createCounterparty(postCounterpartyBankModel: PostCounterpartyBankModel): Promise<CounterpartyBankModel> {
-    return firstValueFrom((await counterpartiesApi()).createCounterparty({ postCounterpartyBankModel }));
+    return callCybridApi(CounterpartiesBankApi, (api) =>
+        api.createCounterparty({ postCounterpartyBankModel }),
+    );
 }
 
 export async function getCounterparty(counterpartyGuid: string, includePii = false): Promise<CounterpartyBankModel> {
-    return firstValueFrom((await counterpartiesApi()).getCounterparty({ counterpartyGuid, includePii }));
+    return callCybridApi(CounterpartiesBankApi, (api) =>
+        api.getCounterparty({ counterpartyGuid, includePii }),
+    );
 }
 
 export async function listCounterparties(customerGuid?: string, page = 0, perPage = 25): Promise<CounterpartyListBankModel> {
-    return firstValueFrom((await counterpartiesApi()).listCounterparties({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(CounterpartiesBankApi, (api) =>
+        api.listCounterparties({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Customers ---
 
 export async function createCustomer(postCustomerBankModel: PostCustomerBankModel): Promise<CustomerBankModel> {
-    return firstValueFrom((await customersApi()).createCustomer({ postCustomerBankModel }));
+    return callCybridApi(CustomersBankApi, (api) => api.createCustomer({ postCustomerBankModel }));
 }
 
 export async function getCustomer(customerGuid: string, includePii = false): Promise<CustomerBankModel> {
-    return firstValueFrom((await customersApi()).getCustomer({ customerGuid, includePii }));
+    return callCybridApi(CustomersBankApi, (api) => api.getCustomer({ customerGuid, includePii }));
 }
 
 export async function listCustomers(page = 0, perPage = 25): Promise<CustomerListBankModel> {
-    return firstValueFrom((await customersApi()).listCustomers({ page, perPage }));
+    return callCybridApi(CustomersBankApi, (api) => api.listCustomers({ page, perPage }));
 }
 
 export async function updateCustomer(customerGuid: string, patchCustomerBankModel: PatchCustomerBankModel): Promise<CustomerBankModel> {
-    return firstValueFrom((await customersApi()).updateCustomer({ customerGuid, patchCustomerBankModel }));
+    return callCybridApi(CustomersBankApi, (api) =>
+        api.updateCustomer({ customerGuid, patchCustomerBankModel }),
+    );
 }
 
 // --- Deposit Addresses ---
 
 export async function createDepositAddress(postDepositAddressBankModel: PostDepositAddressBankModel): Promise<DepositAddressBankModel> {
-    return firstValueFrom((await depositAddressesApi()).createDepositAddress({ postDepositAddressBankModel }));
+    return callCybridApi(DepositAddressesBankApi, (api) =>
+        api.createDepositAddress({ postDepositAddressBankModel }),
+    );
 }
 
 export async function getDepositAddress(depositAddressGuid: string): Promise<DepositAddressBankModel> {
-    return firstValueFrom((await depositAddressesApi()).getDepositAddress({ depositAddressGuid }));
+    return callCybridApi(DepositAddressesBankApi, (api) => api.getDepositAddress({ depositAddressGuid }));
 }
 
 export async function listDepositAddresses(customerGuid?: string, page = 0, perPage = 25): Promise<DepositAddressListBankModel> {
-    return firstValueFrom((await depositAddressesApi()).listDepositAddresses({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(DepositAddressesBankApi, (api) =>
+        api.listDepositAddresses({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Deposit Bank Accounts ---
 
 export async function createDepositBankAccount(postDepositBankAccountBankModel: PostDepositBankAccountBankModel): Promise<DepositBankAccountBankModel> {
-    return firstValueFrom((await depositBankAccountsApi()).createDepositBankAccount({ postDepositBankAccountBankModel }));
+    return callCybridApi(DepositBankAccountsBankApi, (api) =>
+        api.createDepositBankAccount({ postDepositBankAccountBankModel }),
+    );
 }
 
 export async function getDepositBankAccount(depositBankAccountGuid: string): Promise<DepositBankAccountBankModel> {
-    return firstValueFrom((await depositBankAccountsApi()).getDepositBankAccount({ depositBankAccountGuid }));
+    return callCybridApi(DepositBankAccountsBankApi, (api) =>
+        api.getDepositBankAccount({ depositBankAccountGuid }),
+    );
 }
 
 export async function listDepositBankAccounts(customerGuid?: string, page = 0, perPage = 25): Promise<DepositBankAccountListBankModel> {
-    return firstValueFrom((await depositBankAccountsApi()).listDepositBankAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(DepositBankAccountsBankApi, (api) =>
+        api.listDepositBankAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Executions ---
 
 export async function createExecution(postExecutionBankModel: PostExecutionBankModel): Promise<ExecutionBankModel> {
-    return firstValueFrom((await executionsApi()).createExecution({ postExecutionBankModel }));
+    return callCybridApi(ExecutionsBankApi, (api) => api.createExecution({ postExecutionBankModel }));
 }
 
 export async function getExecution(executionGuid: string): Promise<ExecutionBankModel> {
-    return firstValueFrom((await executionsApi()).getExecution({ executionGuid }));
+    return callCybridApi(ExecutionsBankApi, (api) => api.getExecution({ executionGuid }));
 }
 
 export async function listExecutions(customerGuid?: string, page = 0, perPage = 25): Promise<ExecutionListBankModel> {
-    return firstValueFrom((await executionsApi()).listExecutions({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(ExecutionsBankApi, (api) =>
+        api.listExecutions({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- External Bank Accounts ---
 
 export async function createExternalBankAccount(postExternalBankAccountBankModel: PostExternalBankAccountBankModel): Promise<ExternalBankAccountBankModel> {
-    return firstValueFrom((await externalBankAccountsApi()).createExternalBankAccount({ postExternalBankAccountBankModel }));
+    return callCybridApi(ExternalBankAccountsBankApi, (api) =>
+        api.createExternalBankAccount({ postExternalBankAccountBankModel }),
+    );
 }
 
 export async function deleteExternalBankAccount(externalBankAccountGuid: string): Promise<ExternalBankAccountBankModel> {
-    return firstValueFrom((await externalBankAccountsApi()).deleteExternalBankAccount({ externalBankAccountGuid }));
+    return callCybridApi(ExternalBankAccountsBankApi, (api) =>
+        api.deleteExternalBankAccount({ externalBankAccountGuid }),
+    );
 }
 
 export async function getExternalBankAccount(
@@ -409,100 +363,128 @@ export async function getExternalBankAccount(
     forceBalanceRefresh = false,
     includePii = false,
 ): Promise<ExternalBankAccountBankModel> {
-    return firstValueFrom((await externalBankAccountsApi()).getExternalBankAccount({
-        externalBankAccountGuid,
-        includeBalances,
-        forceBalanceRefresh,
-        includePii,
-    }));
+    return callCybridApi(ExternalBankAccountsBankApi, (api) =>
+        api.getExternalBankAccount({
+            externalBankAccountGuid,
+            includeBalances,
+            forceBalanceRefresh,
+            includePii,
+        }),
+    );
 }
 
 export async function listExternalBankAccounts(customerGuid?: string, page = 0, perPage = 25): Promise<ExternalBankAccountListBankModel> {
-    return firstValueFrom((await externalBankAccountsApi()).listExternalBankAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(ExternalBankAccountsBankApi, (api) =>
+        api.listExternalBankAccounts({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 export async function patchExternalBankAccount(
     externalBankAccountGuid: string,
     patchExternalBankAccountBankModel: PatchExternalBankAccountBankModel,
 ): Promise<ExternalBankAccountBankModel> {
-    return firstValueFrom((await externalBankAccountsApi()).patchExternalBankAccount({
-        externalBankAccountGuid,
-        patchExternalBankAccountBankModel,
-    }));
+    return callCybridApi(ExternalBankAccountsBankApi, (api) =>
+        api.patchExternalBankAccount({
+            externalBankAccountGuid,
+            patchExternalBankAccountBankModel,
+        }),
+    );
 }
 
 // --- External Wallets ---
 
 export async function createExternalWallet(postExternalWalletBankModel: PostExternalWalletBankModel): Promise<ExternalWalletBankModel> {
-    return firstValueFrom((await externalWalletsApi()).createExternalWallet({ postExternalWalletBankModel }));
+    return callCybridApi(ExternalWalletsBankApi, (api) =>
+        api.createExternalWallet({ postExternalWalletBankModel }),
+    );
 }
 
 export async function deleteExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
-    return firstValueFrom((await externalWalletsApi()).deleteExternalWallet({ externalWalletGuid }));
+    return callCybridApi(ExternalWalletsBankApi, (api) =>
+        api.deleteExternalWallet({ externalWalletGuid }),
+    );
 }
 
 export async function getExternalWallet(externalWalletGuid: string): Promise<ExternalWalletBankModel> {
-    return firstValueFrom((await externalWalletsApi()).getExternalWallet({ externalWalletGuid }));
+    return callCybridApi(ExternalWalletsBankApi, (api) => api.getExternalWallet({ externalWalletGuid }));
 }
 
 export async function listExternalWallets(customerGuid?: string, page = 0, perPage = 25): Promise<ExternalWalletListBankModel> {
-    return firstValueFrom((await externalWalletsApi()).listExternalWallets({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(ExternalWalletsBankApi, (api) =>
+        api.listExternalWallets({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Files ---
 
 export async function createFile(postFileBankModel: PostFileBankModel): Promise<PlatformFileBankModel> {
-    return firstValueFrom((await filesApi()).createFile({ postFileBankModel }));
+    return callCybridApi(FilesBankApi, (api) => api.createFile({ postFileBankModel }));
 }
 
 export async function getFile(fileGuid: string, includeDownloadUrl?: string): Promise<PlatformFileBankModel> {
-    return firstValueFrom((await filesApi()).getFile({ fileGuid, ...(includeDownloadUrl ? { includeDownloadUrl } : {}) }));
+    return callCybridApi(FilesBankApi, (api) =>
+        api.getFile({ fileGuid, ...(includeDownloadUrl ? { includeDownloadUrl } : {}) }),
+    );
 }
 
 export async function listFiles(customerGuid?: string, page = 0, perPage = 25): Promise<PlatformFileListBankModel> {
-    return firstValueFrom((await filesApi()).listFiles({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(FilesBankApi, (api) =>
+        api.listFiles({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Identity Verification ---
 
 export async function createIdentityVerification(postIdentityVerificationBankModel: PostIdentityVerificationBankModel): Promise<IdentityVerificationBankModel> {
-    return firstValueFrom((await identityVerificationsApi()).createIdentityVerification({ postIdentityVerificationBankModel }));
+    return callCybridApi(IdentityVerificationsBankApi, (api) =>
+        api.createIdentityVerification({ postIdentityVerificationBankModel }),
+    );
 }
 
 export async function getIdentityVerification(identityVerificationGuid: string): Promise<IdentityVerificationWithDetailsBankModel> {
-    return firstValueFrom((await identityVerificationsApi()).getIdentityVerification({ identityVerificationGuid }));
+    return callCybridApi(IdentityVerificationsBankApi, (api) =>
+        api.getIdentityVerification({ identityVerificationGuid }),
+    );
 }
 
 export async function listIdentityVerifications(customerGuid?: string, page = 0, perPage = 25): Promise<IdentityVerificationListBankModel> {
-    return firstValueFrom((await identityVerificationsApi()).listIdentityVerifications({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(IdentityVerificationsBankApi, (api) =>
+        api.listIdentityVerifications({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Invoices ---
 
 export async function cancelInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
-    return firstValueFrom((await invoicesApi()).cancelInvoice({ invoiceGuid }));
+    return callCybridApi(InvoicesBankApi, (api) => api.cancelInvoice({ invoiceGuid }));
 }
 
 export async function createInvoice(postInvoiceBankModel: PostInvoiceBankModel): Promise<InvoiceBankModel> {
-    return firstValueFrom((await invoicesApi()).createInvoice({ postInvoiceBankModel }));
+    return callCybridApi(InvoicesBankApi, (api) => api.createInvoice({ postInvoiceBankModel }));
 }
 
 export async function getInvoice(invoiceGuid: string): Promise<InvoiceBankModel> {
-    return firstValueFrom((await invoicesApi()).getInvoice({ invoiceGuid }));
+    return callCybridApi(InvoicesBankApi, (api) => api.getInvoice({ invoiceGuid }));
 }
 
 export async function listInvoices(customerGuid?: string, page = 0, perPage = 25): Promise<InvoiceListBankModel> {
-    return firstValueFrom((await invoicesApi()).listInvoices({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(InvoicesBankApi, (api) =>
+        api.listInvoices({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Payment Instructions ---
 
 export async function createPaymentInstruction(postPaymentInstructionBankModel: PostPaymentInstructionBankModel): Promise<PaymentInstructionBankModel> {
-    return firstValueFrom((await paymentInstructionsApi()).createPaymentInstruction({ postPaymentInstructionBankModel }));
+    return callCybridApi(PaymentInstructionsBankApi, (api) =>
+        api.createPaymentInstruction({ postPaymentInstructionBankModel }),
+    );
 }
 
 export async function getPaymentInstruction(paymentInstructionGuid: string): Promise<PaymentInstructionBankModel> {
-    return firstValueFrom((await paymentInstructionsApi()).getPaymentInstruction({ paymentInstructionGuid }));
+    return callCybridApi(PaymentInstructionsBankApi, (api) =>
+        api.getPaymentInstruction({ paymentInstructionGuid }),
+    );
 }
 
 export async function listPaymentInstructions(
@@ -511,104 +493,120 @@ export async function listPaymentInstructions(
     page = 0,
     perPage = 25,
 ): Promise<PaymentInstructionListBankModel> {
-    return firstValueFrom((await paymentInstructionsApi()).listPaymentInstructions({
-        page,
-        perPage,
-        ...(customerGuid ? { customerGuid } : {}),
-        ...(invoiceGuid ? { invoiceGuid } : {}),
-    }));
+    return callCybridApi(PaymentInstructionsBankApi, (api) =>
+        api.listPaymentInstructions({
+            page,
+            perPage,
+            ...(customerGuid ? { customerGuid } : {}),
+            ...(invoiceGuid ? { invoiceGuid } : {}),
+        }),
+    );
 }
 
 // --- Persona Sessions ---
 
 export async function createPersonaSession(postPersonaSessionBankModel: PostPersonaSessionBankModel): Promise<PersonaSessionBankModel> {
-    return firstValueFrom((await personaSessionsApi()).createPersonaSession({ postPersonaSessionBankModel }));
+    return callCybridApi(PersonaSessionsBankApi, (api) =>
+        api.createPersonaSession({ postPersonaSessionBankModel }),
+    );
 }
 
 // --- Plans ---
 
 export async function createPlan(postPlanBankModel: PostPlanBankModel): Promise<PlanBankModel> {
-    return firstValueFrom((await plansApi()).createPlan({ postPlanBankModel }));
+    return callCybridApi(PlansBankApi, (api) => api.createPlan({ postPlanBankModel }));
 }
 
 export async function getPlan(planGuid: string): Promise<PlanBankModel> {
-    return firstValueFrom((await plansApi()).getPlan({ planGuid }));
+    return callCybridApi(PlansBankApi, (api) => api.getPlan({ planGuid }));
 }
 
 export async function listPlans(customerGuid?: string, page = 0, perPage = 25): Promise<PlanListBankModel> {
-    return firstValueFrom((await plansApi()).listPlans({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(PlansBankApi, (api) =>
+        api.listPlans({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Prices ---
 
 export async function listPrices(symbol?: string): Promise<Array<SymbolPriceBankModel>> {
-    return firstValueFrom((await pricesApi()).listPrices({ ...(symbol ? { symbol } : {}) }));
+    return callCybridApi(PricesBankApi, (api) => api.listPrices({ ...(symbol ? { symbol } : {}) }));
 }
 
 // --- Quotes ---
 
 export async function createQuote(postQuoteBankModel: PostQuoteBankModel): Promise<QuoteBankModel> {
-    return firstValueFrom((await quotesApi()).createQuote({ postQuoteBankModel }));
+    return callCybridApi(QuotesBankApi, (api) => api.createQuote({ postQuoteBankModel }));
 }
 
 export async function getQuote(quoteGuid: string): Promise<QuoteBankModel> {
-    return firstValueFrom((await quotesApi()).getQuote({ quoteGuid }));
+    return callCybridApi(QuotesBankApi, (api) => api.getQuote({ quoteGuid }));
 }
 
 export async function listQuotes(customerGuid?: string, page = 0, perPage = 25): Promise<QuoteListBankModel> {
-    return firstValueFrom((await quotesApi()).listQuotes({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(QuotesBankApi, (api) =>
+        api.listQuotes({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Symbols ---
 
 export async function listSymbols(): Promise<Array<string>> {
-    return firstValueFrom((await symbolsApi()).listSymbols());
+    return callCybridApi(SymbolsBankApi, (api) => api.listSymbols());
 }
 
 // --- Trades ---
 
 export async function createTrade(postTradeBankModel: PostTradeBankModel): Promise<TradeBankModel> {
-    return firstValueFrom((await tradesApi()).createTrade({ postTradeBankModel }));
+    return callCybridApi(TradesBankApi, (api) => api.createTrade({ postTradeBankModel }));
 }
 
 export async function getTrade(tradeGuid: string): Promise<TradeBankModel> {
-    return firstValueFrom((await tradesApi()).getTrade({ tradeGuid }));
+    return callCybridApi(TradesBankApi, (api) => api.getTrade({ tradeGuid }));
 }
 
 export async function listTrades(customerGuid?: string, page = 0, perPage = 25): Promise<TradeListBankModel> {
-    return firstValueFrom((await tradesApi()).listTrades({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(TradesBankApi, (api) =>
+        api.listTrades({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // --- Transfers ---
 
 export async function createTransfer(postTransferBankModel: PostTransferBankModel): Promise<TransferBankModel> {
-    return firstValueFrom((await transfersApi()).createTransfer({ postTransferBankModel }));
+    return callCybridApi(TransfersBankApi, (api) => api.createTransfer({ postTransferBankModel }));
 }
 
 export async function getTransfer(transferGuid: string): Promise<TransferBankModel> {
-    return firstValueFrom((await transfersApi()).getTransfer({ transferGuid }));
+    return callCybridApi(TransfersBankApi, (api) => api.getTransfer({ transferGuid }));
 }
 
 export async function listTransfers(customerGuid?: string, page = 0, perPage = 25): Promise<TransferListBankModel> {
-    return firstValueFrom((await transfersApi()).listTransfers({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(TransfersBankApi, (api) =>
+        api.listTransfers({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 export async function updateTransfer(transferGuid: string, patchTransferBankModel: PatchTransferBankModel): Promise<TransferBankModel> {
-    return firstValueFrom((await transfersApi()).updateTransfer({ transferGuid, patchTransferBankModel }));
+    return callCybridApi(TransfersBankApi, (api) =>
+        api.updateTransfer({ transferGuid, patchTransferBankModel }),
+    );
 }
 
 // --- Workflows ---
 
 export async function createWorkflow(postWorkflowBankModel: PostWorkflowBankModel): Promise<WorkflowBankModel> {
-    return firstValueFrom((await workflowsApi()).createWorkflow({ postWorkflowBankModel }));
+    return callCybridApi(WorkflowsBankApi, (api) => api.createWorkflow({ postWorkflowBankModel }));
 }
 
 export async function getWorkflow(workflowGuid: string): Promise<WorkflowWithDetailsBankModel> {
-    return firstValueFrom((await workflowsApi()).getWorkflow({ workflowGuid }));
+    return callCybridApi(WorkflowsBankApi, (api) => api.getWorkflow({ workflowGuid }));
 }
 
 export async function listWorkflows(customerGuid?: string, page = 0, perPage = 25): Promise<WorkflowsListBankModel> {
-    return firstValueFrom((await workflowsApi()).listWorkflows({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }));
+    return callCybridApi(WorkflowsBankApi, (api) =>
+        api.listWorkflows({ page, perPage, ...(customerGuid ? { customerGuid } : {}) }),
+    );
 }
 
 // Re-export SDK types for convenience
