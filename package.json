@@ -36,8 +36,8 @@
         "dev": "nodemon --watch src -e ts --exec npm run dev:start",
         "start": "node .",
         "test:cucumber": "cucumber-js --format progress",
-        "test": "node --experimental-test-module-mocks --test './test/ts/**/*.Test.ts'",
-        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./src/test/ts/**/*.Test.ts"
+        "test": "node --experimental-test-module-mocks --test './test/ts/**/*.test.ts'",
+        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./test/ts/**/*.test.ts"
     },
     "overrides": {
         "inflight": "latest",
