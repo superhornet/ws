@@ -23,10 +23,13 @@ const mockSetDeleted = fn();
 class MockNotification {
     public message: string;
     public identifier: string;
-    constructor(input: { message: string; identifier?: string }) {
+    constructor (input: { message: string; identifier?: string }) {
         mockNotificationConstructor(input);
         this.message = input.message;
         this.identifier = input.identifier ?? '';
+    }
+    static async create(input: { message: string; identifier?: string }): Promise<MockNotification> {
+        return new MockNotification(input);
     }
     static getAllForUser(...args: unknown[]): Promise<unknown> {
         return mockGetAllForUser(...args);
@@ -50,7 +53,7 @@ const mockAuditConstructor = mock.fn<(message: unknown, session: unknown) => voi
 mock.module('../../src/main/ts/models/Audit.ts', {
     namedExports: {
         Audit: class {
-            constructor(message: unknown, session: unknown) {
+            constructor (message: unknown, session: unknown) {
                 mockAuditConstructor(message, session);
             }
         }
