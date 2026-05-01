@@ -95,7 +95,7 @@ describe("Notification.create", () => {
         ];
         assert.match(sql, /INSERT INTO notifications/);
         assert.match(sql, /RETURNING id/);
-        assert.deepEqual(params, ["hello", "FALSE", validInput.identifier]);
+        assert.deepEqual(params, ["hello", false, validInput.identifier]);
     });
 });
 
