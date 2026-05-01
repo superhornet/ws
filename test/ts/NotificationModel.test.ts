@@ -53,10 +53,6 @@ async function expectStatus(
     });
 }
 
-async function flushMicrotasks() {
-    await new Promise((resolve) => setImmediate(resolve));
-}
-
 const validInput = {
     id: 0,
     session: "11111111-1111-1111-1111-111111111111",
@@ -67,32 +63,31 @@ const validInput = {
 
 // --- Constructor / storeNotification ---
 
-describe("new Notification()", () => {
+describe("Notification.create", () => {
     beforeEach(() => {
         resetAll();
     });
 
-    it("assigns message and identifier from input", () => {
-        const n = new Notification({ ...validInput } as never);
+    it("assigns message and identifier from input", async () => {
+        const n = await Notification.create({ ...validInput } as never);
         assert.equal(n.message, "hello");
         assert.equal(n.identifier, validInput.identifier);
     });
 
-    it("defaults identifier to empty string when omitted", () => {
+    it("defaults identifier to empty string when omitted", async () => {
         const { identifier: _omit, ...withoutIdentifier } = validInput;
         void _omit;
-        const n = new Notification(withoutIdentifier as never);
+        const n = await Notification.create(withoutIdentifier as never);
         assert.equal(n.identifier, "");
     });
 
-    it("schedules a DB insert via withTransaction", () => {
-        new Notification({ ...validInput } as never);
+    it("calls withTransaction to insert", async () => {
+        await Notification.create({ ...validInput } as never);
         assert.equal(mockWithTransaction.mock.callCount(), 1);
     });
 
     it("sends INSERT INTO notifications with the mapped values", async () => {
-        new Notification({ ...validInput } as never);
-        await flushMicrotasks();
+        await Notification.create({ ...validInput } as never);
         assert.equal(mockClientQuery.mock.callCount(), 1);
         const [sql, params] = mockClientQuery.mock.calls[0]!.arguments as [
             string,

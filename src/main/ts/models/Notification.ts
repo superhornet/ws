@@ -5,26 +5,16 @@ import { query, withTransaction } from "../libs/postgresDB.ts";
 export class Notification {
     private _message!: string;
     private _identifier!: string;
+    public id: number = 0;
     public get identifier() {
         return this._identifier;
     }
     public set identifier(value) {
         this._identifier = value;
     }
-    constructor(data: NotificationAPIType) {
-        try {
-            this.message = data.message;
-            this.identifier = data.identifier || "";
-            this.storeNotification();
-
-        } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
-            }
-
-        }
+    constructor (data: NotificationAPIType) {
+        this.message = data.message;
+        this.identifier = data.identifier || "";
     }
     public get message(): string {
         return this._message;
@@ -32,12 +22,25 @@ export class Notification {
     public set message(value: string) {
         this._message = value;
     }
+
+    static async create(data: NotificationAPIType): Promise<Notification> {
+        try {
+            const notification = new Notification(data);
+            await notification.storeNotification();
+            return notification;
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+    }
     /**
      * storeNotification
      */
-    private storeNotification() {
-
-        withTransaction(async (client) => {
+    private async storeNotification(): Promise<void> {
+        await withTransaction(async (client) => {
             const notificationInsert = await client.query<{ id: number }>(
                 `INSERT INTO notifications (message, seen, notification_identifier) VALUES( $1 , $2 , $3 ) RETURNING id;`,
                 [this.message, 'FALSE', this.identifier]
@@ -45,6 +48,7 @@ export class Notification {
             if (notificationInsert.rows.length === 0) {
                 throw new HTMLStatusError("Notification creation failed", 400);
             }
+            this.id = notificationInsert.rows[0]!.id;
         })
     }
     static async getAllForUser(data: string) {
