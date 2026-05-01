@@ -40,7 +40,7 @@ export class Notification {
         withTransaction(async (client) => {
             const notificationInsert = await client.query<{ id: number }>(
                 `INSERT INTO notifications (message, seen, notification_identifier) VALUES( $1 , $2 , $3 ) RETURNING id;`,
-                [this.message, 'FALSE', this.identifier]
+                [this.message, false, this.identifier]
             );
             if (notificationInsert.rows.length === 0) {
                 throw new HTMLStatusError("Notification creation failed", 400);
@@ -112,7 +112,6 @@ export class Notification {
                 `UPDATE notifications set deleted=TRUE WHERE deleted = FALSE AND id = $1;`,
                 [data]
             )
-            console.log(deletedNotifications);
             if (deletedNotifications) {
                 for (const notification of deletedNotifications) {
                     output.push({
