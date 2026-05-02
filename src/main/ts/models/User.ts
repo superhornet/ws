@@ -1,6 +1,7 @@
 import { generateUUID } from "../libs/UUID.ts";
 import { SubscriptionType, type SubscriptionEnum } from "../types/SubscriptionTypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { toHttpError } from "../libs/httpErrorWrap.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
 export interface FetchedUser {
@@ -116,8 +117,8 @@ export class User implements IUser {
             this.id = userInsert.rows[0]!.id;
         });
     }
-    static async fetchById(userid: string): Promise<FetchedUser> {
-        try {
+    static fetchById(userid: string): Promise<FetchedUser> {
+        return toHttpError(async () => {
             const fetchedUser = await query<{ id: number; email: string;
                 firstname: string; lastname: string; user_identifier: string;
                 address1: string; address2: string; city: string; state: string;
@@ -134,16 +135,10 @@ export class User implements IUser {
                 throw new HTMLStatusError("Internal Server Error", 500);
             }
             return { id, email, firstname, lastname, identifier, address1, address2, city, state, level };
-        } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError("Internal Server Error", 500);
-            }
-        }
+        });
     }
-    static async updateUser(data: UserAPIType) {
-        try {
+    static updateUser(data: UserAPIType): Promise<void> {
+        return toHttpError(async () => {
             const requiredFields = ["identifier", "firstname", "lastname", "email",
                                     "address1", "city", "state", "level"] as const;
             const hasMissing = requiredFields.some(
@@ -167,15 +162,10 @@ export class User implements IUser {
             if (result.length === 0) {
                 throw new HTMLStatusError("User not found", 404);
             }
-        } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            }
-            throw new HTMLStatusError("Internal Server Error", 500);
-        }
+        });
     }
-    static async deleteUser(data: UserAPIType) {
-        try {
+    static deleteUser(data: UserAPIType): Promise<void> {
+        return toHttpError(async () => {
             if (data.identifier === undefined) {
                 throw new HTMLStatusError("Missing JSON Data", 400);
             }
@@ -186,11 +176,6 @@ export class User implements IUser {
             if (result.length === 0) {
                 throw new HTMLStatusError("User not found", 404);
             }
-        } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            }
-            throw new HTMLStatusError("Internal Server Error", 500);
-        }
+        });
     }
 }
