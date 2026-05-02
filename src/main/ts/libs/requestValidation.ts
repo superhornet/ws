@@ -6,3 +6,9 @@ export function requireBody(req: express.Request): void {
         throw new HTMLStatusError("Empty JSON body", 400);
     }
 }
+
+export function requireGuid(value: string | undefined, label: string): asserts value is string {
+    if (!value) {
+        throw new HTMLStatusError(`${label} GUID is required`, 400);
+    }
+}

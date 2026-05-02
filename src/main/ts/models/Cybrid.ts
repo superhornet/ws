@@ -1,5 +1,6 @@
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
-import { toHttpError, requireGuid } from "../libs/httpErrorWrap.ts";
+import { toHttpError } from "../libs/httpErrorWrap.ts";
+import { requireGuid } from "../libs/requestValidation.ts";
 import * as CybridClient from "../libs/CybridClient.ts";
 import type {
     CustomerBankModel,

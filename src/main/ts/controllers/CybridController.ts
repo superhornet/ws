@@ -23,7 +23,7 @@ import type {
     PostPlanBankModel,
 } from "../libs/CybridClient.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { requireGuid } from "../libs/httpErrorWrap.ts";
+import { requireGuid } from "../libs/requestValidation.ts";
 import { withIdempotency } from "../libs/withIdempotency.ts";
 import { getSession, requireSessionFromBody } from "../libs/session.ts";
 import { requireBody } from "../libs/requestValidation.ts";
