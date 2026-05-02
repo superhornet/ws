@@ -6,12 +6,13 @@ import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import { getSession, requireSessionFromBody } from "../libs/session.ts";
 import { requireBody } from "../libs/requestValidation.ts";
+import { userCreationLimiter } from "../libs/rateLimiter.ts";
 export const router = express.Router();
 
 /**
  * Create a User
  */
-router.post("/user", async (req, res) => {
+router.post("/user", userCreationLimiter, async (req, res) => {
     try {
         requireBody(req);
         const data: UserAPIType = req.body;

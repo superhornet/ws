@@ -25,3 +25,12 @@ export const financialLimiter = rateLimit({
     legacyHeaders: false,
     message: { code: 429, data: null, message: "Too many requests, please try again later" },
 });
+
+// Stricter limit on user creation: 10 per 15 minutes per IP
+export const userCreationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { code: 429, data: null, message: "Too many requests, please try again later" },
+});
