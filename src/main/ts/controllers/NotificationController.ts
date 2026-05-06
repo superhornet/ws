@@ -3,6 +3,7 @@ import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { Notification } from "../models/Notification.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
+import { requireBody } from "../libs/requestValidation.ts";
 import { getSession } from "../libs/session.ts";
 import type { NotificationAPIType, NotificationType } from "../types/NotificationAPITypes.ts";
 export const router = express.Router();
@@ -12,9 +13,7 @@ export const router = express.Router();
  */
 router.post("/notification", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: NotificationAPIType = req.body;
 
         if (data.session === undefined) {
@@ -47,9 +46,7 @@ router.get("/notifications", async (req, res) => {
 //Marks a notification as seen
 router.put("/notification/:id", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: NotificationAPIType = req.body;
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
@@ -70,9 +67,7 @@ router.put("/notification/:id", async (req, res) => {
 //Marks a notification as deleted
 router.delete("/notification/:id", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
+        requireBody(req);
         const data: NotificationAPIType = req.body;
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
