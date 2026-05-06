@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import { query, withTransaction} from "../libs/postgresDB.ts"
 import { generateUUID } from "../libs/UUID.ts";
+import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 
 /**
  * Session interface definition
@@ -46,8 +47,12 @@ export class Session implements ISession {
                 'INSERT INTO sessions (uuid, otp) VALUES ($1, $2) RETURNING id, expires',
                 [this.uuid, this.otp]
             )
-            this.dbID = sessionInsert.rows[0]!.id;
-            this.expires = sessionInsert.rows[0]!.expires;
+            const row = sessionInsert.rows[0];
+            if (!row) {
+                throw new HTMLStatusError("Session creation failed", 500);
+            }
+            this.dbID = row.id;
+            this.expires = row.expires;
         })
     }
     /**
