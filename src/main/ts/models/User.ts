@@ -111,10 +111,11 @@ export class User implements IUser {
                 `INSERT INTO users (email,emailHost,emailID,firstname,lastname,user_identifier,address1,address2,city,state,level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
                 [email, emailHost, emailID, firstname, lastname, identifier, address1, address2, city, state, level],
             );
-            if (userInsert.rows.length === 0) {
+            const row = userInsert.rows[0];
+            if (!row) {
                 throw new HTMLStatusError("User creation failed", 400);
             }
-            this.id = userInsert.rows[0]!.id;
+            this.id = row.id;
         });
     }
     static fetchById(userid: string): Promise<FetchedUser> {
