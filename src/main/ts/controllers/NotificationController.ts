@@ -3,6 +3,7 @@ import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { Notification } from "../models/Notification.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
+import { getSession } from "../libs/session.ts";
 import type { NotificationAPIType, NotificationType } from "../types/NotificationAPITypes.ts";
 export const router = express.Router();
 
@@ -30,17 +31,14 @@ router.post("/notification", async (req, res) => {
 
 router.get("/notifications", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const identifier = req.query.identifier as string | undefined;
+        if (!identifier) {
+            throw new HTMLStatusError("Missing required data", 400);
         }
-        const data: NotificationAPIType = req.body;
-        if (data.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else {
-            new Audit(`Retrieving notifications for user ${data.identifier}`, data.session);
-            const notifications: Array<NotificationType> = await Notification.getAllForUser(data.identifier || "");
-            JSONResponse.goodToGo(req, res, "OK", notifications as unknown as JSON)
-        }
+        new Audit(`Retrieving notifications for user ${identifier}`, session);
+        const notifications: Array<NotificationType> = await Notification.getAllForUser(identifier);
+        JSONResponse.goodToGo(req, res, "OK", notifications as unknown as JSON)
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
     }
@@ -70,7 +68,7 @@ router.put("/notification/:id", async (req, res) => {
 });
 
 //Marks a notification as deleted
-router.delete("/notification/:id", (req, res) => {
+router.delete("/notification/:id", async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
@@ -84,7 +82,7 @@ router.delete("/notification/:id", (req, res) => {
                 throw new HTMLStatusError("Invalid notification id", 400);
             }
             new Audit(`Marking notification id: ${notificationId} as deleted`, data.session);
-            Notification.setDeleted(notificationId);
+            await Notification.setDeleted(notificationId);
             JSONResponse.noContent(req, res, "No Content", null)
         }
     } catch (error) {

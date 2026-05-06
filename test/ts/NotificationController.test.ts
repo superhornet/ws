@@ -203,30 +203,49 @@ describe('POST /api/notification', () => {
 describe('GET /api/notifications', () => {
     beforeEach(() => { resetAllMocks(); });
 
-    it('returns 400 on empty body', async () => {
-        const res = await sendJSON(createApp(), 'GET', '/api/notifications', {});
-        assert.equal(res.status, 400);
-        assert.match(res.body.message as string, /Empty JSON body/);
-    });
-
-    it('returns 403 when session is missing', async () => {
-        const res = await sendJSON(createApp(), 'GET', '/api/notifications', {
-            identifier: validBody.identifier
-        });
+    it('returns 403 when x-session header is missing', async () => {
+        const res = await sendJSON(
+            createApp(),
+            'GET',
+            `/api/notifications?identifier=${validBody.identifier}`
+        );
         assert.equal(res.status, 403);
         assert.match(res.body.message as string, /Session/);
+    });
+
+    it('returns 400 when identifier query is missing', async () => {
+        const res = await sendJSON(
+            createApp(),
+            'GET',
+            '/api/notifications',
+            undefined,
+            { 'x-session': 'sess-1' }
+        );
+        assert.equal(res.status, 400);
     });
 
     it('returns 200 with the fetched notification list', async () => {
         const list = [{ id: 1, seen: false, message: 'hello', identifier: validBody.identifier }];
         mockGetAllForUser.mock.mockImplementation(async () => list);
-        const res = await sendJSON(createApp(), 'GET', '/api/notifications', validBody);
+        const res = await sendJSON(
+            createApp(),
+            'GET',
+            `/api/notifications?identifier=${validBody.identifier}`,
+            undefined,
+            { 'x-session': 'sess-1' }
+        );
         assert.equal(res.status, 200);
         assert.deepEqual(res.body.data, list);
     });
 
     it('forwards the identifier to Notification.getAllForUser', async () => {
-        await sendJSON(createApp(), 'GET', '/api/notifications', validBody);
+        await sendJSON(
+            createApp(),
+            'GET',
+            `/api/notifications?identifier=${validBody.identifier}`,
+            undefined,
+            { 'x-session': 'sess-1' }
+        );
         assert.equal(mockGetAllForUser.mock.callCount(), 1);
         assert.equal(mockGetAllForUser.mock.calls[0]!.arguments[0], validBody.identifier);
     });
@@ -235,7 +254,13 @@ describe('GET /api/notifications', () => {
         mockGetAllForUser.mock.mockImplementation(async () => {
             throw new Error('db down');
         });
-        const res = await sendJSON(createApp(), 'GET', '/api/notifications', validBody);
+        const res = await sendJSON(
+            createApp(),
+            'GET',
+            `/api/notifications?identifier=${validBody.identifier}`,
+            undefined,
+            { 'x-session': 'sess-1' }
+        );
         assert.equal(res.status, 500);
     });
 });
