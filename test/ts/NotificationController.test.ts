@@ -321,11 +321,12 @@ describe('PUT /api/notification/:id', () => {
         assert.equal(mockSetAsSeen.mock.callCount(), 0);
     });
 
-    it('returns 202 and calls setAsSeen with the parsed id on success', async () => {
+    it('returns 204 with no body and calls setAsSeen with the parsed id on success', async () => {
         const res = await sendJSON(createApp(), 'PUT', '/api/notification/7', validBody);
-        assert.equal(res.status, 202);
+        assert.equal(res.status, 204);
         assert.equal(mockSetAsSeen.mock.callCount(), 1);
         assert.equal(mockSetAsSeen.mock.calls[0]!.arguments[0], 7);
+        assert.deepEqual(res.body, {});
     });
 
     it('records an Audit entry tied to the session', async () => {
