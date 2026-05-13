@@ -21,7 +21,7 @@ router.post("/notification", async (req, res) => {
         } else {
             new Audit(`Create notification for ${data.identifier}: ${data.message}.`, data.session);
             const notification = await Notification.create(data);
-            JSONResponse.creationSuccess(req, res, "Created", notification as unknown as JSON);
+            JSONResponse.creationSuccess(req, res, "Created", notification.toJSON() as unknown as JSON);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);

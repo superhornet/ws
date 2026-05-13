@@ -21,12 +21,21 @@ const mockSetAsSeen = fn();
 const mockSetDeleted = fn();
 
 class MockNotification {
+    public id = 42;
     public message: string;
     public identifier: string;
     constructor (input: { message: string; identifier?: string }) {
         mockNotificationConstructor(input);
         this.message = input.message;
         this.identifier = input.identifier ?? '';
+    }
+    toJSON() {
+        return {
+            id: this.id,
+            seen: false,
+            message: this.message,
+            identifier: this.identifier,
+        };
     }
     static async create(input: { message: string; identifier?: string }): Promise<MockNotification> {
         return new MockNotification(input);
@@ -171,6 +180,13 @@ describe('POST /api/notification', () => {
         const res = await sendJSON(createApp(), 'POST', '/api/notification', validBody);
         assert.equal(res.status, 201);
         assert.equal(res.body.code, 201);
+        const data = res.body.data as Record<string, unknown>;
+        assert.equal(data.id, 42);
+        assert.equal(data.seen, false);
+        assert.equal(data.message, 'hello');
+        assert.equal(data.identifier, validBody.identifier);
+        assert.equal(Object.hasOwn(data, '_message'), false);
+        assert.equal(Object.hasOwn(data, '_identifier'), false);
     });
 
     it('passes the request body to the Notification constructor', async () => {
