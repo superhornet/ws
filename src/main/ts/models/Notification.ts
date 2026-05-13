@@ -22,6 +22,14 @@ export class Notification {
     public set message(value: string) {
         this._message = value;
     }
+    public toJSON(): NotificationType {
+        return {
+            id: this.id,
+            seen: false,
+            message: this.message,
+            identifier: this.identifier,
+        };
+    }
 
     static async create(data: NotificationAPIType): Promise<Notification> {
         try {

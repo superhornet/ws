@@ -97,6 +97,20 @@ describe("Notification.create", () => {
         assert.match(sql, /RETURNING id/);
         assert.deepEqual(params, ["hello", false, validInput.identifier]);
     });
+
+    it("toJSON exposes the persisted row shape without underscore fields", async () => {
+        mockClientQuery.mock.mockImplementation(async () => ({ rows: [{ id: 99 }] }));
+        const n = await Notification.create({ ...validInput } as never);
+        const json = JSON.parse(JSON.stringify(n));
+        assert.deepEqual(json, {
+            id: 99,
+            seen: false,
+            message: "hello",
+            identifier: validInput.identifier,
+        });
+        assert.equal(Object.hasOwn(json, "_message"), false);
+        assert.equal(Object.hasOwn(json, "_identifier"), false);
+    });
 });
 
 // --- getAllForUser ---
