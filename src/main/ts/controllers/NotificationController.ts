@@ -57,7 +57,7 @@ router.put("/notification/:id", async (req, res) => {
             }
             new Audit(`Marking notification id: ${notificationId} as seen`, data.session);
             await Notification.setAsSeen(notificationId);
-            JSONResponse.updateSuccess(req, res, "Accepted", data as JSON)
+            JSONResponse.noContent(req, res, "No Content", null)
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
