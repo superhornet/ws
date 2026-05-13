@@ -190,10 +190,10 @@ describe("Notification.setAsSeen", () => {
         assert.deepEqual(params, [7]);
     });
 
-    it("returns an empty array when the update returns no rows", async () => {
-        mockQuery.mock.mockImplementation(async () => undefined as never);
+    it("resolves to undefined on success", async () => {
+        mockQuery.mock.mockImplementation(async () => []);
         const result = await Notification.setAsSeen(7);
-        assert.deepEqual(result, []);
+        assert.equal(result, undefined);
     });
 
     it("wraps DB errors as 500", async () => {
@@ -226,10 +226,10 @@ describe("Notification.setDeleted", () => {
         assert.deepEqual(params, [7]);
     });
 
-    it("returns an empty array when the update returns no rows", async () => {
-        mockQuery.mock.mockImplementation(async () => undefined as never);
+    it("resolves to undefined on success", async () => {
+        mockQuery.mock.mockImplementation(async () => []);
         const result = await Notification.setDeleted(7);
-        assert.deepEqual(result, []);
+        assert.equal(result, undefined);
     });
 
     it("wraps DB errors as 500", async () => {

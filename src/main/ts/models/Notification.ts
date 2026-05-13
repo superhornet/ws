@@ -79,56 +79,26 @@ export class Notification {
             }
         }
     }
-    static async setAsSeen(data: number) {
-        const output: Array<NotificationType> = [];
+    static async setAsSeen(id: number): Promise<void> {
         try {
-            const updatedNotifications = await query(
+            await query(
                 `UPDATE notifications set seen=TRUE WHERE deleted = FALSE AND id = $1;`,
-                [data]
+                [id]
             )
-            if (updatedNotifications) {
-                for (const notification of updatedNotifications) {
-                    output.push({
-                        id: notification.id,
-                        seen: notification.seen,
-                        message: notification.message,
-                        identifier: notification.identifier
-                    })
-                }
-                return output;
-            } else {
-                return [];
-            }
-
         } catch (error) {
             if (error instanceof HTMLStatusError) {
                 throw error;
             } else {
                 throw new HTMLStatusError((error as Error).message, 500);
             }
-
         }
     }
-    static async setDeleted(data: number) {
-        const output: Array<NotificationType> = [];
+    static async setDeleted(id: number): Promise<void> {
         try {
-            const deletedNotifications = await query(
+            await query(
                 `UPDATE notifications set deleted=TRUE WHERE deleted = FALSE AND id = $1;`,
-                [data]
+                [id]
             )
-            if (deletedNotifications) {
-                for (const notification of deletedNotifications) {
-                    output.push({
-                        id: notification.id,
-                        seen: notification.seen,
-                        message: notification.message,
-                        identifier: notification.identifier
-                    })
-                }
-                return output;
-            } else {
-                return [];
-            }
         } catch (error) {
             if (error instanceof HTMLStatusError) {
                 throw error;
