@@ -51,26 +51,15 @@ export class Notification {
             this.id = notificationInsert.rows[0]!.id;
         })
     }
-    static async getAllForUser(data: string) {
-        const output: Array<NotificationType> = [];
+    static async getAllForUser(data: string): Promise<Array<NotificationType>> {
         try {
-            const fetchedNotifications = await query<{ id: number, seen: boolean, message: string, identifier: string }>(
-                `SELECT id, seen, message, notification_identifier FROM notifications WHERE deleted = FALSE AND notification_identifier = $1;`,
+            const fetchedNotifications = await query<NotificationType>(
+                `SELECT id, seen, message, notification_identifier AS identifier
+                 FROM notifications
+                 WHERE deleted = FALSE AND notification_identifier = $1;`,
                 [data]
             )
-            if (fetchedNotifications === undefined) {
-                throw new HTMLStatusError("Notifications not found", 404);
-            } else {
-                for (const notification of fetchedNotifications) {
-                    output.push({
-                        id: notification.id,
-                        seen: notification.seen,
-                        message: notification.message,
-                        identifier: notification.identifier
-                    })
-                }
-            }
-            return output;
+            return fetchedNotifications;
         } catch (error) {
             if (error instanceof HTMLStatusError) {
                 throw error;
