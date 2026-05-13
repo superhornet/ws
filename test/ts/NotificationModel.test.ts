@@ -140,8 +140,9 @@ describe("Notification.getAllForUser", () => {
         ];
         assert.match(
             sql,
-            /SELECT .* FROM notifications WHERE deleted = FALSE AND notification_identifier = \$1/,
+            /SELECT [\s\S]* FROM notifications\s+WHERE deleted = FALSE AND notification_identifier = \$1/,
         );
+        assert.match(sql, /notification_identifier AS identifier/);
         assert.deepEqual(params, [validInput.identifier]);
     });
 
