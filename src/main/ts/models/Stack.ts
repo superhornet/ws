@@ -31,7 +31,7 @@ export class Stack {
 
         withTransaction(async (client) => {
             const fetchedUser = await client.query<{ id: number }>(
-                `SELECT id FROM users WHERE user_identifier = $1 RETURNING id;`,
+                `SELECT id FROM users WHERE user_identifier = $1;`,
                 [ownerIdentifier]
             )
             if (fetchedUser === undefined) {
