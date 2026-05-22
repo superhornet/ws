@@ -18,7 +18,6 @@ router.post("/user", userCreationLimiter, async (req, res) => {
         const data: UserAPIType = req.body;
         requireSessionFromBody(data);
 
-        new Audit("POST /api/user", data.session);
         const user = await User.create({
             firstname: data.firstname,
             lastname: data.lastname,
@@ -29,6 +28,7 @@ router.post("/user", userCreationLimiter, async (req, res) => {
             state: data.state,
             level: data.level
         });
+        await Audit.create("POST /api/user", data.session);
 
         JSONResponse.creationSuccess(req, res, "Created", user.toJSON() as unknown as JSON);
     } catch (error) {
@@ -49,8 +49,8 @@ router.get("/user", async (req, res) => {
         if (!identifier) {
             throw new HTMLStatusError("User identifier is required", 400);
         }
-        new Audit(`GET /api/user/${identifier}`, session);
         const user = await User.fetchById(identifier);
+        await Audit.create(`GET /api/user/${identifier}`, session);
         JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -66,8 +66,8 @@ router.put("/user", async (req, res) => {
         const data: UserAPIType = req.body;
         requireSessionFromBody(data);
 
-        new Audit(`PUT /api/user/${data.identifier}`, data.session);
         await User.updateUser(data);
+        await Audit.create(`PUT /api/user/${data.identifier}`, data.session);
         JSONResponse.updateSuccess(req, res, "Accepted", null);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -83,8 +83,8 @@ router.delete("/user", async (req, res) => {
         const data: UserAPIType = req.body;
         requireSessionFromBody(data);
 
-        new Audit(`DELETE /api/user/${data.identifier}`, data.session);
         await User.deleteUser(data);
+        await Audit.create(`DELETE /api/user/${data.identifier}`, data.session);
         JSONResponse.noContent(req, res, "No Content", null);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);

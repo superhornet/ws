@@ -57,13 +57,15 @@ mock.module('../../src/main/ts/models/Notification.ts', {
 
 // --- Audit mock ---
 
-const mockAuditConstructor = mock.fn<(message: unknown, session: unknown) => void>(() => { /* noop */ });
+const mockAuditCreate = mock.fn<(message: unknown, session: unknown) => Promise<unknown>>(
+    async () => ({ message: '', session: '' })
+);
 
 mock.module('../../src/main/ts/models/Audit.ts', {
     namedExports: {
         Audit: class {
-            constructor (message: unknown, session: unknown) {
-                mockAuditConstructor(message, session);
+            static async create(message: unknown, session: unknown) {
+                return mockAuditCreate(message, session);
             }
         }
     }
@@ -136,8 +138,8 @@ async function sendJSON(
 function resetAllMocks() {
     mockNotificationConstructor.mock.resetCalls();
     mockNotificationConstructor.mock.mockImplementation(() => { /* noop */ });
-    mockAuditConstructor.mock.resetCalls();
-    mockAuditConstructor.mock.mockImplementation(() => { /* noop */ });
+    mockAuditCreate.mock.resetCalls();
+    mockAuditCreate.mock.mockImplementation(async () => ({ message: '', session: '' }));
     mockGetAllForUser.mock.resetCalls();
     mockGetAllForUser.mock.mockImplementation(async () => []);
     mockSetAsSeen.mock.resetCalls();
@@ -199,8 +201,8 @@ describe('POST /api/notification', () => {
 
     it('records an Audit entry tied to the session', async () => {
         await sendJSON(createApp(), 'POST', '/api/notification', validBody);
-        assert.equal(mockAuditConstructor.mock.callCount(), 1);
-        assert.equal(mockAuditConstructor.mock.calls[0]!.arguments[1], 'sess-1');
+        assert.equal(mockAuditCreate.mock.callCount(), 1);
+        assert.equal(mockAuditCreate.mock.calls[0]!.arguments[1], 'sess-1');
     });
 
     it('returns 500 when the Notification constructor throws', async () => {
@@ -331,8 +333,8 @@ describe('PUT /api/notification/:id', () => {
 
     it('records an Audit entry tied to the session', async () => {
         await sendJSON(createApp(), 'PUT', '/api/notification/7', validBody);
-        assert.equal(mockAuditConstructor.mock.callCount(), 1);
-        assert.equal(mockAuditConstructor.mock.calls[0]!.arguments[1], 'sess-1');
+        assert.equal(mockAuditCreate.mock.callCount(), 1);
+        assert.equal(mockAuditCreate.mock.calls[0]!.arguments[1], 'sess-1');
     });
 
     it('returns 500 when setAsSeen throws', async () => {
@@ -393,7 +395,7 @@ describe('DELETE /api/notification/:id', () => {
 
     it('records an Audit entry tied to the session', async () => {
         await sendJSON(createApp(), 'DELETE', '/api/notification/7', validBody);
-        assert.equal(mockAuditConstructor.mock.callCount(), 1);
-        assert.equal(mockAuditConstructor.mock.calls[0]!.arguments[1], 'sess-1');
+        assert.equal(mockAuditCreate.mock.callCount(), 1);
+        assert.equal(mockAuditCreate.mock.calls[0]!.arguments[1], 'sess-1');
     });
 });

@@ -19,8 +19,8 @@ router.post("/notification", async (req, res) => {
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
-            new Audit(`Create notification for ${data.identifier}: ${data.message}.`, data.session);
             const notification = await Notification.create(data);
+            await Audit.create(`Create notification for ${data.identifier}: ${data.message}.`, data.session);
             JSONResponse.creationSuccess(req, res, "Created", notification.toJSON() as unknown as JSON);
         }
     } catch (error) {
@@ -35,8 +35,8 @@ router.get("/notifications", async (req, res) => {
         if (!identifier) {
             throw new HTMLStatusError("Missing required data", 400);
         }
-        new Audit(`Retrieving notifications for user ${identifier}`, session);
         const notifications: Array<NotificationType> = await Notification.getAllForUser(identifier);
+        await Audit.create(`Retrieving notifications for user ${identifier}`, session);
         JSONResponse.goodToGo(req, res, "OK", notifications as unknown as JSON)
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
@@ -55,8 +55,8 @@ router.put("/notification/:id", async (req, res) => {
             if (!Number.isInteger(notificationId) || notificationId <= 0) {
                 throw new HTMLStatusError("Invalid notification id", 400);
             }
-            new Audit(`Marking notification id: ${notificationId} as seen`, data.session);
             await Notification.setAsSeen(notificationId);
+            await Audit.create(`Marking notification id: ${notificationId} as seen`, data.session);
             JSONResponse.noContent(req, res, "No Content", null)
         }
     } catch (error) {
@@ -76,8 +76,8 @@ router.delete("/notification/:id", async (req, res) => {
             if (!Number.isInteger(notificationId) || notificationId <= 0) {
                 throw new HTMLStatusError("Invalid notification id", 400);
             }
-            new Audit(`Marking notification id: ${notificationId} as deleted`, data.session);
             await Notification.setDeleted(notificationId);
+            await Audit.create(`Marking notification id: ${notificationId} as deleted`, data.session);
             JSONResponse.noContent(req, res, "No Content", null)
         }
     } catch (error) {

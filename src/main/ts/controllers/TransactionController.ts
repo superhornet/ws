@@ -19,8 +19,8 @@ router.post("/transaction", async (req, res) => {
             throw new HTMLStatusError("Bad Request", 400);
         } else {
             const transaction = new Transaction(data);
+            await Audit.create(`Saved Transaction $${data.amount}: ${data.fromIdentifier} to ${data.toIdentifier}.`, data.session);
             JSONResponse.creationSuccess(req, res, 'Created', transaction as unknown as JSON);
-            new Audit(`Saved Transaction $${data.amount}: ${data.fromIdentifier} to ${data.toIdentifier}.`, data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -41,14 +41,14 @@ router.get("/transactions", async (req, res) => {
             }else if(data.stackID){
                 transactions = await Transaction.getTransactions(await SubStack.getParentStack(data.stackID), TransactionQueryTypes.STACK)
             }
+            await Audit.create(`Listing Transactions for ${data.fromIdentifier}`, data.session);
             JSONResponse.goodToGo(req, res, 'OK', transactions as unknown as JSON);
-            new Audit(`Listing Transactions for ${data.fromIdentifier}`, data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
-router.put("/transaction", (req, res) => {
+router.put("/transaction", async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
@@ -57,8 +57,8 @@ router.put("/transaction", (req, res) => {
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
+            await Audit.create("Transaction Event", data.session);
             JSONResponse.updateSuccess(req, res, 'Accepted', null);
-            new Audit("Transaction Event", data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -73,8 +73,8 @@ router.delete("/transaction", async (req, res) => {
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
+            await Audit.create("Transaction Event", data.session);
             JSONResponse.noContent(req, res, 'No Content', null);
-            new Audit("Transaction Event", data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
