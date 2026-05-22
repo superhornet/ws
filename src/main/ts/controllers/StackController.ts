@@ -20,8 +20,8 @@ router.post("/stack", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
             const stack = new Stack(data);
+            await Audit.create(`${data.stackName} created by ${data.ownerIdentifier}.`, data.session);
             JSONResponse.creationSuccess(req, res, "Created", stack as unknown as JSON);
-            new Audit(`${data.stackName} created by ${data.ownerIdentifier}.`, data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -41,9 +41,8 @@ router.get("/stacks", async (req, res)=>{
             throw new HTMLStatusError("Session ID required", 403);
         }else{
             const stacks: Array<StackType> | undefined = await Stack.getForUser(data.ownerIdentifier || "");
+            await Audit.create("Retrieving stacks for user", data.session);
             JSONResponse.goodToGo(req, res, "OK", stacks as unknown as JSON)
-            new Audit("Retrieving stacks for user", data.session);
-
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
@@ -63,9 +62,8 @@ router.put("/stack", async (req, res) => {
             throw new HTMLStatusError("Session ID required", 403);
         }else{
             await Stack.renameStack(Number.parseInt(req.body.id), data);
+            await Audit.create(`Updated stack ${req.body.id} to ${data.stackName}`, data.session);
             JSONResponse.updateSuccess(req, res, "Accepted", null)
-            new Audit(`Updated stack ${req.body.id} to ${data.stackName}`, data.session);
-
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
@@ -87,9 +85,8 @@ router.delete("/stack", async (req, res) => {
             const data: StackAPIType = req.body;
             await Stack.deleteStack(Number.parseInt(req.body.id), data);
 //            const stacks: Array<StackType> | undefined = Stack.getForUser(data.ownerIdentifier || "");
+            await Audit.create(`Deleted stack ${req.body.id}`, data.session);
             JSONResponse.noContent(req, res, "No Content", null)
-            new Audit(`Deleted stack ${req.body.id}`, data.session);
-
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError)

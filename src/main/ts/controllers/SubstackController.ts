@@ -21,8 +21,8 @@ router.post("/substack", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
             const stack = new SubStack(data);
+            await Audit.create(`${data.substackName} created by ${data.createdBy}`, data.session);
             JSONResponse.creationSuccess(req, res, "Created", stack as unknown as JSON);
-            new Audit(`${data.substackName} created by ${data.createdBy}`, data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -41,7 +41,6 @@ router.get("/substacks", async (req, res) => {
         if (data.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
-            new Audit(`Retrieving stacks for ${data.stackIdentifier}`, data.session);
             let substacks: Array<SubStackType> | undefined;
             // valid options for second parameter are 'owner-id', 'stack-id', and 'substack-name
             if (data.stackIdentifier) {
@@ -62,6 +61,7 @@ router.get("/substacks", async (req, res) => {
                         substacks[subStackKey].usersList = [...substacks[subStackKey].usersList];
                 }
             }
+            await Audit.create(`Retrieving stacks for ${data.stackIdentifier}`, data.session);
             JSONResponse.goodToGo(req, res, "OK", substacks as unknown as JSON);
         }
 
@@ -80,8 +80,8 @@ router.put("/substack", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
             SubStack.renameSubstack(Number.parseInt(req.body.id), data);
+            await Audit.create(`Updating substack/ ${req.body.id}`, data.session);
             JSONResponse.updateSuccess(req, res, "Accepted", null)
-            new Audit(`Updating substack/ ${req.body.id}`, data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -98,8 +98,8 @@ router.delete("/substack", async (req, res) => {
             throw new HTMLStatusError("Session ID Required", 403);
         } else {
             SubStack.deleteSubstack(Number.parseInt(req.body.id), data);
+            await Audit.create(`Updating substack/ ${req.body.id}`, data.session);
             JSONResponse.noContent(req, res, "No Content", null)
-            new Audit(`Updating substack/ ${req.body.id}`, data.session);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);

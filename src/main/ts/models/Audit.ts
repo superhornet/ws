@@ -36,14 +36,20 @@ export class Audit implements IAudit {
      * database along with an auto-generated timestamp
      */
     constructor(message: string, session: string) {
-        try {
-            this.message = Audit.sanitize(message);
-            this.session = session;
-            this.logMessage();
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
+        this.message = Audit.sanitize(message);
+        this.session = session;
     }
+
+    /**
+     * Async factory: constructs and persists an audit row, awaiting the
+     * underlying transaction so insert failures surface to the caller.
+     */
+    static async create(message: string, session: string): Promise<Audit> {
+        const audit = new Audit(message, session);
+        await audit.logMessage();
+        return audit;
+    }
+
     /**
      * Neutralize log-injection: strip C0/C1 control chars (incl. CR/LF) so
      * attacker-controlled substrings can't forge extra log lines, and cap
@@ -56,8 +62,8 @@ export class Audit implements IAudit {
 
         return stripped.length > maxLength ? stripped.slice(0, maxLength) : stripped;
     }
-    private logMessage() {
-        withTransaction(async (client) => {
+    private async logMessage(): Promise<void> {
+        await withTransaction(async (client) => {
             await client.query(
                 `INSERT INTO audit (message, session) VALUES ($1, $2)`,
                 [this.message, this.session]
