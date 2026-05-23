@@ -200,7 +200,7 @@ describe("CybridClient.createBookTransfer", () => {
 
     it("should build source and destination participants with the exact expected shape", async () => {
         // Pins current production behavior: participant type is "customer",
-        // amount is 0 (real amount lives in the quote), and guid is the
+        // amount equals the transfer amount on both sides, and guid is the
         // *account* guid passed in. Any regression that reshuffles this would
         // silently break book transfers at the Cybrid layer.
         await CybridClient.createBookTransfer("src-acct", "dst-acct", 3000, "USD");
@@ -209,10 +209,10 @@ describe("CybridClient.createBookTransfer", () => {
         const postTransfer = (transferArgs as Record<string, Record<string, unknown>>).postTransferBankModel!;
 
         assert.deepEqual(postTransfer.source_participants, [
-            { type: "customer", amount: 0, guid: "src-acct" },
+            { type: "customer", amount: 3000, guid: "src-acct" },
         ]);
         assert.deepEqual(postTransfer.destination_participants, [
-            { type: "customer", amount: 0, guid: "dst-acct" },
+            { type: "customer", amount: 3000, guid: "dst-acct" },
         ]);
     });
 
