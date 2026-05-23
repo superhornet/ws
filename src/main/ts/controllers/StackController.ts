@@ -2,6 +2,7 @@ import * as express from "express";
 import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
+import { getSession } from "../libs/session.ts";
 import type { StackAPIType, StackType } from "../types/StackAPITypes.ts";
 import { Stack } from "../models/Stack.ts";
 export const router = express.Router();
@@ -33,17 +34,14 @@ router.post("/stack", async (req, res) => {
  */
 router.get("/stacks", async (req, res)=>{
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const ownerIdentifier = req.query.ownerIdentifier as string | undefined;
+        if (!ownerIdentifier) {
+            throw new HTMLStatusError("Missing required data", 400);
         }
-        const data: StackAPIType = req.body;
-        if(!data.session || data.session.length < 36){
-            throw new HTMLStatusError("Session ID required", 403);
-        }else{
-            const stacks: Array<StackType> | undefined = await Stack.getForUser(data.ownerIdentifier || "");
-            await Audit.create("Retrieving stacks for user", data.session);
-            JSONResponse.goodToGo(req, res, "OK", stacks as unknown as JSON)
-        }
+        const stacks: Array<StackType> | undefined = await Stack.getForUser(ownerIdentifier);
+        await Audit.create("Retrieving stacks for user", session);
+        JSONResponse.goodToGo(req, res, "OK", stacks as unknown as JSON)
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
     }

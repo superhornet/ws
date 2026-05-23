@@ -1,6 +1,7 @@
 import * as express from "express";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import JSONResponse from "../libs/JSONResponse.ts";
+import { getSession } from "../libs/session.ts";
 import { type SubStackType, type SubStackAPIType, SubStackQueryTypes } from "../types/SubStackAPITypes.ts";
 import { Audit } from "../models/Audit.ts";
 import { SubStack } from "../models/SubStack.ts";
@@ -33,38 +34,30 @@ router.post("/substack", async (req, res) => {
  */
 router.get("/substacks", async (req, res) => {
     try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+        const session = getSession(req);
+        const stackIdentifier = req.query.stackIdentifier as string | undefined;
+        const substackName = req.query.substackName as string | undefined;
+        const createdBy = req.query.createdBy as string | undefined;
+        if (!stackIdentifier && !substackName && !createdBy) {
+            throw new HTMLStatusError("Missing required data", 400);
         }
-        const data: SubStackAPIType = req.body;
-
-        if (data.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else {
-            let substacks: Array<SubStackType> | undefined;
-            // valid options for second parameter are 'owner-id', 'stack-id', and 'substack-name
-            if (data.stackIdentifier) {
-                substacks = await SubStack.getSubStack(data.stackIdentifier || "", SubStackQueryTypes.STACKID);
-
-            } else if (data.substackName) {
-                substacks = await SubStack.getSubStack(data.substackName || "", SubStackQueryTypes.SUBSTACKNAME);
-
-            } else if (data.createdBy) {
-                substacks = await SubStack.getSubStack(data.createdBy || "", SubStackQueryTypes.OWNERID);
-
-            }
-            if (substacks !== undefined) {
-                for (const key of Object.keys(substacks)) {
-                    //stacks[key] = stacks[key][...usersList].toString())
-                    const subStackKey = Number.parseInt(key);
-                    if (substacks[subStackKey])
-                        substacks[subStackKey].usersList = [...substacks[subStackKey].usersList];
-                }
-            }
-            await Audit.create(`Retrieving stacks for ${data.stackIdentifier}`, data.session);
-            JSONResponse.goodToGo(req, res, "OK", substacks as unknown as JSON);
+        let substacks: Array<SubStackType> | undefined;
+        if (stackIdentifier) {
+            substacks = await SubStack.getSubStack(stackIdentifier, SubStackQueryTypes.STACKID);
+        } else if (substackName) {
+            substacks = await SubStack.getSubStack(substackName, SubStackQueryTypes.SUBSTACKNAME);
+        } else if (createdBy) {
+            substacks = await SubStack.getSubStack(createdBy, SubStackQueryTypes.OWNERID);
         }
-
+        if (substacks !== undefined) {
+            for (const key of Object.keys(substacks)) {
+                const subStackKey = Number.parseInt(key);
+                if (substacks[subStackKey])
+                    substacks[subStackKey].usersList = [...substacks[subStackKey].usersList];
+            }
+        }
+        await Audit.create(`Retrieving stacks for ${stackIdentifier ?? substackName ?? createdBy}`, session);
+        JSONResponse.goodToGo(req, res, "OK", substacks as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
