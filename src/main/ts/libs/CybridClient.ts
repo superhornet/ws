@@ -235,14 +235,14 @@ export async function createBookTransfer(
         source_participants: [
             {
                 type: PostTransferParticipantBankModelTypeEnum.Customer,
-                amount: 0,
+                amount,
                 guid: sourceAccountGuid
             }
         ],
         destination_participants: [
             {
                 type: PostTransferParticipantBankModelTypeEnum.Customer,
-                amount: 0,
+                amount,
                 guid: destinationAccountGuid
             }
         ]
