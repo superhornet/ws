@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import type { StackAPIType, StackType } from "../types/StackAPITypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import { generateUUID } from "../libs/UUID.ts";
-import { query, withTransaction } from "../libs/postgresDB.js";
+import { query, withTransaction } from "../libs/postgresDB.ts";
 
 export class Stack {
     private _stack!: StackType;
