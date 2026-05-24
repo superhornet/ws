@@ -140,8 +140,15 @@ describe("CybridClient.createBookTransfer", () => {
     beforeEach(() => {
         mockCreateQuote.mock.resetCalls();
         mockCreateTransfer.mock.resetCalls();
+        mockGetAccount.mock.resetCalls();
         mockCreateQuote.mock.mockImplementation(() => of(mockQuoteResult));
         mockCreateTransfer.mock.mockImplementation(() => of(mockTransferResult));
+        // Book transfers resolve each account to derive the participant guid
+        // (the customer_guid) and to assert a shared asset. Key the stub by guid.
+        mockGetAccount.mock.mockImplementation((arg) => {
+            const accountGuid = (arg as { accountGuid: string }).accountGuid;
+            return of({ guid: accountGuid, type: "fiat", asset: "USD", customer_guid: `cust-${accountGuid}` });
+        });
     });
 
     it("should create a book_transfer quote then a book transfer", async () => {
@@ -152,7 +159,7 @@ describe("CybridClient.createBookTransfer", () => {
         const postQuote = (quoteArgs as Record<string, Record<string, unknown>>).postQuoteBankModel;
         assert.equal(postQuote!.product_type, "book_transfer");
         assert.equal(postQuote!.asset, "USD");
-        assert.equal(postQuote!.deliver_amount, 3000);
+        assert.equal(postQuote!.receive_amount, 3000);
 
         assert.equal(mockCreateTransfer.mock.callCount(), 1);
         const transferArgs = mockCreateTransfer.mock.calls[0]!.arguments[0] as unknown as Record<string, unknown>;
@@ -165,12 +172,17 @@ describe("CybridClient.createBookTransfer", () => {
         assert.equal(result.guid, "transfer-guid-abc");
     });
 
-    it("should default asset to USD when not provided", async () => {
+    it("should derive the quote asset from the account when not provided", async () => {
+        mockGetAccount.mock.mockImplementation((arg) => {
+            const accountGuid = (arg as { accountGuid: string }).accountGuid;
+            return of({ guid: accountGuid, type: "fiat", asset: "CAD", customer_guid: `cust-${accountGuid}` });
+        });
+
         await CybridClient.createBookTransfer("src-acct", "dst-acct", 1000);
 
         const quoteArgs = mockCreateQuote.mock.calls[0]!.arguments[0] as unknown as Record<string, unknown>;
         const postQuote = (quoteArgs as Record<string, Record<string, unknown>>).postQuoteBankModel;
-        assert.equal(postQuote!.asset, "USD");
+        assert.equal(postQuote!.asset, "CAD");
     });
 
     it("should throw if quote returns no guid", async () => {
@@ -199,20 +211,20 @@ describe("CybridClient.createBookTransfer", () => {
     });
 
     it("should build source and destination participants with the exact expected shape", async () => {
-        // Pins current production behavior: participant type is "customer",
-        // amount equals the transfer amount on both sides, and guid is the
-        // *account* guid passed in. Any regression that reshuffles this would
-        // silently break book transfers at the Cybrid layer.
+        // Pins production behavior: participant type is "customer", amount equals
+        // the transfer amount on both sides, and guid is the *party* identifier
+        // (the account's customer_guid) — not the account guid. Any regression
+        // that reshuffles this would silently break book transfers at Cybrid.
         await CybridClient.createBookTransfer("src-acct", "dst-acct", 3000, "USD");
 
         const transferArgs = mockCreateTransfer.mock.calls[0]!.arguments[0] as unknown as Record<string, unknown>;
         const postTransfer = (transferArgs as Record<string, Record<string, unknown>>).postTransferBankModel!;
 
         assert.deepEqual(postTransfer.source_participants, [
-            { type: "customer", amount: 3000, guid: "src-acct" },
+            { type: "customer", amount: 3000, guid: "cust-src-acct" },
         ]);
         assert.deepEqual(postTransfer.destination_participants, [
-            { type: "customer", amount: 3000, guid: "dst-acct" },
+            { type: "customer", amount: 3000, guid: "cust-dst-acct" },
         ]);
     });
 
@@ -290,6 +302,7 @@ describe("CybridClient.accounts", () => {
     beforeEach(() => {
         mockCreateAccount.mock.resetCalls();
         mockGetAccount.mock.resetCalls();
+        mockGetAccount.mock.mockImplementation(() => of(mockAccountResult));
         mockListAccounts.mock.resetCalls();
     });
 
