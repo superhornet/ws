@@ -61,15 +61,17 @@ mock.module('../../src/main/ts/models/User.ts', {
     namedExports: { User: MockUser }
 });
 
-// --- Audit mock (constructor side-effect only) ---
+// --- Audit mock (Audit.create static) ---
 
-const mockAuditConstructor = mock.fn<(message: unknown, session: unknown) => void>(() => { /* noop */ });
+const mockAuditCreate = mock.fn<(message: unknown, session: unknown) => Promise<unknown>>(
+    async () => ({ message: '', session: '' })
+);
 
 mock.module('../../src/main/ts/models/Audit.ts', {
     namedExports: {
         Audit: class {
-            constructor(message: unknown, session: unknown) {
-                mockAuditConstructor(message, session);
+            static async create(message: unknown, session: unknown) {
+                return mockAuditCreate(message, session);
             }
         }
     }
@@ -142,8 +144,8 @@ async function sendJSON(
 function resetAllMocks() {
     mockUserConstructor.mock.resetCalls();
     mockUserConstructor.mock.mockImplementation(() => { /* noop */ });
-    mockAuditConstructor.mock.resetCalls();
-    mockAuditConstructor.mock.mockImplementation(() => { /* noop */ });
+    mockAuditCreate.mock.resetCalls();
+    mockAuditCreate.mock.mockImplementation(async () => ({ message: '', session: '' }));
     mockFetchById.mock.resetCalls();
     mockFetchById.mock.mockImplementation(async () => ({}));
     mockUpdateUser.mock.resetCalls();
@@ -218,8 +220,8 @@ describe('POST /api/user', () => {
             message: 'create user',
             firstname: 'Jane', lastname: 'Doe', email: 'jane@example.com'
         });
-        assert.equal(mockAuditConstructor.mock.callCount(), 1);
-        assert.equal(mockAuditConstructor.mock.calls[0]!.arguments[1], 'sess-1');
+        assert.equal(mockAuditCreate.mock.callCount(), 1);
+        assert.equal(mockAuditCreate.mock.calls[0]!.arguments[1], 'sess-1');
     });
 
     it('returns 500 when the User constructor throws', async () => {
@@ -281,8 +283,8 @@ describe('GET /api/user', () => {
         await sendJSON(createApp(), 'GET', '/api/user?identifier=uid-1', undefined, {
             'x-session': 'sess-1'
         });
-        assert.equal(mockAuditConstructor.mock.callCount(), 1);
-        assert.equal(mockAuditConstructor.mock.calls[0]!.arguments[1], 'sess-1');
+        assert.equal(mockAuditCreate.mock.callCount(), 1);
+        assert.equal(mockAuditCreate.mock.calls[0]!.arguments[1], 'sess-1');
     });
 });
 

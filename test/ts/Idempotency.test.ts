@@ -73,7 +73,7 @@ mock.module('../../src/main/ts/models/Cybrid.ts', {
 mock.module('../../src/main/ts/models/Audit.ts', {
     namedExports: {
         Audit: class {
-            constructor() { }
+            static async create() { return { message: '', session: '' }; }
         }
     }
 });

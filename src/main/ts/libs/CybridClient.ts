@@ -97,6 +97,7 @@ import type {
     PlanListBankModel,
     PostPlanBankModel,
 } from '@cybrid/cybrid-api-bank-typescript';
+import type { PostTransferParticipantBankModel } from '@cybrid/cybrid-api-bank-typescript';
 import { HTMLStatusError } from './HTMLStatusError.ts';
 
 dotenv.config({ quiet: true });
@@ -215,12 +216,28 @@ export async function createBookTransfer(
     sourceAccountGuid: string,
     destinationAccountGuid: string,
     amount: number,
-    asset = 'USD',
+    asset?: string,
 ): Promise<TransferBankModel> {
+    // The participant `guid` is the *party* (customer/bank) identifier — not the
+    // account guid — and book transfers must be like-for-like on asset. Resolve
+    // both from the accounts themselves so callers still pass only account guids.
+    const [sourceAccount, destinationAccount] = await Promise.all([
+        getAccount(sourceAccountGuid),
+        getAccount(destinationAccountGuid),
+    ]);
+
+    const transferAsset = sourceAccount.asset;
+    if (!transferAsset || destinationAccount.asset !== transferAsset) {
+        throw new HTMLStatusError('Book transfer requires matching source and destination assets', 400);
+    }
+    if (asset && asset !== transferAsset) {
+        throw new HTMLStatusError('Requested asset does not match the account asset', 400);
+    }
+
     const quote = await createQuote({
         product_type: PostQuoteBankModelProductTypeEnum.BookTransfer,
-        asset,
-        deliver_amount: amount,
+        asset: transferAsset,
+        receive_amount: amount,
     });
 
     if (!quote.guid) {
@@ -232,21 +249,23 @@ export async function createBookTransfer(
         transfer_type: PostTransferBankModelTransferTypeEnum.Book,
         source_account_guid: sourceAccountGuid,
         destination_account_guid: destinationAccountGuid,
-        source_participants: [
-            {
-                type: PostTransferParticipantBankModelTypeEnum.Customer,
-                amount: 0,
-                guid: sourceAccountGuid
-            }
-        ],
-        destination_participants: [
-            {
-                type: PostTransferParticipantBankModelTypeEnum.Customer,
-                amount: 0,
-                guid: destinationAccountGuid
-            }
-        ]
+        source_participants: [toTransferParticipant(sourceAccount, amount)],
+        destination_participants: [toTransferParticipant(destinationAccount, amount)],
     });
+}
+
+/**
+ * Maps an account to its transfer participant: customer-owned accounts use the
+ * customer_guid, bank-owned accounts (fee/reserve/etc.) use the bank_guid.
+ */
+function toTransferParticipant(account: AccountBankModel, amount: number): PostTransferParticipantBankModel {
+    if (account.customer_guid) {
+        return { type: PostTransferParticipantBankModelTypeEnum.Customer, amount, guid: account.customer_guid };
+    }
+    if (account.bank_guid) {
+        return { type: PostTransferParticipantBankModelTypeEnum.Bank, amount, guid: account.bank_guid };
+    }
+    throw new HTMLStatusError('Account has no associated customer or bank', 500);
 }
 
 // --- Counterparties ---
