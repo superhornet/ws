@@ -4,33 +4,29 @@ import { Audit } from "../models/Audit.ts";
 import { User } from "../models/User.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { getSession, requireSessionFromBody } from "../libs/session.ts";
-import { requireBody } from "../libs/requestValidation.ts";
-import { userCreationLimiter } from "../libs/rateLimiter.ts";
+//import { userCreationLimiter } from "../libs/rateLimiter.ts";
+import { Session } from "../models/Session.ts";
 export const router = express.Router();
 
 /**
  * Create a User
  */
-router.post("/user", userCreationLimiter, async (req, res) => {
+router.post("/user", async (req, res) => {
     try {
-        requireBody(req);
-        const data: UserAPIType = req.body;
-        requireSessionFromBody(data);
-
-        new Audit("POST /api/user", data.session);
-        const user = await User.create({
-            firstname: data.firstname,
-            lastname: data.lastname,
-            email: data.email,
-            address1: data.address1,
-            address2: data.address2,
-            city: data.city,
-            state: data.state,
-            level: data.level
-        });
-
-        JSONResponse.creationSuccess(req, res, "Created", user.toJSON() as unknown as JSON);
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
+        }
+        const data: { data: UserAPIType, message: string, session: string } = req.body;
+        if (data.session === undefined || data.session.length === 0) {
+            throw new HTMLStatusError("Unauthorized", 403);
+        } else if (await Session.exists(data.session)) {
+            await Audit.logMessage(data.message, data.session);
+            const user = await User.storeUser(data.data);
+            if (user)
+                JSONResponse.creationSuccess(req, res, "Created", user as unknown as JSON);
+        } else {
+            throw new HTMLStatusError("Session ID Required", 403);
+        }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -44,31 +40,44 @@ router.post("/user", userCreationLimiter, async (req, res) => {
  */
 router.get("/user", async (req, res) => {
     try {
-        const session = getSession(req);
-        const identifier = req.query.identifier as string | undefined;
-        if (!identifier) {
-            throw new HTMLStatusError("User identifier is required", 400);
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new Error("Empty JSON body");
         }
-        new Audit(`GET /api/user/${identifier}`, session);
-        const user = await User.fetchById(identifier);
-        JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
+        const data: { message: string, session: string, user_identifier: string } = req.body;
+
+        if (data.session === undefined || data.session.length === 0) {
+            throw new HTMLStatusError("Unauthorized", 403);
+        } else if (await Session.exists(data.session)) {
+            await Audit.logMessage(`Get /api/user/${data.user_identifier}`, data.session);
+            const user = await User.fetchByUuid(data.user_identifier);
+            JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
+        } else {
+            throw new HTMLStatusError("Session ID Required", 403);
+        }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
-
 /**
  * Update a user
  */
 router.put("/user", async (req, res) => {
     try {
-        requireBody(req);
-        const data: UserAPIType = req.body;
-        requireSessionFromBody(data);
-
-        new Audit(`PUT /api/user/${data.identifier}`, data.session);
-        await User.updateUser(data);
-        JSONResponse.updateSuccess(req, res, "Accepted", null);
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
+        }
+        const data: { data: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
+        data.data.user_identifier = data.user_identifier;
+        if (data.session === undefined || data.session.length === 0) {
+            throw new HTMLStatusError("Unauthorized", 403);
+        } else if (await Session.exists(data.session)) {
+            await Audit.logMessage(`Put /api/user/${data.user_identifier}`, data.session);
+            if (await User.updateUser(data.data)) {
+                JSONResponse.updateSuccess(req, res, "Accepted", null);
+            }
+        } else {
+            throw new HTMLStatusError("Session ID Required", 403);
+        }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -79,13 +88,20 @@ router.put("/user", async (req, res) => {
  */
 router.delete("/user", async (req, res) => {
     try {
-        requireBody(req);
-        const data: UserAPIType = req.body;
-        requireSessionFromBody(data);
-
-        new Audit(`DELETE /api/user/${data.identifier}`, data.session);
-        await User.deleteUser(data);
-        JSONResponse.noContent(req, res, "No Content", null);
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
+        }
+        const data: { user: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
+        if (data.session === undefined || data.session.length === 0) {
+            throw new HTMLStatusError("Unauthorized", 403);
+        } else if (await Session.exists(data.session)) {
+            await Audit.logMessage(`Delete /api/user/${data.user_identifier}`, data.session);
+            if (await User.deleteUser(data.user_identifier)) {
+                JSONResponse.noContent(req, res, "No Content", null);
+            }
+        } else {
+            throw new HTMLStatusError("Session ID Required", 403);
+        }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }

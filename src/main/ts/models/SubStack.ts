@@ -1,7 +1,7 @@
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import { generateUUID } from "../libs/UUID.ts";
 import { SubStackQueryTypes, type SubStackAPIType, type SubStackType } from "../types/SubStackAPITypes.ts";
-import { query, withTransaction } from "../libs/postgresDB.js";
+import { query, withTransaction } from "../libs/postgresDB.ts";
 
 export class SubStack {
     private _substack!: SubStackType;

@@ -1,182 +1,277 @@
-import { generateUUID } from "../libs/UUID.ts";
-import { SubscriptionType, type SubscriptionEnum } from "../types/SubscriptionTypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
-import { toHttpError } from "../libs/httpErrorWrap.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
-export interface FetchedUser {
-    id: number;
-    email: string;
-    firstname: string;
-    lastname: string;
-    identifier: string;
-    address1: string;
-    address2: string;
-    city: string;
-    state: string;
-    level: SubscriptionEnum;
-}
-
-export interface TUser {
-    firstname: string;
-    lastname: string;
-    email: string;
-    emailID: string;
-    emailHost: string;
-    address1: string;
-    address2: string;
-    city: string;
-    state: string;
-    level: SubscriptionEnum;
-    /** identifier is uuid */
-    identifier: string;
-}
-
-export interface TUserConfig {
-    /** foreign key uuid */
-    forUser: string;
-
-}
-/**
- * User interface definition
- */
+import { Validator } from "../libs/Validator.ts";
+import { randomInt } from "node:crypto";
 export interface IUser {
-    _User: TUser;
-    _UserConfig: TUserConfig;
+    //storeUser(): Promise<void>;
+    readUser(): UserAPIType;
+    //fetchByUuid(user_identifier: string): Promise<UserAPIType>;
+    //updateUser();
+    //deleteUser();
 }
-
-type CreateUserInput = Pick<TUser, "firstname"|"lastname"|"email"|"address1"|"address2"|"city"|"state"> & { level: string };
-
 export class User implements IUser {
-    private static readonly allowedLevels: ReadonlySet<SubscriptionEnum> = new Set([
-        SubscriptionType.FREE,
-        SubscriptionType.BASIC,
-        SubscriptionType.PRO,
-    ]);
-
-    private static isSubscriptionEnum(value: string): value is SubscriptionEnum {
-        return (User.allowedLevels as ReadonlySet<string>).has(value);
+    private pUser!: UserAPIType;
+    private get user(): UserAPIType | undefined {
+        return this.pUser;
+    }
+    private set user(value: UserAPIType) {
+        this.pUser = value;
     }
 
-    private get User(): IUser | undefined {
-        return this.userObj;
+    private pId!: number | bigint;
+    private get id(): number | bigint {
+        return this.pId;
     }
-    private set User(value: IUser | undefined) {
-        this.userObj = value;
+    private set id(value: number) {
+        this.pId = value;
     }
-    public _User!: TUser;
-    public _UserConfig!: TUserConfig;
-    private userObj: IUser | undefined;
-    private id!: number;
-    private constructor(
-        user1: CreateUserInput
+
+    private pAffiliate: string;
+    public get affiliate(): string {
+        return this.pAffiliate;
+    }
+    public set affiliate(value: string) {
+        this.pAffiliate = value;
+    }
+
+    constructor(
+        user: UserAPIType,
+        id: number | bigint,
+        affiliate: string
     ) {
-        const { firstname, lastname, email, address1, address2, city, state } = user1;
-        const [userid, hostname] = email.split("@");
-        const level = user1.level || SubscriptionType.FREE;
-        if (!User.isSubscriptionEnum(level)) {
-            throw new HTMLStatusError("Missing JSON Data", 400);
+        try {
+            this.user = user;
+            this.id = Number(id);
+            this.pAffiliate = affiliate;
+        } catch (error) {
+            throw new Error((error as Error).message);
         }
-
-        const user: TUser = {
-            firstname, lastname, email,
-            emailID: userid || "",
-            emailHost: hostname || "",
-            address1, address2, city, state, level,
-            identifier: generateUUID(),
-        };
-        this.User = {
-            _User: user,
-            _UserConfig: {
-                forUser: user.identifier
-            }
-        };
     }
 
-    static async create(
-        user1: CreateUserInput
-    ): Promise<User> {
-        const user = new User(user1);
-        await user.storeUser();
-        return user;
-    }
-    public toJSON() {
-        const { address1, address2, city, email, emailHost, emailID, firstname, identifier, lastname, state, level } = this.User!._User;
-        return { address1, address2, city, email, emailHost, emailID, firstname, id: this.id, identifier, lastname, state, level };
-    }
-    private async storeUser(): Promise<void> {
-        const { email, emailHost, emailID, firstname, lastname, identifier, address1, address2, city, state, level } = this.User!._User;
-        await withTransaction(async (client) => {
-            const userInsert = await client.query<{ id: number }>(
-                `INSERT INTO users (email,emailHost,emailID,firstname,lastname,user_identifier,address1,address2,city,state,level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-                [email, emailHost, emailID, firstname, lastname, identifier, address1, address2, city, state, level],
-            );
-            const row = userInsert.rows[0];
-            if (!row) {
-                throw new HTMLStatusError("User creation failed", 400);
+    static async storeUser(user: UserAPIType) {
+        const vName = new Validator({
+            version: "1.0",
+            stringValidation: {
+                minLength: 2,
+                maxLength: 48,
+                locale: "en-us"
             }
-            this.id = row.id;
         });
-    }
-    static fetchById(userid: string): Promise<FetchedUser> {
-        return toHttpError(async () => {
-            const fetchedUser = await query<{ id: number; email: string;
-                firstname: string; lastname: string; user_identifier: string;
-                address1: string; address2: string; city: string; state: string;
-                level: string }>(
-                `SELECT id, email, firstname, lastname, user_identifier, address1, address2, city, state, level FROM users WHERE user_identifier = $1 AND deleted = FALSE;`,
-                [userid]
-            )
-            const row = fetchedUser[0];
-            if (!row) {
-                throw new HTMLStatusError("User was not found", 404);
+        const vEmail = new Validator({
+            version: "1.0",
+            emailValidation: {
+                domainMinLength: 5,
+                domainMaxLength: 36,
+            },
+            stringValidation: {
+                minLength: 5,
+                maxLength: 128
             }
-            const { id, email, firstname, lastname, user_identifier: identifier, address1, address2, city, state, level } = row;
-            if (!User.isSubscriptionEnum(level)) {
-                throw new HTMLStatusError("Internal Server Error", 500);
-            }
-            return { id, email, firstname, lastname, identifier, address1, address2, city, state, level };
         });
-    }
-    static updateUser(data: UserAPIType): Promise<void> {
-        return toHttpError(async () => {
-            const requiredFields = ["identifier", "firstname", "lastname", "email",
-                                    "address1", "city", "state", "level"] as const;
-            const hasMissing = requiredFields.some(
-                (fieldName) => data[fieldName] === undefined || data[fieldName] === "",
-            );
-            if (hasMissing) {
-                throw new HTMLStatusError("Missing JSON Data", 400);
+        const vAddress = new Validator({
+            version: "1.0",
+            stringValidation: {
+                minLength: 0,
+                maxLength: 64,
+                locale: "en-us"
             }
-            const [userid, hostname] = data.email.split("@");
-            if (!userid || !hostname) {
-                throw new HTMLStatusError("Missing JSON Data", 400);
-            }
-            if (!User.isSubscriptionEnum(data.level)) {
-                throw new HTMLStatusError("Missing JSON Data", 400);
-            }
+        });
 
-            const result = await query(
-                `UPDATE users SET email=$1, emailID=$2, emailhost=$3, firstname=$4, lastname=$5, address1=$6, address2=$7, city=$8, state=$9, level=$10 WHERE user_identifier = $11 RETURNING user_identifier`,
-                [data.email, userid, hostname, data.firstname, data.lastname, data.address1, data.address2 ?? "", data.city, data.state, data.level, data.identifier]
+        const [userid, hostname] = user.email.split("@");
+        const emailChecked: boolean = (
+            vEmail.emailValidate(user.email) &&
+            vEmail.stringValidate(vEmail.stripHtml(userid as string)) &&
+            vEmail.stringValidate(vEmail.stripHtml(hostname as string)));
+        const nameChecked: boolean = (
+            vName.stringValidate(vName.stripHtml(user.firstname)) &&
+            vName.stringValidate(vName.stripHtml(user.lastname)));
+        const addressChecked: boolean = (
+            vAddress.stringValidate(vAddress.stripHtml(user.address1)) &&
+            vAddress.stringValidate(vAddress.stripHtml(user.address2)) &&
+            vAddress.stringValidate(vAddress.stripHtml(user.city)) &&
+            vAddress.stringValidate(vAddress.stripHtml(user.state)));
+        if (emailChecked && nameChecked && addressChecked) {
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `INSERT INTO users (email,email_host,emailid,
+                    firstname,lastname,affiliate,
+                    address1,address2,city,state,zipcode,
+                    subscription_level) VALUES
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    RETURNING id, user_identifier, firstname, lastname, affiliate,
+                    email, address1, address2, city, state, zipcode, subscription_level`,
+                    [
+                        user.email,
+                        vEmail.stripHtml(hostname as string),
+                        vEmail.stripHtml(userid as string),
+                        vName.stripHtml(user.firstname),
+                        vName.stripHtml(user.lastname),
+                        User.generateAffiliate(7),
+                        vAddress.stripHtml(user.address1),
+                        vAddress.stripHtml(user.address2),
+                        vAddress.stripHtml(user.city),
+                        vAddress.stripHtml(user.state),
+                        user.zipcode,
+                        user.subscription_level
+                    ]
+                );
+            });
+
+            const row = q.rows.at(0);
+            if (!row) {
+                throw new HTMLStatusError("Failed to create user.", 500)
+            }
+            const userEntry = new User({
+                firstname: row.firstname,
+                lastname: row.lastname,
+                email: row.email,
+                address1: row.address1,
+                address2: row.address2,
+                city: row.city,
+                state: row.state,
+                zipcode: row.zipcode,
+                subscription_level: row.subscription_level,
+                user_identifier: row.user_identifier
+            }, row.id, row.affiliate);
+            return userEntry.user;
+        }
+        return undefined;
+    }
+    public readUser(): UserAPIType {
+        return this.user as UserAPIType;
+    }
+    static async fetchByUuid(user_identifier: string): Promise<UserAPIType> {
+        try {
+            const fetchedUser = await query<UserAPIType>(
+                `SELECT user_identifier, firstname, lastname, affiliate,
+                    address1, address2, city, state, zipcode, subscription_level
+                    FROM users WHERE user_identifier = $1 AND deleted = FALSE;`,
+                [user_identifier]
             )
-            if (result.length === 0) {
+            const row = fetchedUser.at(0);
+            if (row) {
+                return row
+            } else {
                 throw new HTMLStatusError("User not found", 404);
             }
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+    };
+    static async updateUser(user: UserAPIType) {
+        let isUpdated = false;
+        const vName = new Validator({
+            version: "1.0",
+            stringValidation: {
+                minLength: 2,
+                maxLength: 48,
+                locale: "en-us"
+            }
         });
+        const vEmail = new Validator({
+            version: "1.0",
+            emailValidation: {
+                domainMinLength: 5,
+                domainMaxLength: 36,
+            },
+            stringValidation: {
+                minLength: 5,
+                maxLength: 128
+            }
+        });
+        const vAddress = new Validator({
+            version: "1.0",
+            stringValidation: {
+                minLength: 0,
+                maxLength: 64,
+                locale: "en-us"
+            }
+        });
+
+        const [userid, hostname] = user.email.split("@");
+        const emailChecked: boolean = (
+            vEmail.emailValidate(user.email) &&
+            vEmail.stringValidate(vEmail.stripHtml(userid as string)) &&
+            vEmail.stringValidate(vEmail.stripHtml(hostname as string)));
+        const nameChecked: boolean = (
+            vName.stringValidate(vName.stripHtml(user.firstname)) &&
+            vName.stringValidate(vName.stripHtml(user.lastname)));
+        const addressChecked: boolean = (
+            vAddress.stringValidate(vAddress.stripHtml(user.address1)) &&
+            vAddress.stringValidate(vAddress.stripHtml(user.address2)) &&
+            vAddress.stringValidate(vAddress.stripHtml(user.city)) &&
+            vAddress.stringValidate(vAddress.stripHtml(user.state)));
+        if (emailChecked && nameChecked && addressChecked) {
+            try {
+                const q = await withTransaction(async (client) => {
+                    return await client.query(
+                        `UPDATE users SET (email,email_host,emailid,
+                    firstname,lastname,
+                    address1,address2,city,state,zipcode,
+                    subscription_level) =
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    where user_identifier = $12`,
+                        [
+                            user.email,
+                            vEmail.stripHtml(hostname as string),
+                            vEmail.stripHtml(userid as string),
+                            vName.stripHtml(user.firstname),
+                            vName.stripHtml(user.lastname),
+                            vAddress.stripHtml(user.address1),
+                            vAddress.stripHtml(user.address2),
+                            vAddress.stripHtml(user.city),
+                            vAddress.stripHtml(user.state),
+                            user.zipcode,
+                            user.subscription_level,
+                            user.user_identifier
+                        ])
+                });
+
+                const rowCount = q.rowCount;
+                if (rowCount === 0) {
+                    throw new HTMLStatusError("User not updated", 404);
+                } else {
+                    isUpdated = true;
+                }
+            } catch (error) {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+        return isUpdated;
     }
-    static deleteUser(data: UserAPIType): Promise<void> {
-        return toHttpError(async () => {
-            if (data.identifier === undefined) {
-                throw new HTMLStatusError("Missing JSON Data", 400);
-            }
-            const result = await query(
-                `UPDATE users SET deleted=TRUE WHERE user_identifier = $1 RETURNING user_identifier`,
-                [data.identifier]
-            )
-            if (result.length === 0) {
+    static async deleteUser(user_identifier: string) {
+        let isDeleted = false;
+        try {
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `UPDATE users SET deleted=TRUE WHERE user_identifier = $1`,
+                    [user_identifier]
+                )
+            });
+            const rowCount = q.rowCount;
+            if (rowCount === 0) {
                 throw new HTMLStatusError("User not found", 404);
+            } else {
+                isDeleted = true;
             }
-        });
+        } catch (error) {
+            throw new HTMLStatusError((error as Error).message, 500);
+        }
+        return isDeleted
+    }
+    static generateAffiliate(size_t: number): string {
+        const legalChars: string = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+        let code = "";
+
+        for (let i = 0; i < size_t; i++) {
+            code += legalChars.charAt(randomInt(legalChars.length));
+        }
+        return code;
     }
 }
+

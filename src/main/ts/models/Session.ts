@@ -1,17 +1,12 @@
 import { randomInt } from "node:crypto";
-import { query, withTransaction} from "../libs/postgresDB.ts"
-import { generateUUID } from "../libs/UUID.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { query, withTransaction } from "../libs/postgresDB.ts"
 
 /**
  * Session interface definition
  */
 export interface ISession {
-    uuid: string;
-    otp: string;
-    expires?: string;
-    dbID: number|bigint;
-    session(): {uuid: string; expires: string; otp: string};
+    session(): Promise<{ uuid: string; expires: string; otp: string }>;
     toString(): string;
 }
 
@@ -23,37 +18,43 @@ export interface ISession {
  * but depends upon the database
  */
 export class Session implements ISession {
-    public uuid!: string;
-    public otp!: string;
-    public expires!: string;
-    public dbID!: number|bigint;
-
+    private uuid = "";
+    private readonly otp: string;
+    private expires = "";
+    private dbID: number | bigint = -1;
     /**
      * Session constructor
      */
     constructor() {
         try {
-            this.uuid = generateUUID();
             this.otp = this.generateOTP();
-            this.storeSession();
-
         } catch (error) {
             throw new Error((error as Error).message);
         }
     }
-    private storeSession() {
-        withTransaction(async (client) => {
-            const sessionInsert = await client.query<{id: number, expires: string}>(
-                'INSERT INTO sessions (uuid, otp) VALUES ($1, $2) RETURNING id, expires',
-                [this.uuid, this.otp]
-            )
-            const row = sessionInsert.rows[0];
-            if (!row) {
-                throw new HTMLStatusError("Session creation failed", 500);
-            }
-            this.dbID = row.id;
-            this.expires = row.expires;
-        })
+
+    static async create() {
+        const session = new Session();
+        await session.storeSession();
+        return session.session();
+    }
+
+    private async storeSession(): Promise<void> {
+        const q = await withTransaction(async (client) => {
+            return client.query<{ id: number, expires: string, uuid: string }>(
+                'INSERT INTO sessions (otp) VALUES ($1) RETURNING id, otp, expires, uuid',
+                [this.otp]
+            );
+        });
+
+        const row = q.rows.at(0);
+        if (!row) {
+            throw new HTMLStatusError("Failed to store session", 500);
+        }
+
+        this.dbID = row.id;
+        this.expires = row.expires;
+        this.uuid = row.uuid;
     }
     /**
      * kill() prunes expired sessions from the database
@@ -70,11 +71,50 @@ export class Session implements ISession {
         }
     }
     /**
+     * exists
+     */
+    static async exists(session: string): Promise<boolean> {
+        try {
+            const fetchedSession = await query<{ id: number }>(
+                `SELECT id FROM sessions WHERE uuid = $1;`,
+                [session]
+            )
+            if (fetchedSession.length === 0) {
+                return false;
+            } else {
+                return true;
+            }
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+    }
+    /**
      * @returns Object
      */
-    public session(): { uuid: string; expires: string; dbID: number|bigint; otp: string} {
-        return { uuid: this.uuid, expires: this.expires, dbID: this.dbID, otp: this.otp};
-    }
+    public async session(): Promise<{ uuid: string; expires: string; otp: string; }> {
+        try {
+            const fetchedSession = await query<{ uuid: string, expires: string, otp: string }>(
+                `SELECT uuid, expires, otp FROM sessions WHERE id = $1;`,
+                [this.dbID]
+            )
+            const row = fetchedSession.at(0);
+            if(row){
+                return row;
+            }else{
+                throw new HTMLStatusError("Session not found.", 404);
+            }
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+    };
     /**
      * @returns string
      */
@@ -83,7 +123,7 @@ export class Session implements ISession {
     }
 
     private generateOTP(): string {
-        const legalChars : string = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+        const legalChars: string = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
         const otpLength: number = 6;
         let otp = "";
 

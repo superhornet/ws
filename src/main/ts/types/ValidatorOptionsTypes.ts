@@ -1,6 +1,6 @@
 export interface ValidatorOptionsTypes {
     version: string;
-    stringValidation: {
+    stringValidation?: {
         minLength: number,
         maxLength: number,
         locale?: string,

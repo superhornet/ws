@@ -1,16 +1,18 @@
+DROP TABLE IF EXISTS raffle_entries;
 DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
     expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
     otp TEXT NOT NULL CHECK(length(otp) = 6),
-    uuid TEXT NOT NULL CHECK(length(uuid) = 36)
+    uuid UUID DEFAULT uuidv7()
 );
 
 DROP TABLE IF EXISTS audit;
 CREATE TABLE audit(
     id SERIAL PRIMARY KEY,
+    deleted BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL,
-    session TEXT NOT NULL CHECK(length(session) = 36),
+    session UUID DEFAULT uuidv7(),
     time_at timestamp NOT NULL DEFAULT (NOW()),
     type TEXT
     );
@@ -20,24 +22,28 @@ CREATE TABLE users(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
     email TEXT NOT NULL,
-    emailHost TEXT NOT NULL,
-    emailID TEXT NOT NULL,
+    email_host TEXT NOT NULL,
+    emailid TEXT NOT NULL,
     firstname TEXT NOT NULL,
     lastname TEXT NOT NULL,
-    user_identifier TEXT NOT NULL CHECK(length(user_identifier) = 36),
+    user_identifier UUID DEFAULT uuidv7(),
+    affiliate TEXT NOT NULL CHECK(length(affiliate) = 7),
     address1 TEXT NOT NULL,
     address2 TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
-    level TEXT CHECK(level in ('Free', 'Basic', 'Pro')) NOT NULL DEFAULT 'Free',
-    created_at TIMESTAMP DEFAULT (NOW())
+    zipcode TEXT NOT NULL,
+    subscription_level TEXT CHECK(subscription_level in ('Free', 'Basic', 'Pro')) NOT NULL DEFAULT 'Free',
+    created_at TIMESTAMP DEFAULT (NOW()),
+    CONSTRAINT unique_ident UNIQUE (user_identifier)
   );
 
 DROP TABLE IF EXISTS notifications;
 CREATE TABLE notifications(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
-    notification_identifier TEXT CHECK(length(notification_identifier) = 36),
+    notification_identifier UUID DEFAULT uuidv7(),
+    notification_for UUID DEFAULT NULL,
     seen BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL
   );
@@ -46,11 +52,11 @@ DROP TABLE IF EXISTS stacks;
 CREATE TABLE stacks(
     id INTEGER PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
-    ownerIdentifier TEXT CHECK(length(ownerIdentifier) = 36),
-    stackName TEXT NOT NULL,
-    stackIdentifier TEXT CHECK(length(stackIdentifier) = 36),
-    createdOn TEXT NOT NULL DEFAULT (NOW()),
-    createdBy INTEGER
+    owner_identifier UUID DEFAULT uuidv7(),
+    stack_name TEXT NOT NULL,
+    stack_identifier UUID DEFAULT uuidv7(),
+    created_on TEXT NOT NULL DEFAULT (NOW()),
+    created_by INTEGER
     );
 
 DROP TABLE IF EXISTS substacks;
@@ -60,8 +66,8 @@ CREATE TABLE substacks(
     createdOn TEXT NOT NULL DEFAULT (NOW()),
     createdBy INTEGER,
     deleted INTEGER DEFAULT 0 CHECK(deleted in (0, 1)),
-    stackIdentifier TEXT CHECK(length(stackIdentifier) = 36),
-    substackIdentifier TEXT CHECK(length(substackIdentifier) = 36),
+    stackIdentifier UUID DEFAULT uuidv7(),
+    substackIdentifier UUID DEFAULT uuidv7(),
     substackName TEXT NOT NULL,
     usersList TEXT NOT NULL
   );
@@ -80,6 +86,26 @@ CREATE TABLE transactions(
     toName TEXT DEFAULT NULL,
     notation TEXT DEFAULT NULL,
     transactionType TEXT CHECK(transactionType IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit'
+);
+
+DROP TABLE IF EXISTS raffles;
+CREATE TABLE raffles(
+    raffle_id UUID PRIMARY KEY DEFAULT uuidv7(),
+    raffle_name TEXT NOT NULL,
+    drawing_date TIMESTAMP DEFAULT (NOW() + INTERVAL '30 Days')
+);
+
+CREATE TABLE raffle_entries(
+    entry_id SERIAL PRIMARY KEY,
+    raffle_key UUID NOT NULL,
+    entry_user UUID NOT NULL REFERENCES users(user_identifier),
+    CONSTRAINT fk_raffle
+        FOREIGN KEY (raffle_key)
+        REFERENCES raffles (raffle_id),
+
+    CONSTRAINT fk_user
+        FOREIGN KEY (entry_user)
+        REFERENCES users (user_identifier)
 );
 
 DROP TABLE IF EXISTS idempotency_keys;

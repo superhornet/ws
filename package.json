@@ -36,8 +36,10 @@
         "dev": "nodemon --watch src -e ts --exec npm run dev:start",
         "start": "node .",
         "test:cucumber": "cucumber-js --format progress",
-        "test": "node --experimental-test-module-mocks --test './test/ts/**/*.test.ts'",
-        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./test/ts/**/*.test.ts"
+        "test": "node --test './src/test/ts/**/*.Test.ts",
+        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./src/test/ts/**/*.Test.ts",
+        "test:cybrid": "node --experimental-test-module-mocks --test './test/ts/**/*.test.ts'",
+        "testWithCoverage:cybrid": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./test/ts/**/*.test.ts"
     },
     "overrides": {
         "inflight": "latest",
@@ -48,7 +50,7 @@
         "@types/dotenv": "^6.1.1",
         "@types/express": "^5.0.6",
         "@types/fs-extra": "^11.0.4",
-        "@types/node": "^25.0.3",
+        "@types/node": "^25.9.1",
         "@types/pg": "^8.20.0",
         "@types/shelljs": "^0.10.0",
         "@typescript-eslint/eslint-plugin": "^8.51.0",

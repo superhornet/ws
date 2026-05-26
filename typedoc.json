@@ -1,0 +1,19 @@
+{
+    "entryPoints": [
+        "src/main/ts/index.ts"
+    ],
+    "out": "docs",
+    "excludePrivate": false,
+    "excludeProtected": true,
+    "excludeExternals": true,
+   "validation": {
+        "notExported": false,
+        "invalidLink": true,
+        "invalidPath": true,
+        "rewrittenLink": true,
+        "notDocumented": false,
+        "unusedMergeModuleWith": true
+    },
+    "plugin": ["plugin-rename-defaults"],
+    "readme": "README.md"
+}

@@ -1,15 +1,14 @@
 import type { SubscriptionEnum } from "./SubscriptionTypes.ts";
 
-export interface UserAPIType extends JSON {
-    message: string;
-    session: string;
+export interface UserAPIType{
     firstname: string;
-    identifier: string;
     lastname: string;
     email: string;
     address1: string;
     address2: string;
     city: string;
     state: string;
-    level: SubscriptionEnum;
+    zipcode: string|number;
+    subscription_level: SubscriptionEnum;
+    user_identifier?: string;
 }

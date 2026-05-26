@@ -1,107 +1,205 @@
-import type { NotificationAPIType, NotificationType } from "../types/NotificationAPITypes.ts";
+import type { NotificationAPIType } from "../types/NotificationAPITypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
+import { Validator } from "../libs/Validator.ts";
 
-export class Notification {
-    private _message!: string;
-    private _identifier!: string;
-    public id: number = 0;
-    public get identifier() {
-        return this._identifier;
+export interface INotification {
+    readNotification(): NotificationAPIType
+}
+export class Notification implements INotification {
+    private pMessage!: NotificationAPIType;
+    private get message(): NotificationAPIType | undefined {
+        return this.pMessage;
     }
-    public set identifier(value) {
-        this._identifier = value;
-    }
-    constructor (data: NotificationAPIType) {
-        this.message = data.message;
-        this.identifier = data.identifier || "";
-    }
-    public get message(): string {
-        return this._message;
-    }
-    public set message(value: string) {
-        this._message = value;
-    }
-    public toJSON(): NotificationType {
-        return {
-            id: this.id,
-            seen: false,
-            message: this.message,
-            identifier: this.identifier,
-        };
+    private set message(value: NotificationAPIType) {
+        this.pMessage = value;
     }
 
-    static async create(data: NotificationAPIType): Promise<Notification> {
+    private pId!: number;
+    private get id() {
+        return this.pId;
+    }
+    private set id(value) {
+        this.pId = value;
+    }
+    constructor(
+        notification: NotificationAPIType,
+        id: number | bigint
+    ) {
         try {
-            const notification = new Notification(data);
-            await notification.storeNotification();
-            return notification;
+            this.message = notification;
+            this.id = Number(id);
         } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
-            }
+            throw new Error((error as Error).message);
         }
     }
     /**
      * storeNotification
      */
-    private async storeNotification(): Promise<void> {
-        await withTransaction(async (client) => {
-            const notificationInsert = await client.query<{ id: number }>(
-                `INSERT INTO notifications (message, seen, notification_identifier) VALUES( $1 , $2 , $3 ) RETURNING id;`,
-                [this.message, false, this.identifier]
-            );
-            if (notificationInsert.rows.length === 0) {
-                throw new HTMLStatusError("Notification creation failed", 400);
+    static async storeNotification(notification: NotificationAPIType) {
+        const vMessage = new Validator({
+            version: "1.0",
+            stringValidation: {
+                minLength: 2,
+                maxLength: 2048,
+                locale: "en-us",
             }
-            this.id = notificationInsert.rows[0]!.id;
-        })
+        });
+        const messageChecked: boolean =
+            vMessage.stringValidate(vMessage.stripHtml(notification.message));
+        if (messageChecked) {
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `INSERT INTO notifications (message, notification_for) VALUES( $1, $2 )
+                    RETURNING id, notification_identifier, message, notification_for;`,
+                    [notification.message]
+                );
+            });
+
+            const row = q.rows.at(0);
+            if (!row) {
+                throw new HTMLStatusError("Failed to create notification", 500)
+            }
+            const notificationEntry = new Notification({
+                message: row.message,
+                notification_for: row.notification_for,
+                note_identifier: row.notification_identifier
+            }, row.id);
+            return notificationEntry.message;
+        }
+        return undefined;
     }
-    static async getAllForUser(data: string): Promise<Array<NotificationType>> {
+    public readNotification(): NotificationAPIType {
+        return this.message as NotificationAPIType;
+    }
+    static async getAllForUser(user: string) {
+        const output: Array<NotificationAPIType> = [];
         try {
-            const fetchedNotifications = await query<NotificationType>(
-                `SELECT id, seen, message, notification_identifier AS identifier
-                 FROM notifications
-                 WHERE deleted = FALSE AND notification_identifier = $1;`,
-                [data]
+            const fetchedNotifications = await query<NotificationAPIType>(
+                `SELECT id, seen, message, notification_for, notification_identifier
+                FROM notifications WHERE deleted = FALSE
+                AND notification_for = $1;`,
+                [user]
             )
-            return fetchedNotifications;
+            if (fetchedNotifications === undefined) {
+                throw new HTMLStatusError("Notifications not found", 404);
+            } else {
+                for (const notification of fetchedNotifications) {
+                    output.push({
+                        message: notification.message,
+                        notification_for: notification.notification_for || "",
+                        note_identifier: notification.note_identifier as string,
+                    })
+                }
+            }
+            return output;
         } catch (error) {
             if (error instanceof HTMLStatusError) {
                 throw error;
             } else {
                 throw new HTMLStatusError((error as Error).message, 500);
             }
-        }
-    }
-    static async setAsSeen(id: number): Promise<void> {
-        try {
-            await query(
-                `UPDATE notifications set seen=TRUE WHERE deleted = FALSE AND id = $1;`,
-                [id]
-            )
-        } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
+        };
+    };
+    static async updateNotification(notification: NotificationAPIType) {
+        let isUpdated = false;
+        const vMessage = new Validator({
+            version: "1.0",
+            stringValidation: {
+                minLength: 2,
+                maxLength: 2048,
+                locale: "en-us",
+            }
+        });
+        const messageChecked: boolean =
+            vMessage.stringValidate(vMessage.stripHtml(notification.message));
+        if (messageChecked) {
+            try {
+                const q = await withTransaction(async (client) => {
+                    return await client.query(
+                        `UPDATE notifications
+                SET ( seen=FALSE, message=$1 )
+                WHERE deleted = FALSE AND notification_for = $2;`,
+                        [notification.message, notification.notification_for]
+                    );
+                });
+
+                const rowCount = q.rowCount;
+                if (rowCount === 0) {
+                    throw new HTMLStatusError("Notification not updated", 404);
+                } else {
+                    isUpdated = true;
+                }
+            } catch (error) {
                 throw new HTMLStatusError((error as Error).message, 500);
             }
         }
+        return isUpdated;
     }
-    static async setDeleted(id: number): Promise<void> {
+    static async setAsSeen(notification_identifier: string) {
+        let isUpdated = false;
         try {
-            await query(
-                `UPDATE notifications set deleted=TRUE WHERE deleted = FALSE AND id = $1;`,
-                [id]
-            )
-        } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `UPDATE notifications
+                    SET seen=TRUE
+                    WHERE deleted = FALSE AND notification_identifier = $1;`,
+                    [notification_identifier]
+                );
+            });
+            const rowCount = q.rowCount;
+            if (rowCount === 0) {
+                throw new HTMLStatusError("Notification not updated", 404);
             } else {
-                throw new HTMLStatusError((error as Error).message, 500);
+                isUpdated = true;
             }
+        } catch (error) {
+            throw new HTMLStatusError((error as Error).message, 500);
         }
+        return isUpdated;
+    }
+    static async setAsUnseen(notification_identifier: string) {
+        let isUpdated = false;
+        try {
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `UPDATE notifications
+                    SET seen=FALSE
+                    WHERE deleted = FALSE AND notification_identifier = $1;`,
+                    [notification_identifier]
+                );
+            });
+            const rowCount = q.rowCount;
+            if (rowCount === 0) {
+                throw new HTMLStatusError("Notification not updated", 404);
+            } else {
+                isUpdated = true;
+            }
+        } catch (error) {
+            throw new HTMLStatusError((error as Error).message, 500);
+        }
+        return isUpdated;
+    }
+    static async deleteNotification(notification_identifier: string) {
+        let isDeleted = false;
+        try {
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `UPDATE notifications
+                    SET deleted=TRUE
+                    WHERE deleted = FALSE AND notification_identifier = $1;`,
+                    [notification_identifier]
+                );
+            });
+            const rowCount = q.rowCount;
+            if (rowCount === 0) {
+                throw new HTMLStatusError("Notification not deleted", 404);
+            } else {
+                isDeleted = true;
+            }
+        } catch (error) {
+            throw new HTMLStatusError((error as Error).message, 500);
+        }
+        return isDeleted;
     }
 }

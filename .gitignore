@@ -4,5 +4,10 @@
 /coverage
 /bdd
 /.vscode
+/recyclebin
 .env
+.env.*
+!.env.example
 package-lock.json
+schema-sqlite.sql
+SQLInit.ts

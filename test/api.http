@@ -59,7 +59,7 @@ Content-Type: application/json
 
 {
     "session": "4e9949e2-6af0-499b-993e-6754b515c59f",
-    "identifier": "cd62439a-1c46-420d-bec9-4385e684336f"
+    "identifier": "994ad8f7-d74e-4f13-afdf-9861526cf802"
 }
 
 ### Update User
@@ -245,4 +245,4 @@ Content-Type: application/json
 }
 
 ### Reset Data for demonstration of transaction processing
-GET http://localhost/reset HTTP/1.1
+GET http://localhost:3000/reset HTTP/1.1

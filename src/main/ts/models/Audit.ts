@@ -1,17 +1,13 @@
-import { withTransaction} from "../libs/postgresDB.ts"
+import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { withTransaction } from "../libs/postgresDB.ts"
+import { Validator } from "../libs/Validator.ts";
 
 /**
  * Audit interface definition
+ * No outside interface
  */
 export interface IAudit {
-    /** database id of the Audit entry */
-    id: number|bigint;
-    /** message text */
-    message: string;
-    /** session text is a UUID */
-    session: string;
-    audit(): {id: number|bigint; message: string; session: string};
-    toString(): string;
+    audit(): Promise<{ message: string }|undefined>;
 }
 
 /**
@@ -24,9 +20,7 @@ export interface IAudit {
  * Depends upon the database
  */
 export class Audit implements IAudit {
-    public id!: number|bigint;
-    public message!: string;
-    public session!: string;
+    private readonly message: string;
 
     /**
      * @param {string} message Text content of the logged message
@@ -35,46 +29,42 @@ export class Audit implements IAudit {
      * Takes a message and session, stores in the
      * database along with an auto-generated timestamp
      */
-    constructor(message: string, session: string) {
+    constructor(message: string) {
         try {
-            this.message = Audit.sanitize(message);
-            this.session = session;
-            this.logMessage();
+            this.message = message;
         } catch (error) {
             throw new Error((error as Error).message);
         }
     }
-    /**
-     * Neutralize log-injection: strip C0/C1 control chars (incl. CR/LF) so
-     * attacker-controlled substrings can't forge extra log lines, and cap
-     * length so an oversized payload can't flood the audit table.
-     */
-    static sanitize(message: string): string {
-        const maxLength = 512;
-        // eslint-disable-next-line no-control-regex
-        const stripped = message.replace(/[\x00-\x1F\x7F-\x9F]/g, " ");
-
-        return stripped.length > maxLength ? stripped.slice(0, maxLength) : stripped;
-    }
-    private logMessage() {
-        withTransaction(async (client) => {
-            await client.query(
-                `INSERT INTO audit (message, session) VALUES ($1, $2)`,
-                [this.message, this.session]
-            )
+    static async logMessage(message: string, session: string): Promise<{ message: string; } | undefined> {
+        const v = new Validator({
+            version: "1.0",
+            stringValidation: {
+                minLength: 2,
+                maxLength: 512,
+                locale: "en-us",
+            }
         });
+        if (v.stringValidate(v.stripHtml(message))) {
+            const q = await withTransaction(async (client) => {
+                return client.query(
+                    `INSERT INTO audit (message, session, type) VALUES ($1, $2, $3) RETURNING message;`,
+                    [v.stripHtml(message), session, 'info']
+                )
+            });
+            const row = q.rows.at(0);
+            if (!row) {
+                throw new HTMLStatusError("Failed to write to audit log", 500);
+            }
+            const auditEntry = new Audit(row.message);
+            return auditEntry.audit();
+        }
+        return undefined;
     }
     /**
      * @returns Object
      */
-    public audit(): { id: number|bigint; message: string; session: string} {
-        return { id: this.id, message: this.message, session: this.session};
-    }
-
-    /**
-     * @returns string
-     */
-    public toString(): string {
-        return `{ id: ${this.id}, message: '${this.message}', session: '${this.session}'}`;
+    public async audit(): Promise<{message: string}> {
+        return {message: this.message};
     }
 }

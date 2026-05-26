@@ -3,9 +3,8 @@ import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { Notification } from "../models/Notification.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { requireBody } from "../libs/requestValidation.ts";
-import { getSession } from "../libs/session.ts";
-import type { NotificationAPIType, NotificationType } from "../types/NotificationAPITypes.ts";
+import type { NotificationAPIType } from "../types/NotificationAPITypes.ts";
+import { Session } from "../models/Session.ts";
 export const router = express.Router();
 
 /**
@@ -13,51 +12,97 @@ export const router = express.Router();
  */
 router.post("/notification", async (req, res) => {
     try {
-        requireBody(req);
-        const data: NotificationAPIType = req.body;
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
+        }
+        const n: { note: NotificationAPIType, message: string, session: string } = req.body;
 
-        if (data.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
+        if (n.session === undefined || n.session.length === 0) {
+            throw new HTMLStatusError("Unauthorized", 403);
+        } else if (await Session.exists(n.session)) {
+            await Audit.logMessage(n.message, n.session);
+            const notification = Notification.storeNotification(n.note);
+            JSONResponse.creationSuccess(req, res, "Created", notification as unknown as JSON);
         } else {
-            new Audit(`Create notification for ${data.identifier}: ${data.message}.`, data.session);
-            const notification = await Notification.create(data);
-            JSONResponse.creationSuccess(req, res, "Created", notification.toJSON() as unknown as JSON);
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
 
+
 router.get("/notifications", async (req, res) => {
     try {
-        const session = getSession(req);
-        const identifier = req.query.identifier as string | undefined;
-        if (!identifier) {
-            throw new HTMLStatusError("Missing required data", 400);
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
         }
-        new Audit(`Retrieving notifications for user ${identifier}`, session);
-        const notifications: Array<NotificationType> = await Notification.getAllForUser(identifier);
-        JSONResponse.goodToGo(req, res, "OK", notifications as unknown as JSON)
+        const n: { note: NotificationAPIType, message: string, session: string } = req.body;
+        if (n.session === undefined) {
+            throw new HTMLStatusError("Session ID Required", 403);
+        } else if (await Session.exists(n.session)) {
+            Audit.logMessage(n.message, n.session);
+            const notifications: Array<NotificationAPIType> = await Notification.getAllForUser(n.note.notification_for || "");
+            JSONResponse.goodToGo(req, res, "OK", notifications as unknown as JSON)
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
+        }
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
     }
 });
-
+//Updates a notification
+router.put("/notification/", async (req, res) => {
+    try {
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
+        }
+        const n: { note: NotificationAPIType, message: string, session: string } = req.body;
+        if (n.session === undefined) {
+            throw new HTMLStatusError("Session ID Required", 403);
+        } else if (await Session.exists(n.session)) {
+            Audit.logMessage(n.message, n.session);
+            if (await Notification.updateNotification(n.note)) {
+                JSONResponse.updateSuccess(req, res, "Accepted", null)
+            }
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
+        }
+    } catch (error) {
+        processError(req, res, error as HTMLStatusError)
+    }
+});
 //Marks a notification as seen
 router.put("/notification/:id", async (req, res) => {
     try {
-        requireBody(req);
-        const data: NotificationAPIType = req.body;
-        if (data.session === undefined) {
+        if (!req.params.id) {
+            throw new HTMLStatusError("Missing parameter", 400);
+        }
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
+        }
+        const n: { note: NotificationAPIType, message: string, session: string } = req.body;
+        if (n.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
-        } else {
-            const notificationId = Number.parseInt(req.params.id, 10);
-            if (!Number.isInteger(notificationId) || notificationId <= 0) {
-                throw new HTMLStatusError("Invalid notification id", 400);
+        } else if (await Session.exists(n.session)) {
+            Audit.logMessage(n.message, n.session);
+            switch (req.params.id) {
+                case 't':
+                case '1':
+                    if(await Notification.setAsSeen(n.note.note_identifier || "")){
+                        JSONResponse.updateSuccess(req, res, "Accepted", null)
+                    }
+                    break;
+                case 'f':
+                case '0':
+                default:
+                    if(await Notification.setAsUnseen(n.note.note_identifier || "")){
+                        JSONResponse.updateSuccess(req, res, "Accepted", null)
+                    }
+                    break;
             }
-            new Audit(`Marking notification id: ${notificationId} as seen`, data.session);
-            await Notification.setAsSeen(notificationId);
-            JSONResponse.noContent(req, res, "No Content", null)
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -65,22 +110,23 @@ router.put("/notification/:id", async (req, res) => {
 });
 
 //Marks a notification as deleted
-router.delete("/notification/:id", async (req, res) => {
+router.delete("/notification/", async (req, res) => {
     try {
-        requireBody(req);
-        const data: NotificationAPIType = req.body;
-        if (data.session === undefined) {
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
+        }
+        const n: { note: NotificationAPIType, message: string, session: string } = req.body;
+        if (n.session === undefined) {
             throw new HTMLStatusError("Session ID Required", 403);
-        } else {
-            const notificationId = Number.parseInt(req.params.id, 10);
-            if (!Number.isInteger(notificationId) || notificationId <= 0) {
-                throw new HTMLStatusError("Invalid notification id", 400);
+        } else if (await Session.exists(n.session)) {
+            Audit.logMessage(n.message, n.session);
+            if (await Notification.deleteNotification(n.note.note_identifier || "")) {
+                JSONResponse.noContent(req, res, "No content", null)
             }
-            new Audit(`Marking notification id: ${notificationId} as deleted`, data.session);
-            await Notification.setDeleted(notificationId);
-            JSONResponse.noContent(req, res, "No Content", null)
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
-        processError(req, res, error as HTMLStatusError);
+        processError(req, res, error as HTMLStatusError)
     }
 });

@@ -3,8 +3,8 @@ import type { ValidatorOptionsTypes } from "../types/ValidatorOptionsTypes.ts";
 export class Validator {
     private _version: string = "";
     private _options!: ValidatorOptionsTypes;
-    constructor(options: ValidatorOptionsTypes) {
-        this.version = options?.version;
+    constructor(options?: ValidatorOptionsTypes) {
+        this.version = options?.version || "1.0";
         this.options = options || {
         version: "1.0",
         stringValidation: {

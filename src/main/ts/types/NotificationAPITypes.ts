@@ -1,14 +1,6 @@
-export interface NotificationAPIType extends JSON {
-    id: number;
-    session: string;
-    seen: boolean;
+export interface NotificationAPIType {
     message: string;
-    identifier?: string;
+    notification_for?: string;
+    note_identifier?: string;
 }
 
-export type NotificationType  = {
-    id: number;
-    seen: boolean;
-    message: string;
-    identifier?: string;
-}
