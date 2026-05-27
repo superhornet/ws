@@ -24,8 +24,6 @@ mock.module("../../src/main/ts/libs/postgresDB.ts", {
 
 const { Session } = await import("../../src/main/ts/models/Session.ts");
 
-const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
-
 function resetAll() {
     mockQuery.mock.resetCalls();
     mockQuery.mock.mockImplementation(async () => []);
@@ -42,23 +40,23 @@ function resetAll() {
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const OTP_LEGAL_CHARS = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
 
-describe("Session constructor", () => {
+describe("Session.create", () => {
     beforeEach(() => { resetAll(); });
 
-    it("generates a 36-character UUID", () => {
-        const session = new Session();
+    it("generates a 36-character UUID", async () => {
+        const session = await Session.create();
         assert.equal(session.uuid.length, 36);
         assert.match(session.uuid, UUID_REGEX);
     });
 
-    it("generates a 6-character OTP", () => {
-        const session = new Session();
+    it("generates a 6-character OTP", async () => {
+        const session = await Session.create();
         assert.equal(session.otp.length, 6);
     });
 
-    it("draws OTP characters only from the legal set (digits + A-Z minus O)", () => {
+    it("draws OTP characters only from the legal set (digits + A-Z minus O)", async () => {
         for (let attempt = 0; attempt < 50; attempt++) {
-            const session = new Session();
+            const session = await Session.create();
             for (const character of session.otp) {
                 assert.ok(
                     OTP_LEGAL_CHARS.includes(character),
@@ -68,22 +66,21 @@ describe("Session constructor", () => {
         }
     });
 
-    it("never produces the letter O in the OTP across many samples", () => {
+    it("never produces the letter O in the OTP across many samples", async () => {
         for (let attempt = 0; attempt < 200; attempt++) {
-            const session = new Session();
+            const session = await Session.create();
             assert.ok(!session.otp.includes("O"), `OTP contained letter O: ${session.otp}`);
         }
     });
 
-    it("produces different UUIDs on each construction", () => {
-        const first = new Session();
-        const second = new Session();
+    it("produces different UUIDs on each construction", async () => {
+        const first = await Session.create();
+        const second = await Session.create();
         assert.notEqual(first.uuid, second.uuid);
     });
 
     it("inserts a row with (uuid, otp) into sessions", async () => {
-        const session = new Session();
-        await flushMicrotasks();
+        const session = await Session.create();
         assert.equal(mockClientQuery.mock.callCount(), 1);
         const call = mockClientQuery.mock.calls[0]!;
         const sqlText = call.arguments[0] as string;
@@ -98,26 +95,21 @@ describe("Session constructor", () => {
         mockClientQuery.mock.mockImplementation(async () => ({
             rows: [{ id: 99, expires: "2031-06-01T00:00:00.000Z" }],
         }));
-        const session = new Session();
-        await flushMicrotasks();
+        const session = await Session.create();
         assert.equal(session.dbID, 99);
         assert.equal(session.expires, "2031-06-01T00:00:00.000Z");
     });
 
-    it("throws HTMLStatusError(500) when the insert returns no rows", async () => {
+    it("rejects with HTMLStatusError(500) when the insert returns no rows", async () => {
         mockClientQuery.mock.mockImplementation(async () => ({ rows: [] }));
-        mockWithTransaction.mock.mockImplementation(async (fn) => {
-            await assert.rejects(
-                fn({ query: mockClientQuery }),
-                (error: HTMLStatusError) => {
-                    assert.equal(error.statusCode, 500);
-                    assert.match(error.message, /Session creation failed/);
-                    return true;
-                },
-            );
-        });
-        new Session();
-        await flushMicrotasks();
+        await assert.rejects(
+            Session.create(),
+            (error: HTMLStatusError) => {
+                assert.equal(error.statusCode, 500);
+                assert.match(error.message, /Session creation failed/);
+                return true;
+            },
+        );
     });
 });
 
@@ -127,8 +119,7 @@ describe("Session.session()", () => {
     // Documents the current return shape. If this assertion changes, the public
     // API has changed too — confirm intent before updating.
     it("returns uuid, expires, dbID, and otp", async () => {
-        const session = new Session();
-        await flushMicrotasks();
+        const session = await Session.create();
         const payload = session.session();
         assert.equal(payload.uuid, session.uuid);
         assert.equal(payload.expires, session.expires);
@@ -141,8 +132,7 @@ describe("Session.toString()", () => {
     beforeEach(() => { resetAll(); });
 
     it("includes uuid, expires, and dbID but not otp", async () => {
-        const session = new Session();
-        await flushMicrotasks();
+        const session = await Session.create();
         const text = session.toString();
         assert.ok(text.includes(session.uuid));
         assert.ok(text.includes(String(session.dbID)));
@@ -164,10 +154,17 @@ describe("Session.kill", () => {
         assert.deepEqual(params, []);
     });
 
-    it("rewraps query errors as Error", async () => {
+    it("wraps query errors as HTMLStatusError(500)", async () => {
         mockQuery.mock.mockImplementation(async () => {
             throw new Error("connection refused");
         });
-        await assert.rejects(Session.kill(), /connection refused/);
+        await assert.rejects(
+            Session.kill(),
+            (error: HTMLStatusError) => {
+                assert.equal(error.statusCode, 500);
+                assert.match(error.message, /connection refused/);
+                return true;
+            },
+        );
     });
 });
