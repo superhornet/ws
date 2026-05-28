@@ -25,6 +25,10 @@ class MockSession {
         mockSessionConstructor();
     }
 
+    static async create(): Promise<MockSession> {
+        return new MockSession();
+    }
+
     public session() {
         return {
             uuid: this.uuid,

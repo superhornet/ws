@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import { query, withTransaction} from "../libs/postgresDB.ts"
 import { generateUUID } from "../libs/UUID.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { toHttpError } from "../libs/httpErrorWrap.ts";
 
 /**
  * Session interface definition
@@ -31,18 +32,21 @@ export class Session implements ISession {
     /**
      * Session constructor
      */
-    constructor() {
-        try {
-            this.uuid = generateUUID();
-            this.otp = this.generateOTP();
-            this.storeSession();
-
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
+    private constructor() {
+        this.uuid = generateUUID();
+        this.otp = this.generateOTP();
     }
-    private storeSession() {
-        withTransaction(async (client) => {
+    /**
+     * Async factory: builds a Session and awaits its row insert so that
+     * dbID and expires are populated before the instance is returned.
+     */
+    static async create(): Promise<Session> {
+        const session = new Session();
+        await session.storeSession();
+        return session;
+    }
+    private async storeSession(): Promise<void> {
+        await withTransaction(async (client) => {
             const sessionInsert = await client.query<{id: number, expires: string}>(
                 'INSERT INTO sessions (uuid, otp) VALUES ($1, $2) RETURNING id, expires',
                 [this.uuid, this.otp]
@@ -59,15 +63,13 @@ export class Session implements ISession {
      * kill() prunes expired sessions from the database
      *
      */
-    static async kill(): Promise<void> {
-        try {
+    static kill(): Promise<void> {
+        return toHttpError(async () => {
             await query(
                 `DELETE FROM sessions WHERE expires < NOW();`,
                 []
             )
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
+        });
     }
     /**
      * @returns Object
