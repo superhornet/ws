@@ -24,7 +24,7 @@ router.get("/reset", (req, res) => {
         id SERIAL PRIMARY KEY,
         expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
         otp TEXT NOT NULL CHECK(length(otp) = 6),
-        uuid TEXT NOT NULL CHECK(length(uuid) = 36)
+        uuid TEXT NOT NULL UNIQUE CHECK(length(uuid) = 36)
     );
 
   DROP TABLE IF EXISTS audit;
