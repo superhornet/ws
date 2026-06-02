@@ -1,4 +1,4 @@
-import test, { after, describe, it } from "node:test";
+import { test, after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { router as healthRouter } from "../../main/ts/routes/index.ts"
 import { findRouteHandler, mockHealth } from "../../main/ts/libs/mocks.ts";

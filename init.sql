@@ -1,5 +1,7 @@
 DROP TABLE IF EXISTS raffle_entries;
 DROP TABLE IF EXISTS stacks;
+DROP TABLE IF EXISTS substacks CASCADE;
+DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
@@ -36,7 +38,7 @@ CREATE TABLE users(
     zipcode TEXT NOT NULL,
     subscription_level TEXT CHECK(subscription_level in ('Free', 'Basic', 'Pro')) NOT NULL DEFAULT 'Free',
     created_at TIMESTAMP DEFAULT (NOW()),
-    CONSTRAINT unique_ident UNIQUE (user_identifier)
+    CONSTRAINT unique_user UNIQUE (user_identifier)
   );
 
 DROP TABLE IF EXISTS notifications;
@@ -62,7 +64,6 @@ CREATE TABLE stacks(
         REFERENCES users (user_identifier)
     );
 
-DROP TABLE IF EXISTS substacks;
 CREATE TABLE substacks(
     id SERIAL PRIMARY KEY,
     balance INTEGER DEFAULT 0, --Value in cents
@@ -72,23 +73,30 @@ CREATE TABLE substacks(
     stack_identifier UUID,
     substack_identifier UUID DEFAULT uuidv7(),
     substack_name TEXT NOT NULL,
-    users_list TEXT NOT NULL
+    users_list TEXT NOT NULL,
+    CONSTRAINT unique_substack UNIQUE (substack_identifier)
   );
 
-DROP TABLE IF EXISTS transactions;
 CREATE TABLE transactions(
     id SERIAL PRIMARY KEY,
     amount INTEGER DEFAULT 0, --value in cents
---    balance INTEGER DEFAULT 0, --value in cents, running total
+    initiated_by UUID NOT NULL REFERENCES users(user_identifier),
     occurred_at TIMESTAMP NOT NULL DEFAULT (NOW()),
     processor TEXT CHECK(processor IN ('Internal', 'ACH', 'Moonpay', 'Stripe', 'Apple', 'Google', 'CashApp', 'Bitcoin')) NOT NULL DEFAULT 'Internal',
     processed_at TIMESTAMP DEFAULT NULL,
-    from_id INTEGER DEFAULT NULL,
-    to_id INTEGER DEFAULT NULL,
---    from_name TEXT DEFAULT NULL,
---    to_name TEXT DEFAULT NULL,
+    from_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
+    to_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
     notation TEXT DEFAULT NULL,
-    transaction_type TEXT CHECK(transaction_type IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit'
+    transaction_type TEXT CHECK(transaction_type IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit',
+    CONSTRAINT fk_user
+        FOREIGN KEY (initiated_by)
+        REFERENCES users (user_identifier),
+    CONSTRAINT fk_from_substack
+        FOREIGN KEY (from_identifier)
+        REFERENCES substacks (substack_identifier),
+    CONSTRAINT fk_to_substack
+        FOREIGN KEY (to_identifier)
+        REFERENCES substacks (substack_identifier)
 );
 
 DROP TABLE IF EXISTS raffles;

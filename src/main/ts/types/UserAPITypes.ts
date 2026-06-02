@@ -1,5 +1,4 @@
-import type { SubscriptionEnum } from "./SubscriptionTypes.ts";
-
+import { type SubscriptionEnum } from "../types/SubscriptionTypes.ts";
 export interface UserAPIType{
     firstname: string;
     lastname: string;

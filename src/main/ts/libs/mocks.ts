@@ -235,11 +235,41 @@ export function mockTransaction(data?: {body?: {data?: TransactionAPIType, messa
                 processor: TransactionProcessorType,
                 transactionType: TransactionItemType,
                 amount: 0,
-                toIdentifier: "",
-                fromIdentifier: "",
-                notation: ""
+                to_identifier: "",
+                from_identifier: "",
+                notation: "",
+                initiated_by: ""
             },
             message: "",
+            session: ""
+        },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: typeof this.body) {
+            this.body = payload;
+            return this;
+        }
+    };
+    return { req, res };
+}
+export function mockTransactionList( data?: { body?: {key: string, value: string, message?: string, session?: string;}|{ data?: TransactionAPIType; message?: string; session?: string;}}) {
+    const req = data ;
+    const res = {
+        statusCode: -1,
+        body: {
+            code: -1,
+            data: [{
+                processor: TransactionProcessorType,
+                transactionType: TransactionItemType,
+                amount: 0,
+                to_identifier: "",
+                from_identifier: "",
+                notation: "",
+                initiated_by: ""
+            }],
+            message: "", //Creation message
             session: ""
         },
         status(code: number) {

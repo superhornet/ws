@@ -7,10 +7,10 @@ Intended implementation will handle the following components & services
 * TypeScript
 * Express.js
 * NodeJS
-* Unit Tests via Jasmine
+* Unit Tests via node:test
 * BDD via cucumber-ts
 * TypeDoc
-* Karma Code Coverage
+* Code Coverage via node:test
 * Mermaid for diagrams
 
 Possible implementation of ProtoBuf.

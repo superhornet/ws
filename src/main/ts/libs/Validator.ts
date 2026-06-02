@@ -103,7 +103,7 @@ export class Validator {
         let isValid = false;
         const numberOptions = this.options.numberValidation;
         if(typeof num === 'number' && Number.isInteger(num)){
-            if(numberOptions?.integerMin && numberOptions.integerMax) {
+            if(numberOptions?.integerMin !== undefined && numberOptions.integerMax !== undefined) {
                 if(
                     num > numberOptions.integerMin &&
                     num < numberOptions.integerMax
@@ -112,8 +112,8 @@ export class Validator {
                 }
             }
         }
-        if(typeof num === 'number' && Number.isFinite(num)){
-            if(numberOptions?.floatMin && numberOptions.floatMax){
+        if(typeof num === 'number' && Number.isFinite(num) && !Number.isInteger(num)){
+            if(numberOptions?.floatMin !== undefined && numberOptions.floatMax !== undefined){
                 if(
                     num > numberOptions.floatMin &&
                     num < numberOptions.floatMax

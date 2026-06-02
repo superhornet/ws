@@ -27,36 +27,20 @@ export type TransactionProcessorEnum = (typeof TransactionProcessorType)[keyof t
  * Data transmitted to/from the API before meta information is added
  */
 export interface TransactionAPIType{
+    initiated_by: string;
     processor: TransactionProcessorEnum; //processsor for the transaction
     transaction_type: TransactionEnum; //type of transaction
     amount: number; //decimal amount
     to_identifier: string; //substackIdentifier
     from_identifier: string; //substackIdentifier
     notation: string;
+    balance?: number;
 };
 
-/**
- * Represents a transaction as it exists in data
- */
-/*export type TransactionType = {
-    id: number,
-    occurredOn: string;
-    processor: TransactionProcessorEnum;
-    processedOn: string;
-    fromID: number;
-    toID: number;
-    fromName: string;
-    toName: string;
-    amount: number;
-    balance: number;
-    notation: string;
-    transactionType: TransactionEnum;
-}
-*/
 export const TransactionQueryTypes = {
-    SUBSTACK: "substack" as string,
-    STACK: "stacK" as string,
-    USER: "user" as string
+    SUBSTACK: "substack_identifier" as string,
+    STACK: "stack_identifier" as string,
+    USER: "owner_identifier" as string
 } as const;
 
 export type TransactionQueryEnum = (typeof TransactionQueryTypes)[keyof typeof TransactionQueryTypes];

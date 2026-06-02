@@ -180,7 +180,7 @@ suite("Endpoint Tests", () => {
             it("Tests for correct results", () => {
                 assert.equal(res.statusCode, 200);
                 assert.equal(res.body.message, 'OK');
-                assert.equal(res.body.data.length, 3);
+                assert.equal(Object.keys(res.body.data).length, 3);
             });
         });
     });

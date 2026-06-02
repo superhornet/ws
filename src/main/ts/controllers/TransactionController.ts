@@ -2,78 +2,51 @@ import * as express from "express";
 import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { getSession } from "../libs/session.ts";
-import { TransactionItemType, TransactionQueryTypes, type TransactionAPIType, type TransactionType } from "../types/TransactionAPITypes.ts";
+import { type TransactionAPIType } from "../types/TransactionAPITypes.ts";
 import { Transaction } from "../models/Transaction.ts";
-import { SubStack } from "../models/SubStack.ts";
+import { Session } from "../models/Session.ts";
+
 export const router = express.Router();
 
+/**
+ * Create Transaction
+ */
 router.post("/transaction", async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+            throw new HTMLStatusError("Empty JSON Body", 400);
         }
-        const data: TransactionAPIType = req.body;
-        if (data.session === undefined) {
+        const t: {data: TransactionAPIType, message: string, session: string} = req.body;
+        if (t.session === undefined || t.session.length === 0) {
             throw new HTMLStatusError("Session ID Required", 403);
-        } else if(data.transactionType !== TransactionItemType.INITIAL_FUND && data.amount > await SubStack.getBalance(data.fromIdentifier)) {
-            throw new HTMLStatusError("Bad Request", 400);
-        } else {
-            const transaction = new Transaction(data);
-            await Audit.logMessage(`Saved Transaction $${data.amount}: ${data.fromIdentifier} to ${data.toIdentifier}.`, data.session);
+        } else if(await Session.exists(t.session)){
+            await Audit.logMessage(`Transaction $${t.data.amount}: From ${t.data.from_identifier} to ${t.data.to_identifier}.`, t.session);
+            const transaction = await Transaction.storeTransaction(t.data);
             JSONResponse.creationSuccess(req, res, 'Created', transaction as unknown as JSON);
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
+/**
+ * Read transactions
+ */
 router.get("/transactions", async (req, res) => {
     try {
-        const session = getSession(req);
-        const fromIdentifier = req.query.fromIdentifier as string | undefined;
-        const stackID = req.query.stackID as string | undefined;
-        if (!fromIdentifier && !stackID) {
-            throw new HTMLStatusError("Missing required data", 400);
-        }
-        let transactions: Array<Omit<TransactionType, "processedOn" | "fromID" | "toID">> | undefined;
-        if (fromIdentifier) {
-            transactions = await Transaction.getTransactions(fromIdentifier, TransactionQueryTypes.SUBSTACK);
-        } else if (stackID) {
-            transactions = await Transaction.getTransactions(await SubStack.getParentStack(stackID), TransactionQueryTypes.STACK);
-        }
-        await Audit.logMessage(`Listing Transactions for ${fromIdentifier ?? `stack ${stackID}`}`, session);
-        JSONResponse.goodToGo(req, res, 'OK', transactions as unknown as JSON);
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-router.put("/transaction", async (req, res) => {
-    try {
         if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
+            throw new HTMLStatusError("Empty JSON Body", 400);
         }
-        const data: TransactionAPIType = req.body;
-        if (data.session === undefined) {
+        const t: {key: string, value: string, message: string, session: string} = req.body;
+        if (t.session === undefined || t.session.length === 0) {
             throw new HTMLStatusError("Session ID Required", 403);
+        } else if (await Session.exists(t.session)) {
+            await Audit.logMessage(t.message, t.session);
+            const transactions = await Transaction.getTransactions(t.key, t.value);
+            JSONResponse.goodToGo(req, res, "OK", transactions as unknown as JSON);
         } else {
-            await Audit.logMessage("Transaction Event", data.session);
-            JSONResponse.updateSuccess(req, res, 'Accepted', null);
-        }
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
-router.delete("/transaction", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const data: TransactionAPIType = req.body;
-        if (data.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else {
-            await Audit.logMessage("Transaction Event", data.session);
-            JSONResponse.noContent(req, res, 'No Content', null);
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);

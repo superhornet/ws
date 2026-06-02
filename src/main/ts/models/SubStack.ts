@@ -57,12 +57,12 @@ export class SubStack {
                 }
                 const q = await withTransaction(async (client) => {
                     return await client.query(
-                        `INSERT INTO substacks (substack_name, stack_identifier, created_by, users_list )
+                        `INSERT INTO substacks (substack_name, stack_identifier, balance, created_by, users_list )
                         VALUES (
-                            $1, $2, $3, $4
+                            $1, $2, $3, $4, $5
                         )
                         RETURNING id, substack_name, substack_identifier, stack_identifier, balance, users_list;`,
-                        [substack.substack_name, stack_ident, created_by, Array.from(owner_ident).toString()]
+                        [substack.substack_name, stack_ident, substack.balance, created_by, Array.from(owner_ident).toString()]
                     )
                 });
                 const row = q.rows.at(0);
@@ -197,15 +197,16 @@ export class SubStack {
         return isDeleted;
     }
     static async getBalance(substack_identifier: string) {
-        let balance = undefined;
         try {
+            let balance = 0;
             const fetchedBalance = await query<SubStackAPIType>(
                 `SELECT balance FROM substacks WHERE substack_identifier = $1;`,
                 [substack_identifier]
             );
-            for(const balances in fetchedBalance){
-                balance = Number.parseInt(balances)/100;
+            for(const b of fetchedBalance){
+                balance = b.balance/100;
             }
+            return balance;
         } catch (error) {
             if (error instanceof HTMLStatusError) {
                 throw error;
@@ -213,7 +214,6 @@ export class SubStack {
                 throw new HTMLStatusError((error as Error).message, 500);
             }
         }
-        return balance;
     }
     static async getParentStack(substack_identifier: string) {
         let parentStackID: string = '';
@@ -233,5 +233,27 @@ export class SubStack {
             }
         }
         return parentStackID;
+    }
+    static async getUsersList(substack_identifier: string) {
+        const substackUsers= new Set<string>;
+        try {
+            const substacks = await query<SubStackAPIType>(
+                `SELECT users_list FROM substacks WHERE substack_identifier = $1;`,
+                [substack_identifier]
+            );
+            for(const substack of substacks){
+                const userArray = (substack.users_list as unknown as string).split(",");
+                for(const user of userArray){
+                    substackUsers.add(user);
+                }
+            }
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+        return substackUsers;
     }
 }

@@ -1,145 +1,226 @@
-import { TransactionItemType, TransactionProcessorType, TransactionQueryTypes, type TransactionAPIType, type TransactionType } from "../types/TransactionAPITypes.ts";
+import { TransactionItemType, TransactionProcessorType, TransactionQueryTypes, type TransactionAPIType } from "../types/TransactionAPITypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import { SubStack } from "./SubStack.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
+import { Validator } from "../libs/Validator.ts";
+import type { SubStackAPIType } from "../types/SubStackAPITypes.ts";
+
+export interface ITransaction {
+    readTransaction(): TransactionAPIType
+}
 
 export class Transaction {
-    private _transaction!: TransactionType;
-    readonly #toIdentifier: string;
-    #to!: number;
-    #toName!: string;
-    readonly #fromIdentifier: string;
-    #from!: number;
-    #fromName!: string;
-    readonly #data: TransactionAPIType;
-    constructor(data: TransactionAPIType) {
-        this.#toIdentifier = data.toIdentifier;
-        this.#fromIdentifier = data.fromIdentifier;
-        this.#data = data;
+    private pTransaction!: TransactionAPIType;
+    private get transaction(): TransactionAPIType {
+        return this.pTransaction;
+    }
+    private set transaction(value: TransactionAPIType) {
+        this.pTransaction = value;
+    }
+    private pId!: number;
+    private get id() {
+        return this.pId;
+    }
+    private set id(value) {
+        this.pId = value;
+    }
+    constructor(
+        transaction: TransactionAPIType,
+        id: number | bigint
+    ) {
         try {
-            this.storeTransaction();
-
+            this.transaction = transaction;
+            this.id = Number(id);
         } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
+            throw new Error((error as Error).message);
         }
     }
-    private async details(){
-        const [from, fromName] = await uuidToSubStack(this.#fromIdentifier);
-        const [to, toName] = await uuidToSubStack(this.#toIdentifier);
-            this.#from = from as number;
-            this.#fromName = fromName as string;
-            this.#to = to as number;
-            this.#toName = toName as string;
-
-    }
-    private storeTransaction() {
-        this.details();
-        this.transaction = {
-            id: 0,
-            processor: this.#data.processor,
-            transactionType: this.#data.transactionType,
-            occurredOn: "",
-            processedOn: "",
-            amount: this.#data.amount,
-            toID: this.#to,
-            fromID: this.#from,
-            toName: this.#toName,
-            fromName: this.#fromName,
-            balance: 0,
-            notation: ""
-        }
-
-        const theTransaction: TransactionType = this.transaction;
-        withTransaction(async (client) => {
-            let balance = await SubStack.getBalance(this.#toIdentifier);
-            try {
-
-                if ([TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND].includes(theTransaction.transactionType)) {
-                    balance += theTransaction.amount;
-                }
-                await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( $1 , $2 , $3 , $4 , $5 , $6 , $7 , $8 , $9 , $10 );`,
-                    [theTransaction.processor, (theTransaction.transactionType === TransactionProcessorType.INTERNAL) ? null : "",
-                    theTransaction.fromID, theTransaction.toID, theTransaction.fromName,
-                    theTransaction.toName, theTransaction.amount * 100, balance * 100, "", theTransaction.transactionType]
-                )
-                setBalanceBySubstackId(balance * 100, theTransaction.toID);
-                if ([TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND].includes(theTransaction.transactionType) &&
-                    [TransactionProcessorType.APPLE,
-                    TransactionProcessorType.BITCOIN,
-                    TransactionProcessorType.CASHAPP,
-                    TransactionProcessorType.GOOGLE,
-                    TransactionProcessorType.MOONPAY,
-                    TransactionProcessorType.STRIPE,
-                    ].includes(theTransaction.processor)) {
-                    let fee = 0;
-                    if (theTransaction.amount > 2500) {
-                        fee = 25;
-                    } else if (theTransaction.amount <= 75) {
-                        fee = .75;
-                    } else {
-                        fee = theTransaction.amount * 0.01;
-                    }
-                    balance -= fee;
-                    await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( $1 , $2 , $3 , $4 , $5 , $6 , $7 , $8 , $9 , $10 );`,
-                        [TransactionProcessorType.INTERNAL, null,
-                        theTransaction.toID, 1, theTransaction.toName,
-                            "Service Fee", fee * 100, balance * 100, "", TransactionItemType.FEE]
-                    )
-                    setBalanceBySubstackId(balance * 100, theTransaction.toID);
-                    await client.query(`INSERT INTO transactions (processor, processedOn, fromID, toID, fromName, toName, amount, balance, notation, transactionType) VALUES( $1 , $2 , $3 , $4 , $5 , $6 , $7 , $8 , $9 , $10 );`,
-                        [TransactionProcessorType.INTERNAL, null,
-                            0, 1, theTransaction.toName, "Funds",
-                        fee * 100, (await SubStack.getBalance('83d13d18-3802-407f-b9b6-73f39b17e31d') + fee) * 100, "Service Fee", TransactionItemType.SETTLED]
-                    )
-                    setBalanceBySubstackId((await SubStack.getBalance('83d13d18-3802-407f-b9b6-73f39b17e31d') + fee) * 100, 1)
-                }
-
-
-
-            } catch (error) {
-                if (error instanceof HTMLStatusError) {
-                    throw error;
-                } else {
-                    throw new HTMLStatusError((error as Error).message, 500);
-                }
+    static async storeTransaction(transaction: TransactionAPIType) {
+        const vTransaction = new Validator({ //Validator for transaction
+            version: "1.0",
+            numberValidation: { // Validator for transaction amount (0..$10k]
+                integerMin: 0,
+                integerMax: 1000000, //$10,000.00
+                floatMin: 0,
+                floatMax: 10000.01
+            },
+            stringValidation: { //Validator for notation text
+                minLength: 0,
+                maxLength: 512,
+                locale: "en-us"
             }
         });
+        const amountChecked: boolean =
+            vTransaction.numberValidate(transaction.amount);
+        const noteChecked: boolean =
+            vTransaction.stringValidate(vTransaction.stripHtml(transaction.notation));
+
+        const from_balance = await SubStack.getBalance(transaction.from_identifier);
+        const to_balance = await SubStack.getBalance(transaction.to_identifier);
+        const authorizedUsers = await SubStack.getUsersList(transaction.from_identifier);
+        if (transaction.amount > from_balance) {
+            throw new HTMLStatusError("Insufficient funds", 400);
+        }
+        const isAuthorized = authorizedUsers.has(transaction.initiated_by)
+        if (amountChecked && noteChecked && isAuthorized) {
+            try {
+                const q = await withTransaction(async (client) => {
+                    if ([TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND].includes(transaction.transaction_type) &&
+                        [TransactionProcessorType.APPLE,
+                        TransactionProcessorType.BITCOIN,
+                        TransactionProcessorType.CASHAPP,
+                        TransactionProcessorType.GOOGLE,
+                        TransactionProcessorType.MOONPAY,
+                        TransactionProcessorType.STRIPE,
+                        ].includes(transaction.processor)) {
+                        let fee = 0;
+                        if (transaction.amount > 2500) {
+                            fee = 25;
+                        } else if (transaction.amount <= 75) {
+                            fee = .75;
+                        } else {
+                            fee = transaction.amount * 0.01;
+                        }
+
+                        //balance -= fee;
+                        await client.query(
+                            `INSERT INTO transactions (
+                            amount,
+                            processor,
+                            from_identifier,
+                            to_identifier,
+                            notation,
+                            transaction_type,
+                            initiated_by
+                          )
+                        VALUES (
+                            $1,
+                            $2,
+                            $3,
+                            $4,
+                            $5,
+                            $6,
+                            $7
+                          )`,
+                            [fee * 100, transaction.processor, transaction.from_identifier, await Transaction.getFeeSubStack(),
+                                "Service Fee", transaction.transaction_type, transaction.initiated_by]
+                        );
+                    }
+                    await client.query(
+                        `UPDATE substacks SET balance = $2 WHERE substack_identifier = $1;`, [transaction.from_identifier, Math.round((from_balance - transaction.amount) * 100)]
+                    );
+                    await client.query(
+                        `UPDATE substacks SET balance = $2 WHERE substack_identifier = $1;`, [transaction.to_identifier, Math.round((to_balance + transaction.amount) * 100)]
+                    );
+                    return await client.query(
+                        `INSERT INTO transactions (
+                            amount,
+                            processor,
+                            from_identifier,
+                            to_identifier,
+                            notation,
+                            transaction_type,
+                            initiated_by
+                          )
+                        VALUES (
+                            $1,
+                            $2,
+                            $3,
+                            $4,
+                            $5,
+                            $6,
+                            $7
+                          )
+                        RETURNING id, amount, processor, from_identifier, to_identifier,
+                        notation, transaction_type, initiated_by;`,
+                        [transaction.amount * 100, transaction.processor, transaction.from_identifier, transaction.to_identifier,
+                        transaction.notation, transaction.transaction_type, transaction.initiated_by]
+                    )
+                });
+                const row = q.rows.at(0);
+                if (!row) {
+                    throw new HTMLStatusError("Failed to create transaction", 500);
+                }
+                const transactionEntry = new Transaction({
+                    amount: row.amount,
+                    processor: row.processor,
+                    from_identifier: row.from_identifier,
+                    to_identifier: row.to_identifier,
+                    notation: row.notation,
+                    transaction_type: row.transaction_type,
+                    initiated_by: row.initiated_by,
+                    balance: to_balance + row.amount
+                }, row.id);
+                return transactionEntry.transaction;
+            } catch (error) {
+                throw new Error((error as Error).message)
+            }
+        }
+        return undefined;
     }
-    static async getTransactions(key: string, queryType: string) {
-            const output: Array<Omit< TransactionType, 'processedOn' | "fromID" | "toID" >> =[];
+    public readTransaction(): TransactionAPIType {
+        return this.transaction;
+    }
+    static async getTransactions(key: string, value: string) {
+        const output: Array<TransactionAPIType> = [];
         try {
             let fetchedTransactions;
-            switch (queryType) {
+            switch (key) {
                 case TransactionQueryTypes.SUBSTACK:
-                    fetchedTransactions = await query<{
-                        id: number;
-                        amount: number;
-                        balance: number;
-                        occurredOn: string;
-                        processor: string;
-                        fromName: string;
-                        toName: string;
-                        notation: string;
-                        transactionType: string;
-                    }>(
-                        `select * from transactions where toID = $1 OR fromID = $2 AND transactionType != 'Settled';`,
-                        [uuidToSubStack(key), uuidToSubStack(key)]
-                    )
+                    fetchedTransactions = await query<TransactionAPIType>(
+                        `SELECT
+                        initiated_by,
+                        processor,
+                        transaction_type,
+                        amount,
+                        to_identifier,
+                        from_identifier,
+                        notation
+                        FROM transactions
+                        WHERE to_identifier = $1 OR from_identifier=$1;`,
+                        [value]
+                    );
                     break;
                 case TransactionQueryTypes.STACK:
-                    fetchedTransactions = await query<{
-                        id: number;
-                        amount: number;
-                        balance: number;
-                        occurredOn: string;
-                        processor: string;
-                        fromName: string;
-                        toName: string;
-                        notation: string;
-                        transactionType: string;
-                    }>(`select * from transactions where toID in (SELECT id FROM substacks WHERE stackIdentifier = $1 ) OR fromID IN (SELECT id FROM substacks WHERE stackIdentifier = $2) AND transactionType != 'Settled';`,
-                        [await SubStack.getParentStack(key), await SubStack.getParentStack(key)]
-                    )
+                    fetchedTransactions = await query<TransactionAPIType>(
+                        `SELECT
+                        t.initiated_by,
+                        t.processor,
+                        t.transaction_type,
+                        t.amount,
+                        t.to_identifier,
+                        t.from_identifier,
+                        t.notation
+                        FROM transactions AS t
+                        INNER JOIN substacks AS s ON
+                        t.from_identifier = s.substack_identifier OR
+                        t.to_identifier = s.substack_identifier
+                        WHERE s.stack_identifier = $1;`,
+                        [value]
+                    );
+                    break;
+                case TransactionQueryTypes.USER:
+                    fetchedTransactions = await query<TransactionAPIType>(
+                        `SELECT DISTINCT
+                        u.email,
+                        t.initiated_by,
+                        t.processor,
+                        t.transaction_type,
+                        t.amount,
+                        t.to_identifier,
+                        t.from_identifier,
+                        t.notation
+                        FROM transactions AS t
+                        INNER JOIN substacks AS ss ON
+                        t.from_identifier = ss.substack_identifier OR
+                        t.to_identifier = ss.substack_identifier
+                        INNER JOIN stacks AS s ON
+                        ss.stack_identifier = s.stack_identifier
+                        INNER JOIN users AS u ON
+                        s.owner_identifier = u.user_identifier
+                        WHERE s.owner_identifier = $1;`,
+                    [value]
+                    );
                     break;
                 default:
                     break;
@@ -149,57 +230,41 @@ export class Transaction {
             } else {
                 for (const transaction of fetchedTransactions) {
                     output.push({
-                        id: transaction.id,
-                        amount: ((transaction.amount) / 100),
-                        balance: ((transaction.balance) / 100),
-                        occurredOn: (transaction.occurredOn),
-                        processor: (transaction.processor),
-                        fromName: (transaction.fromName),
-                        toName: (transaction.toName),
-                        notation: (transaction.notation),
-                        transactionType: (transaction.transactionType)
-                    })
+                        initiated_by: transaction.initiated_by,
+                        processor: transaction.processor,
+                        transaction_type: transaction.transaction_type,
+                        amount: transaction.amount,
+                        to_identifier: transaction.to_identifier,
+                        from_identifier: transaction.from_identifier,
+                        notation: transaction.notation
+                    });
                 }
             }
-
         } catch (error) {
             throw new HTMLStatusError((error as Error).message, 500);
 
         }
         return output;
     }
-    public get transaction(): TransactionType {
-        return this._transaction;
-    }
-    public set transaction(value: TransactionType) {
-        this._transaction = value;
-    }
-}
-async function uuidToSubStack(identifier: string){
-    const output: (number|string)[] = [0, ""];
-
-    const substack = await query<{id: number; substackName: string}>(
-        `SELECT id, substackName FROM substacks WHERE substackIdentifier = $1;`,
-        [identifier]
-    )
-    if(substack[0]){
-        output[0] = substack[0].id;
-        output[1] = substack[0].substackName;
-    }
-    return output
-}
-
-
-function setBalanceBySubstackId(balance: number, subStackID: number) {
-    withTransaction(async (client) => {
+    static async getFeeSubStack() {
         try {
-            await client.query(
-                `UPDATE substacks SET balance = $1 WHERE id = $2;`,
-                [balance, subStackID]
-            )
-        } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
-        }
-    });
-}
+            let substackID: string = '';
+            const feeSubStack = await query<SubStackAPIType>(
+                `SELECT substack_identifier, stack_identifier FROM substacks WHERE deleted = FALSE AND substack_name = $1;`,
+                ["Company Funds"]
+            );
+            for (const feeSSid of feeSubStack) {
+                substackID = feeSSid.substack_identifier;
+            }
+            return substackID;
 
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+    }
+
+}

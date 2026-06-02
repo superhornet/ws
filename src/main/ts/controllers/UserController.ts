@@ -16,12 +16,12 @@ router.post("/user", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const data: { data: UserAPIType, message: string, session: string } = req.body;
-        if (data.session === undefined || data.session.length === 0) {
+        const u: { data: UserAPIType, message: string, session: string } = req.body;
+        if (u.session === undefined || u.session.length === 0) {
             throw new HTMLStatusError("Unauthorized", 403);
-        } else if (await Session.exists(data.session)) {
-            await Audit.logMessage(data.message, data.session);
-            const user = await User.storeUser(data.data);
+        } else if (await Session.exists(u.session)) {
+            await Audit.logMessage(u.message, u.session);
+            const user = await User.storeUser(u.data);
             if (user)
                 JSONResponse.creationSuccess(req, res, "Created", user as unknown as JSON);
         } else {
@@ -43,13 +43,13 @@ router.get("/user", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new Error("Empty JSON body");
         }
-        const data: { message: string, session: string, user_identifier: string } = req.body;
+        const u: { message: string, session: string, user_identifier: string } = req.body;
 
-        if (data.session === undefined || data.session.length === 0) {
+        if (u.session === undefined || u.session.length === 0) {
             throw new HTMLStatusError("Unauthorized", 403);
-        } else if (await Session.exists(data.session)) {
-            await Audit.logMessage(`Get /api/user/${data.user_identifier}`, data.session);
-            const user = await User.fetchByUuid(data.user_identifier);
+        } else if (await Session.exists(u.session)) {
+            await Audit.logMessage(`Get /api/user/${u.user_identifier}`, u.session);
+            const user = await User.fetchByUuid(u.user_identifier);
             JSONResponse.goodToGo(req, res, "OK", user as unknown as JSON);
         } else {
             throw new HTMLStatusError("Session ID Required", 403);
@@ -66,13 +66,13 @@ router.put("/user", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const data: { data: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
-        data.data.user_identifier = data.user_identifier;
-        if (data.session === undefined || data.session.length === 0) {
+        const u: { data: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
+        u.data.user_identifier = u.user_identifier;
+        if (u.session === undefined || u.session.length === 0) {
             throw new HTMLStatusError("Unauthorized", 403);
-        } else if (await Session.exists(data.session)) {
-            await Audit.logMessage(`Put /api/user/${data.user_identifier}`, data.session);
-            if (await User.updateUser(data.data)) {
+        } else if (await Session.exists(u.session)) {
+            await Audit.logMessage(`Put /api/user/${u.user_identifier}`, u.session);
+            if (await User.updateUser(u.data)) {
                 JSONResponse.updateSuccess(req, res, "Accepted", null);
             }
         } else {
@@ -91,12 +91,12 @@ router.delete("/user", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const data: { user: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
-        if (data.session === undefined || data.session.length === 0) {
+        const u: { user: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
+        if (u.session === undefined || u.session.length === 0) {
             throw new HTMLStatusError("Unauthorized", 403);
-        } else if (await Session.exists(data.session)) {
-            await Audit.logMessage(`Delete /api/user/${data.user_identifier}`, data.session);
-            if (await User.deleteUser(data.user_identifier)) {
+        } else if (await Session.exists(u.session)) {
+            await Audit.logMessage(`Delete /api/user/${u.user_identifier}`, u.session);
+            if (await User.deleteUser(u.user_identifier)) {
                 JSONResponse.noContent(req, res, "No Content", null);
             }
         } else {
