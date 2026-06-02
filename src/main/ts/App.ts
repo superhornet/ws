@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import {generalLimiter, sessionLimiter, financialLimiter} from "./libs/rateLimiter.ts";
+import {sessionAuth} from "./libs/sessionAuth.ts";
 import {router as auditRouter} from "./controllers/AuditController.ts";
 import {router as sessionRouter} from "./controllers/SessionController.ts";
 import {router as userRouter} from "./controllers/UserController.ts";
@@ -45,6 +46,7 @@ export class App {
         this.express.use(express.urlencoded({ limit: '100kb' }));
         this.express.use("/", healthRouter);
         this.express.use("/api", sessionRouter);
+        this.express.use("/api", sessionAuth);
         this.express.use("/api", auditRouter);
         this.express.use("/api", userRouter);
         this.express.use("/api", notificationRouter);
