@@ -60,15 +60,13 @@ export class Session implements ISession {
      * kill() prunes expired sessions from the database
      *
      */
-    static async kill(): Promise<void> {
-        try {
+    static kill() {
+        return (async () => {
             await query(
                 `DELETE FROM sessions WHERE expires < NOW();`,
                 []
             )
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
+        });
     }
     /**
      * exists
