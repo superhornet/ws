@@ -72,9 +72,12 @@ export class Session implements ISession {
      * exists
      */
     static async exists(session: string): Promise<boolean> {
+        if(session?.length !== 36){
+            return false;
+        }
         try {
             const fetchedSession = await query<{ id: number }>(
-                `SELECT id FROM sessions WHERE uuid = $1;`,
+                `SELECT * FROM sessions WHERE uuid = $1 AND expires > NOW();`,
                 [session]
             )
             if (fetchedSession.length === 0) {

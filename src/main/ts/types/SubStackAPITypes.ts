@@ -1,20 +1,10 @@
-export interface SubStackAPIType extends JSON {
-    session: string;
-    createdBy: number;
-    stackIdentifier: string;
-    substackName: string;
-    substackIdentifier: string;
-    usersList: string;
-}
-
-export type SubStackType = {
-    id: number;
+export interface SubStackAPIType {
     balance: number;
-    stackIdentifier: string;
-    substackIdentifier: string;
-    substackName: string;
-    usersList: Set<number> | Array<number>;
-    createdBy: number;
+    stack_identifier: string;
+    substack_identifier: string;
+    substack_name: string;
+    users_list: Set<string> | Array<string>;
+    owner_identifier?: string;
 }
 
 export const SubStackQueryTypes = {

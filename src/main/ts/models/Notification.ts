@@ -4,7 +4,7 @@ import { query, withTransaction } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
 
 export interface INotification {
-    readNotification(): NotificationAPIType
+    readNotification(): NotificationAPIType;
 }
 export class Notification implements INotification {
     private pMessage!: NotificationAPIType;
@@ -52,7 +52,7 @@ export class Notification implements INotification {
                 return await client.query(
                     `INSERT INTO notifications (message, notification_for) VALUES( $1, $2 )
                     RETURNING id, notification_identifier, message, notification_for;`,
-                    [notification.message]
+                    [notification.message, notification.notification_for]
                 );
             });
 

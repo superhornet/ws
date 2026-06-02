@@ -1,9 +1,12 @@
 import { router as AuditRouter } from '../../../main/ts/controllers/AuditController.ts'
 import { router as SessionRouter } from '../../../main/ts/controllers/SessionController.ts'
 import type { NotificationAPIType } from '../types/NotificationAPITypes.ts';
+import type { StackAPIType } from '../types/StackAPITypes.ts';
+import { type SubStackAPIType } from '../types/SubStackAPITypes.ts';
 import { SubscriptionType } from '../types/SubscriptionTypes.ts';
+import { TransactionItemType, TransactionProcessorType, type TransactionAPIType } from '../types/TransactionAPITypes.ts';
 import type { UserAPIType } from '../types/UserAPITypes.ts';
-//import {type Request, type Response } from "express";
+
 export function findRouteHandler(router: typeof AuditRouter| typeof SessionRouter, method: string, path: string) {
     const layer = router.stack.find(
         (layer) =>
@@ -13,22 +16,28 @@ export function findRouteHandler(router: typeof AuditRouter| typeof SessionRoute
     );
     return layer?.route?.stack[0]?.handle;
 }
-export function mockSession(/*data?:
-        {
-            statusCode:number,
-            body: {
-                code: number,
-                data: {
-                    uuid: string,
-                    expires: string,
-                    otp: string
-                },
-                message: string
-            }
-            status: typeof Function,
-            json: typeof Function
-        }*/) {
-    const req = {};//data as unknown as Request;
+export function mockHealth() {
+    const req = { Request };
+    const res = {
+        statusCode: -1,
+        body: {
+            code: -1,
+            data: null,
+            message: ""
+        },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: typeof this.body) {
+            this.body = payload;
+            return this;
+        }
+    };
+    return { req, res };
+}
+export function mockSession() {
+    const req = {};
     const res = {
         statusCode: -1,
         body: {
@@ -113,17 +122,124 @@ export function mockUser(data?: { body?: { data?: UserAPIType; message: string|n
     };
     return { req, res };
 }
-export function mockNotification( data?: {params?:{id: number}, body?: { data?: NotificationAPIType; message: string|null; session: string; note_identifier?: string}}) {
-    const req = { data };
+export function mockNotification( data?: {params?:{id: number}, body?: { data?: Array<NotificationAPIType>|NotificationAPIType; message?: string; session?: string}}) {
+    const req = data;
+    const res = {
+        statusCode: -1,
+        body: {
+            code: -1,
+            data: [{
+                message: "", //Notification Text
+                notification_for: "", //Notification Recipient
+                note_identifier: ""
+            }],
+            message: "", //Creation message
+            session: "",
+        },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: typeof this.body) {
+            this.body = payload;
+            return this;
+        }
+    };
+    return { req, res };
+}
+export function mockStack( data?: { body?: { data?: StackAPIType; message: string|null; session: string;}}) {
+    const req = data ;
     const res = {
         statusCode: -1,
         body: {
             code: -1,
             data: {
-                message: "", //Notification Text
-                noification_for: "", //Notification Recipient
+                stack_name: "", //Stack Name
+                stack_identifier: "", //Stack Ident
+                owner_identifier: "", //Stack Owner
             },
             message: "", //Creation message
+            session: ""
+        },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: typeof this.body) {
+            this.body = payload;
+            return this;
+        }
+    };
+    return { req, res };
+}
+export function mockSubStack( data?: { body?: { data?: SubStackAPIType; message?: string; session?: string;}}) {
+    const req = data ;
+    const res = {
+        statusCode: -1,
+        body: {
+            code: -1,
+            data: {
+                substack_name: "", //SubStack Name
+                substack_identifier: "", //SubStack Ident
+                stack_identifier: "", //Parent Stack
+                users_list: [],
+                balance: 0
+            },
+            message: "", //Creation message
+            session: ""
+        },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: typeof this.body) {
+            this.body = payload;
+            return this;
+        }
+    };
+    return { req, res };
+}
+export function mockSubStackList( data?: { body?: {type: string}|{ data?: Array<SubStackAPIType>; message?: string; session?: string;}}) {
+    const req = data ;
+    const res = {
+        statusCode: -1,
+        body: {
+            code: -1,
+            data: [{
+                substack_name: "", //SubStack Name
+                substack_identifier: "", //SubStack Ident
+                stack_identifier: "", //Parent Stack
+                users_list: [],
+                balance: 0
+            }],
+            message: "", //Creation message
+            session: ""
+        },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: typeof this.body) {
+            this.body = payload;
+            return this;
+        }
+    };
+    return { req, res };
+}
+export function mockTransaction(data?: {body?: {data?: TransactionAPIType, message?: string, session?: string}}) {
+    const req = data ;
+    const res = {
+        statusCode: -1,
+        body: {
+            data: {
+                processor: TransactionProcessorType,
+                transactionType: TransactionItemType,
+                amount: 0,
+                toIdentifier: "",
+                fromIdentifier: "",
+                notation: ""
+            },
+            message: "",
             session: ""
         },
         status(code: number) {

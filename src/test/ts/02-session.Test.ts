@@ -1,54 +1,39 @@
-import { describe, test, after } from "node:test";
+import { describe, it, suite, test, after } from "node:test";
 import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
+import { findRouteHandler, mockSession } from "../../main/ts/libs/mocks.ts";
 
-function findRouteHandler(router: typeof sessionRouter, method: string, path: string) {
-    const layer = router.stack.find(
-        (layer) =>
-            layer.route?.path === path &&
-            layer.route.methods[method.toLowerCase()]
-    );
-    return layer?.route?.stack[0]?.handle;
-}
-function mockSession() {
-    const req = {};
-    const res = {
-        statusCode: -1,
-        body: {
-            code: -1,
-            data: {
-                uuid: "cf76290e-4e0f-461d-8c0e-9fa073610f6f",
-                expires: "",
-                otp: ""
-            },
-            message: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
-    };
-    return { req, res };
-}
-
-describe("Testing the /api/session endpoint", () => {
-    test("response is 200 OK and contains data.", async () => {
-        const handler = findRouteHandler(sessionRouter, 'get', '/session');
-        assert.ok(handler, "Missing handler for session endpoint");
-        const { req, res } = mockSession();
-
-        await handler(req as any, res as any, (() => {}) as any);
-        assert.equal(res.statusCode, 200);
-        assert.equal(res.body.message, 'OK');
-        assert.equal((res.body.data).uuid.length, 36);
-        assert.equal((res.body.data).otp.length, 6);
+suite("Testing the Session routes", () => {
+    describe("Make GET request to /api/session endpoint", () => {
+        it("Checks the handler-Arrange", async () => {
+            const handler = findRouteHandler(sessionRouter, 'get', '/session');
+            const { req, res } = mockSession();
+            test("Handler is okay", () => {
+                assert.ok(handler, "Missing handler for GET /api/session");
+            });
+            it("Act", async () => {
+                // @ts-expect-error req is fine as-is
+                await handler(req, res, () => null);
+            });
+            it("Assert", { skip: false }, () => {
+                test("statusCode should be 200", () => {
+                    assert.equal(res.statusCode, 200);
+                });
+                test("message should be OK", () => {
+                    assert.equal(res.body.message, 'OK');
+                });
+                test("Returned uuid should be 36 characters long", () => {
+                    assert.equal((res.body.data).uuid.length, 36);
+                });
+                test("OTP should be 6 characters long.", () => {
+                    assert.equal((res.body.data).otp.length, 6);
+                });
+            });
+        });
     });
-});
-after( () => {
-    console.log("Tests complete");
-    process.emit('beforeExit');
+    after(async () => {
+        setTimeout(() => {
+            process.emit('beforeExit');
+        }, 100);
+    });
 });

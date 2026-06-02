@@ -1,83 +1,108 @@
-import dotenv from "dotenv";
-import type { StackAPIType, StackType } from "../types/StackAPITypes.ts";
+import type { StackAPIType } from "../types/StackAPITypes.ts";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
-import { generateUUID } from "../libs/UUID.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
+import { Validator } from "../libs/Validator.ts";
 
-export class Stack {
-    private _stack!: StackType;
-    constructor(data: StackAPIType) {
-        this.stack = {
-            id: 0,
-            ownerIdentifier: data.ownerIdentifier,
-            stackName: data.stackName,
-            stackIdentifier: generateUUID(),
-            createdBy: data.createdBy
+export interface IStack {
+    readStack(): StackAPIType;
+}
+export class Stack implements IStack {
+    private pStack!: StackAPIType;
+    private get stack(): StackAPIType {
+        return this.pStack;
+    }
+    private set stack(value: StackAPIType) {
+        this.pStack = value;
+    }
+    private pId!: number;
+    private get id() {
+        return this.pId;
+    }
+    private set id(value) {
+        this.pId = value
+    }
+    constructor(
+        stack: StackAPIType,
+        id: number | bigint
+    ) {
+        try {
+            this.stack = stack;
+            this.id = Number(id);
+        } catch (error) {
+            throw new Error((error as Error).message);
         }
-        this.storeStack(data.ownerIdentifier);
     }
-    public get stack(): StackType {
-        return this._stack;
-    }
-    public set stack(value: StackType) {
-        this._stack = value;
-    }
-
     /**
      * storeStack
      */
-    private storeStack(ownerIdentifier: string) {
-        let ownerId: number = 0;
-
-        withTransaction(async (client) => {
-            const fetchedUser = await client.query<{ id: number }>(
-                `SELECT id FROM users WHERE user_identifier = $1;`,
-                [ownerIdentifier]
-            )
-            if (fetchedUser === undefined) {
-                throw new HTMLStatusError("User not found", 404);
-            } else {
-                ownerId = fetchedUser.rows[0]!.id;
-
-                const stackInsert = await query(
-                    `INSERT INTO stacks (ownerIdentifier, stackName, stackIdentifier, createdBy) VALUES( $1 , $2 , $3, $4 );`,
-                    [
-                        ownerIdentifier,
-                        this.stack.stackName,
-                        this.stack.stackIdentifier,
-                        ownerId
-                    ]
-                )
-                if (!stackInsert) {
-                    throw new HTMLStatusError("Stack creation failed", 400)
-                }
+    static async storeStack(stack: StackAPIType) {
+        const vStack = new Validator({ //Validator for Stack Name
+            version: "1.0",
+            stringValidation: {
+                minLength: 4,
+                maxLength: 100,
+                locale: "en-us",
             }
         });
+        const nameChecked: boolean =
+            vStack.stringValidate(vStack.stripHtml(stack.stack_name));
+        if (nameChecked) {
+            try {
+                const r = await query<{id: number, user_identifier: string}>(`SELECT id, user_identifier FROM users WHERE user_identifier = $1 ORDER BY id LIMIT 1;`, [stack.owner_identifier]);
+                let id: number;
+                let user_ident: string;
+                for (const result of r) {
+                    id = result.id;
+                    user_ident = result.user_identifier;
+                }
+                const q = await withTransaction(async (client) => {
+                    return await client.query(
+                        `INSERT INTO stacks ( owner_identifier, stack_name, created_by )
+                    VALUES (
+                        $1, $2, $3
+                    )
+                    RETURNING id, stack_name, stack_identifier, owner_identifier`,
+                        [user_ident, vStack.stripHtml(stack.stack_name), id]);
+                });
+                const row = q.rows.at(0);
+                if (!row) {
+                    throw new HTMLStatusError("Failed to create stack", 500);
+                }
+                const stackEntry = new Stack({
+                    stack_name: row.stack_name,
+                    stack_identifier: row.stack_identifier,
+                    owner_identifier: row.owner_identifier
+                }, row.id);
+                return stackEntry.stack;
+            } catch (error) {
+                throw new Error((error as Error).message)
+            }
+        }
+        return undefined;
     }
-
+    public readStack(): StackAPIType {
+        return this.stack;
+    }
     /**
      * getForUser
      */
-    static async getForUser(ownerIdentifier: string) {//: StackType[] | undefined
-        const output: Array<StackType> = [];
+    static async getForUser(user: string) {//: StackType[] | undefined
+        const output: Array<StackAPIType> = [];
         try {
-            const fetchedStacks = await query<{
-                id: number; ownerIdentifier: string;
-                stackName: string; stackIdentifier: string; createdBy: number
-            }>(
-                `SELECT id, ownerIdentifier, stackName, stackIdentifier, createdBy FROM stacks WHERE deleted = 0 AND ownerIdentifier = $1;`,
-                [ownerIdentifier]
+            const fetchedStacks = await query<StackAPIType>(
+                `SELECT
+                id, stack_name, stack_identifier, owner_identifier
+                FROM stacks WHERE deleted = FALSE AND owner_identifier = $1;`,
+                [user]
             )
             if (fetchedStacks === undefined) {
                 throw new HTMLStatusError("Stacks not found", 404);
             } else {
                 for (const stack of fetchedStacks) {
                     output.push({
-                        id: stack.id,
-                        ownerIdentifier: stack.ownerIdentifier,
-                        stackName: stack.stackName,
-                        stackIdentifier: stack.stackIdentifier,
-                        createdBy: stack.createdBy
+                        stack_name: stack.stack_name,
+                        stack_identifier: stack.stack_identifier,
+                        owner_identifier: stack.owner_identifier,
                     })
                 }
             }
@@ -90,44 +115,58 @@ export class Stack {
             }
         }
     }
-    static renameStack(stackID: number, data: StackAPIType) {
-        withTransaction(async (client) => {
-            try {
-                const updatedStack = await client.query(
-                    `UPDATE stacks set stackName=$1 WHERE deleted = FALSE AND id = $2;`,
-                    [data.stackName, stackID]
-                )
-                if (!updatedStack) {
-                    throw new HTMLStatusError("Stack not found", 404);
-                }
-            } catch (error) {
-                if (error instanceof HTMLStatusError) {
-                    throw error;
-                } else {
-                    throw new HTMLStatusError((error as Error).message, 500);
-                }
+    static async updateStack(stack: StackAPIType) {
+        let isUpdated = false;
+        const vStack = new Validator({ //Validator for Stack Name
+            version: "1.0",
+            stringValidation: {
+                minLength: 4,
+                maxLength: 100,
+                locale: "en-us",
             }
         });
+        const nameChecked: boolean =
+            vStack.stringValidate(vStack.stripHtml(stack.stack_name));
+        if (nameChecked) {
+            try {
+                const q = await withTransaction(async (client) => {
+                    return await client.query(
+                        `UPDATE stacks
+                    SET stack_name = $1
+                    WHERE deleted = FALSE AND stack_identifier = $2;`,
+                        [vStack.stripHtml(stack.stack_name), stack.stack_identifier]);
+                });
+                const rowCount = q.rowCount;
+                if (rowCount === 0) {
+                    throw new HTMLStatusError("Stack not updated", 404);
+                } else {
+                    isUpdated = true;
+                }
+            } catch (error) {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+        return isUpdated;
     }
-
-    static async deleteStack(stackID: number, data: StackAPIType) {
-        dotenv.config({ quiet: true });
-        withTransaction(async (client) => {
-            try {
-                const updatedStack = await client.query(
-                    `UPDATE stacks set deleted = TRUE WHERE ownerIdentifier = $1 AND id = $2;`,
-                    [data.ownerIdentifier, stackID]
-                )
-                if (!updatedStack) {
-                    throw new HTMLStatusError("Stack not found", 404);
-                }
-            } catch (error) {
-                if (error instanceof HTMLStatusError) {
-                    throw error;
-                } else {
-                    throw new HTMLStatusError((error as Error).message, 500);
-                }
+    static async deleteStack(stack_identifier: string) {
+        let isDeleted = false;
+        try {
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `UPDATE stacks
+                    SET deleted=TRUE
+                    WHERE deleted = FALSE AND stack_identifier = $1;`,
+                    [stack_identifier]);
+            });
+            const rowCount = q.rowCount;
+            if (rowCount === 0) {
+                throw new HTMLStatusError("Stack not deleted", 404);
+            } else {
+                isDeleted = true;
             }
-        });
+        } catch (error) {
+            throw new HTMLStatusError((error as Error).message, 500);
+        }
+        return isDeleted;
     }
 }

@@ -1,44 +1,50 @@
-import { describe, test } from "node:test";
-import assert from "node:assert";
-import { router as healthRouter } from "../../main/ts/routes/index.ts";
+import test, { after, describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { router as healthRouter } from "../../main/ts/routes/index.ts"
+import { findRouteHandler, mockHealth } from "../../main/ts/libs/mocks.ts";
 
-function findRouteHandler(router: typeof healthRouter, method: string, path: string) {
-    const layer = router.stack.find(
-        (layer) =>
-            layer.route?.path === path &&
-            layer.route.methods[method.toLowerCase()]
-    );
-    return layer?.route?.stack[0]?.handle;
-}
-function mockHealth() {
-    const req = { Request };
-    const res = {
-        statusCode: -1,
-        body: {
-            code: -1,
-            data: null,
-            message: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
-    };
-    return { req, res };
-}
+describe("Testing the health routes", { skip: false }, async () => {
+    describe("Make GET request to /health endpoint", async () => {
+        it("Checks the handler-Arrange", { skip: false }, async () => {
+            const handler = findRouteHandler(healthRouter, 'get', '/health');
+            const { req, res } = mockHealth();
+            test("Handler", async () => {
+                assert.ok(handler, "Missing handler for GET /health");
+            });
+            it("Act", async () => {
+                //@ts-expect-error req is fine as-is
+                await handler(req, res, null);
+            });
+            it("Assert", { skip: false }, () => {
+                test("statusCode is 200 OK", () => { assert.strictEqual(res.statusCode, 200); });
+                test("message OK", () => { assert.strictEqual(res.body.message, 'OK'); });
+                test("Empty body data", () => { assert.equal(res.body.data, null) });
+            });
+        });
+    });
+    describe("Make GET request to /reset endpoint", { skip: false }, async () => {
+        it("Checks the handler-Arrange", { skip: false }, async () => {
+            const handler = findRouteHandler(healthRouter, 'get', '/reset');
 
-describe("Testing the /health endpoint", () => {
-    test("response is 200 OK", async () => {
-        const handler = findRouteHandler(healthRouter, 'get', '/health');
-        assert.ok(handler, "Application unhealthy");
-        const { req, res } = mockHealth();
-
-        await handler(req, res, null);
-        assert.equal(res.statusCode, 200);
-        assert.equal(res.body.message, 'OK');
+            const { req, res } = mockHealth();
+            test("Handler", async () => {
+                assert.ok(handler, "Missing handler for GET /reset");
+            });
+            it("Act", async () => {
+                //@ts-expect-error req is fine as-is
+                handler(req, res, null);
+            });
+            it("Assert", { skip: false }, () => {
+                test("statusCode is 200 OK", () => { assert.strictEqual(res.statusCode, 200); });
+                test("message OK", () => { assert.strictEqual(res.body.message, 'OK'); });
+                test("Empty body data", () => { assert.equal(res.body.data, null) });
+            });
+        });
+    });
+    after(async () => {
+        setTimeout(() => {
+            process.emit('beforeExit');
+        }, 500);
     });
 });
+

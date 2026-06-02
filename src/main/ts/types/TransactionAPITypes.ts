@@ -26,20 +26,19 @@ export type TransactionProcessorEnum = (typeof TransactionProcessorType)[keyof t
 /**
  * Data transmitted to/from the API before meta information is added
  */
-export interface TransactionAPIType extends JSON{
-    session: string;
+export interface TransactionAPIType{
     processor: TransactionProcessorEnum; //processsor for the transaction
-    transactionType: TransactionEnum; //type of transaction
+    transaction_type: TransactionEnum; //type of transaction
     amount: number; //decimal amount
-    toIdentifier: string; //substackIdentifier
-    fromIdentifier: string; //substackIdentifier
-    stackID: string;
+    to_identifier: string; //substackIdentifier
+    from_identifier: string; //substackIdentifier
+    notation: string;
 };
 
 /**
  * Represents a transaction as it exists in data
  */
-export type TransactionType = {
+/*export type TransactionType = {
     id: number,
     occurredOn: string;
     processor: TransactionProcessorEnum;
@@ -53,7 +52,7 @@ export type TransactionType = {
     notation: string;
     transactionType: TransactionEnum;
 }
-
+*/
 export const TransactionQueryTypes = {
     SUBSTACK: "substack" as string,
     STACK: "stacK" as string,

@@ -19,89 +19,117 @@ router.get("/reset", (req, res) => {
     try {
         withTransaction(async (client) => {
             await client.query(`
-    DROP TABLE IF EXISTS sessions;
-    CREATE TABLE sessions(
-        id SERIAL PRIMARY KEY,
-        expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
-        otp TEXT NOT NULL CHECK(length(otp) = 6),
-        uuid TEXT NOT NULL CHECK(length(uuid) = 36)
-    );
+DROP TABLE IF EXISTS raffle_entries;
+DROP TABLE IF EXISTS stacks;
+DROP TABLE IF EXISTS sessions;
+CREATE TABLE sessions(
+    id SERIAL PRIMARY KEY,
+    expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
+    otp TEXT NOT NULL CHECK(length(otp) = 6),
+    uuid UUID DEFAULT uuidv7()
+);
 
-  DROP TABLE IF EXISTS audit;
+DROP TABLE IF EXISTS audit;
 CREATE TABLE audit(
     id SERIAL PRIMARY KEY,
+    deleted BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL,
-    session TEXT NOT NULL CHECK(length(session) = 36),
+    session UUID DEFAULT uuidv7(),
     time_at timestamp NOT NULL DEFAULT (NOW()),
     type TEXT
     );
 
-  DROP TABLE IF EXISTS users;
- CREATE TABLE users(
+DROP TABLE IF EXISTS users;
+CREATE TABLE users(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
     email TEXT NOT NULL,
-    emailHost TEXT NOT NULL,
-    emailID TEXT NOT NULL,
+    email_host TEXT NOT NULL,
+    emailid TEXT NOT NULL,
     firstname TEXT NOT NULL,
     lastname TEXT NOT NULL,
-    user_identifier TEXT NOT NULL CHECK(length(user_identifier) = 36),
+    user_identifier UUID DEFAULT uuidv7(),
+    affiliate TEXT NOT NULL CHECK(length(affiliate) = 7),
     address1 TEXT NOT NULL,
     address2 TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
-    level TEXT CHECK(level in ('Free', 'Basic', 'Pro')) NOT NULL DEFAULT 'Free',
-    created_at TIMESTAMP DEFAULT (NOW())
+    zipcode TEXT NOT NULL,
+    subscription_level TEXT CHECK(subscription_level in ('Free', 'Basic', 'Pro')) NOT NULL DEFAULT 'Free',
+    created_at TIMESTAMP DEFAULT (NOW()),
+    CONSTRAINT unique_ident UNIQUE (user_identifier)
   );
-  --INSERT INTO users (email, emailID, emailHost, firstname, lastname, user_identifier, address1, address2, city, state, level) VALUES ('admin@westack.cash', 'admin', 'westack.cash', 'WeStack', 'Admin', '77ffeca5-3c97-4470-a27c-8e7e1c1eba01', 'Corporate', '', 'Tampa', 'FL', 'Pro');
 
-  DROP TABLE IF EXISTS notifications;
-  CREATE TABLE notifications(
+DROP TABLE IF EXISTS notifications;
+CREATE TABLE notifications(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
-    notification_identifier TEXT CHECK(length(notification_identifier) = 36),
+    notification_identifier UUID DEFAULT uuidv7(),
+    notification_for UUID DEFAULT NULL,
     seen BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL
   );
 
-  DROP TABLE IF EXISTS stacks;
-  CREATE TABLE stacks(
-    id INTEGER PRIMARY KEY,
+CREATE TABLE stacks(
+    id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
-    ownerIdentifier TEXT CHECK(length(ownerIdentifier) = 36),
-    stackName TEXT NOT NULL,
-    stackIdentifier TEXT CHECK(length(stackIdentifier) = 36),
-    createdOn TEXT NOT NULL DEFAULT (NOW()),
-    createdBy INTEGER
+    owner_identifier UUID REFERENCES users(user_identifier),
+    stack_name TEXT NOT NULL,
+    stack_identifier UUID DEFAULT uuidv7(),
+    created_at TIMESTAMP DEFAULT (NOW()),
+    created_by INTEGER,
+    CONSTRAINT fk_owner_id
+        FOREIGN KEY (owner_identifier)
+        REFERENCES users (user_identifier)
     );
 
 DROP TABLE IF EXISTS substacks;
 CREATE TABLE substacks(
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     balance INTEGER DEFAULT 0, --Value in cents
-    createdOn TEXT NOT NULL DEFAULT (NOW()),
-    createdBy INTEGER,
-    deleted INTEGER DEFAULT 0 CHECK(deleted in (0, 1)),
-    stackIdentifier TEXT CHECK(length(stackIdentifier) = 36),
-    substackIdentifier TEXT CHECK(length(substackIdentifier) = 36),
-    substackName TEXT NOT NULL,
-    usersList TEXT NOT NULL
-);
+    created_at TIMESTAMP DEFAULT (NOW()),
+    created_by INTEGER,
+    deleted BOOLEAN DEFAULT FALSE,
+    stack_identifier UUID,
+    substack_identifier UUID DEFAULT uuidv7(),
+    substack_name TEXT NOT NULL,
+    users_list TEXT NOT NULL
+  );
 
 DROP TABLE IF EXISTS transactions;
 CREATE TABLE transactions(
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     amount INTEGER DEFAULT 0, --value in cents
-    balance INTEGER DEFAULT 0, --value in cents, running total
-    occurredOn TEXT NOT NULL DEFAULT (NOW()),
+--    balance INTEGER DEFAULT 0, --value in cents, running total
+    occurred_at TIMESTAMP NOT NULL DEFAULT (NOW()),
     processor TEXT CHECK(processor IN ('Internal', 'ACH', 'Moonpay', 'Stripe', 'Apple', 'Google', 'CashApp', 'Bitcoin')) NOT NULL DEFAULT 'Internal',
-    processedOn TEXT DEFAULT (NOW()),
-    fromID INTEGER DEFAULT NULL,
-    toID INTEGER DEFAULT NULL,
-    fromName TEXT DEFAULT NULL,
-    toName TEXT DEFAULT NULL,
+    processed_at TIMESTAMP DEFAULT NULL,
+    from_id INTEGER DEFAULT NULL,
+    to_id INTEGER DEFAULT NULL,
+--    from_name TEXT DEFAULT NULL,
+--    to_name TEXT DEFAULT NULL,
     notation TEXT DEFAULT NULL,
-    transactionType TEXT CHECK(transactionType IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit'
+    transaction_type TEXT CHECK(transaction_type IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit'
+);
+
+DROP TABLE IF EXISTS raffles;
+CREATE TABLE raffles(
+    raffle_id UUID PRIMARY KEY DEFAULT uuidv7(),
+    raffle_name TEXT NOT NULL,
+    drawing_date TIMESTAMP DEFAULT (NOW() + INTERVAL '30 Days')
+);
+
+CREATE TABLE raffle_entries(
+    entry_id SERIAL PRIMARY KEY,
+    raffle_key UUID NOT NULL,
+    entry_user UUID NOT NULL REFERENCES users(user_identifier),
+    CONSTRAINT fk_raffle
+        FOREIGN KEY (raffle_key)
+        REFERENCES raffles (raffle_id),
+
+    CONSTRAINT fk_user
+        FOREIGN KEY (entry_user)
+        REFERENCES users (user_identifier)
 );
 
 DROP TABLE IF EXISTS idempotency_keys;

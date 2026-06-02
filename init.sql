@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS raffle_entries;
+DROP TABLE IF EXISTS stacks;
 DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
@@ -48,44 +49,46 @@ CREATE TABLE notifications(
     message TEXT NOT NULL
   );
 
-DROP TABLE IF EXISTS stacks;
 CREATE TABLE stacks(
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
-    owner_identifier UUID DEFAULT uuidv7(),
+    owner_identifier UUID REFERENCES users(user_identifier),
     stack_name TEXT NOT NULL,
     stack_identifier UUID DEFAULT uuidv7(),
-    created_on TEXT NOT NULL DEFAULT (NOW()),
-    created_by INTEGER
+    created_at TIMESTAMP DEFAULT (NOW()),
+    created_by INTEGER,
+    CONSTRAINT fk_owner_id
+        FOREIGN KEY (owner_identifier)
+        REFERENCES users (user_identifier)
     );
 
 DROP TABLE IF EXISTS substacks;
 CREATE TABLE substacks(
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     balance INTEGER DEFAULT 0, --Value in cents
-    createdOn TEXT NOT NULL DEFAULT (NOW()),
-    createdBy INTEGER,
-    deleted INTEGER DEFAULT 0 CHECK(deleted in (0, 1)),
-    stackIdentifier UUID DEFAULT uuidv7(),
-    substackIdentifier UUID DEFAULT uuidv7(),
-    substackName TEXT NOT NULL,
-    usersList TEXT NOT NULL
+    created_at TIMESTAMP DEFAULT (NOW()),
+    created_by INTEGER,
+    deleted BOOLEAN DEFAULT FALSE,
+    stack_identifier UUID,
+    substack_identifier UUID DEFAULT uuidv7(),
+    substack_name TEXT NOT NULL,
+    users_list TEXT NOT NULL
   );
 
 DROP TABLE IF EXISTS transactions;
 CREATE TABLE transactions(
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     amount INTEGER DEFAULT 0, --value in cents
-    balance INTEGER DEFAULT 0, --value in cents, running total
-    occurredOn TEXT NOT NULL DEFAULT (NOW()),
+--    balance INTEGER DEFAULT 0, --value in cents, running total
+    occurred_at TIMESTAMP NOT NULL DEFAULT (NOW()),
     processor TEXT CHECK(processor IN ('Internal', 'ACH', 'Moonpay', 'Stripe', 'Apple', 'Google', 'CashApp', 'Bitcoin')) NOT NULL DEFAULT 'Internal',
-    processedOn TEXT DEFAULT (NOW()),
-    fromID INTEGER DEFAULT NULL,
-    toID INTEGER DEFAULT NULL,
-    fromName TEXT DEFAULT NULL,
-    toName TEXT DEFAULT NULL,
+    processed_at TIMESTAMP DEFAULT NULL,
+    from_id INTEGER DEFAULT NULL,
+    to_id INTEGER DEFAULT NULL,
+--    from_name TEXT DEFAULT NULL,
+--    to_name TEXT DEFAULT NULL,
     notation TEXT DEFAULT NULL,
-    transactionType TEXT CHECK(transactionType IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit'
+    transaction_type TEXT CHECK(transaction_type IN ('Initial', 'Credit', 'Debit', 'Fee', 'Penalty', 'Adjustment', 'Settled', 'Roundup')) NOT NULL DEFAULT 'Credit'
 );
 
 DROP TABLE IF EXISTS raffles;

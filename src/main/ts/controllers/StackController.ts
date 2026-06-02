@@ -2,9 +2,9 @@ import * as express from "express";
 import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { getSession } from "../libs/session.ts";
-import type { StackAPIType, StackType } from "../types/StackAPITypes.ts";
+import type { StackAPIType } from "../types/StackAPITypes.ts";
 import { Stack } from "../models/Stack.ts";
+import { Session } from "../models/Session.ts";
 export const router = express.Router();
 
 /**
@@ -15,14 +15,16 @@ router.post("/stack", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const data: StackAPIType = req.body;
+        const s: { data: StackAPIType, message: string, session: string } = req.body;
 
-        if (data.session === undefined) {
+        if (s.session === undefined || s.session.length === 0) {
             throw new HTMLStatusError("Session ID Required", 403);
-        } else {
-            const stack = new Stack(data);
-            await Audit.create(`${data.stackName} created by ${data.ownerIdentifier}.`, data.session);
+        } else if (await Session.exists(s.session)) {
+            await Audit.logMessage(s.message, s.session);
+            const stack = await Stack.storeStack(s.data);
             JSONResponse.creationSuccess(req, res, "Created", stack as unknown as JSON);
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -32,16 +34,21 @@ router.post("/stack", async (req, res) => {
 /**
  * List a user's stacks
  */
-router.get("/stacks", async (req, res)=>{
+router.get("/stacks", async (req, res) => {
     try {
-        const session = getSession(req);
-        const ownerIdentifier = req.query.ownerIdentifier as string | undefined;
-        if (!ownerIdentifier) {
-            throw new HTMLStatusError("Missing required data", 400);
+        if (!req.body || Object.keys(req.body).length === 0) {
+            throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const stacks: Array<StackType> | undefined = await Stack.getForUser(ownerIdentifier);
-        await Audit.create("Retrieving stacks for user", session);
-        JSONResponse.goodToGo(req, res, "OK", stacks as unknown as JSON)
+        const s: { data: StackAPIType, message: string, session: string } = req.body;
+        if (s.session === undefined) {
+            throw new HTMLStatusError("Session ID Required", 403);
+        } else if (await Session.exists(s.session)) {
+            Audit.logMessage(s.message, s.session);
+            const stacks: Array<StackAPIType> = await Stack.getForUser(s.data.owner_identifier || "");
+            JSONResponse.goodToGo(req, res, "OK", stacks as unknown as JSON)
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
+        }
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
     }
@@ -55,13 +62,16 @@ router.put("/stack", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const data: StackAPIType = req.body;
-        if(!data.session || data.session.length < 36){
-            throw new HTMLStatusError("Session ID required", 403);
-        }else{
-            await Stack.renameStack(Number.parseInt(req.body.id), data);
-            await Audit.create(`Updated stack ${req.body.id} to ${data.stackName}`, data.session);
-            JSONResponse.updateSuccess(req, res, "Accepted", null)
+        const s: { data: StackAPIType, message: string, session: string } = req.body;
+        if (s.session === undefined) {
+            throw new HTMLStatusError("Session ID Required", 403);
+        } else if (await Session.exists(s.session)) {
+            Audit.logMessage(s.message, s.session);
+            if (await Stack.updateStack(s.data)) {
+                JSONResponse.updateSuccess(req, res, "Accepted", null)
+            }
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
@@ -76,18 +86,18 @@ router.delete("/stack", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const data: StackAPIType = req.body;
-        if(!data.session || data.session.length < 36){
-            throw new HTMLStatusError("Session ID required", 403);
-        }else{
-            const data: StackAPIType = req.body;
-            await Stack.deleteStack(Number.parseInt(req.body.id), data);
-//            const stacks: Array<StackType> | undefined = Stack.getForUser(data.ownerIdentifier || "");
-            await Audit.create(`Deleted stack ${req.body.id}`, data.session);
-            JSONResponse.noContent(req, res, "No Content", null)
+        const s: { data: StackAPIType, message: string, session: string } = req.body;
+        if (s.session === undefined) {
+            throw new HTMLStatusError("Session ID Required", 403);
+        } else if (await Session.exists(s.session)) {
+            Audit.logMessage(s.message, s.session);
+            if (await Stack.deleteStack(s.data.stack_identifier || "")) {
+                JSONResponse.noContent(req, res, "No content", null)
+            }
+        } else {
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError)
     }
-
 });

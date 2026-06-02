@@ -93,4 +93,35 @@ export class Validator {
         }
         return true;
     }
+    /**
+     * numberValidate
+     *
+     * @param num
+     * @returns boolean
+     */
+    public numberValidate(num: number): boolean {
+        let isValid = false;
+        const numberOptions = this.options.numberValidation;
+        if(typeof num === 'number' && Number.isInteger(num)){
+            if(numberOptions?.integerMin && numberOptions.integerMax) {
+                if(
+                    num > numberOptions.integerMin &&
+                    num < numberOptions.integerMax
+                ){
+                    isValid = true;
+                }
+            }
+        }
+        if(typeof num === 'number' && Number.isFinite(num)){
+            if(numberOptions?.floatMin && numberOptions.floatMax){
+                if(
+                    num > numberOptions.floatMin &&
+                    num < numberOptions.floatMax
+                ){
+                    isValid = true;
+                }
+            }
+        }
+        return isValid
+    }
 }

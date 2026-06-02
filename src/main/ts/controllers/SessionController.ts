@@ -7,11 +7,7 @@ export const router = express.Router();
 router.get("/session", async (req, res) => {
     try {
         const session = await Session.create();
-<<<<<<< HEAD
         JSONResponse.goodToGo(req, res, "OK", session as unknown as JSON );
-=======
-        JSONResponse.goodToGo(req, res, "OK", session.session() as unknown as JSON );
->>>>>>> f0ec59f54eb30302825d27aa272ff7d729b6aef0
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
@@ -19,7 +15,7 @@ router.get("/session", async (req, res) => {
 
 router.delete("/session", async (req, res) => {
     try{
-        await Session.kill();
+        Session.kill();
         JSONResponse.noContent(req, res, "No Content", null);
     } catch (error){
         processError(req, res, error as HTMLStatusError);

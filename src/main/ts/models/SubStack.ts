@@ -1,100 +1,113 @@
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
-import { generateUUID } from "../libs/UUID.ts";
-import { SubStackQueryTypes, type SubStackAPIType, type SubStackType } from "../types/SubStackAPITypes.ts";
+import { SubStackQueryTypes, type SubStackAPIType } from "../types/SubStackAPITypes.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
-
+import { Validator } from "../libs/Validator.ts";
+export interface ISubStack {
+    readSubstack(): SubStackAPIType
+}
 export class SubStack {
-    private _substack!: SubStackType;
-    constructor(data: SubStackAPIType) {
-        this.substack = {
-            id: 0,
-            createdBy: data.createdBy,
-            stackIdentifier: data.stackIdentifier,
-            substackIdentifier: generateUUID(),
-            substackName: data.substackName,
-            balance: 0,
-            usersList: new Set<number>([data.createdBy])
+    private pSubstack!: SubStackAPIType;
+    private get substack(): SubStackAPIType {
+        return this.pSubstack;
+    }
+    private set substack(value: SubStackAPIType) {
+        this.pSubstack = value;
+    }
+    private pId!: number;
+    private get id() {
+        return this.pId;
+    }
+    private set id(value) {
+        this.pId = value;
+    }
+    constructor(
+        substack: SubStackAPIType,
+        id: number | bigint
+    ) {
+        try {
+            this.substack = substack;
+            this.id = Number(id);
+        } catch (error) {
+            throw new Error((error as Error).message);
         }
-        this.storeSubStack();
     }
-    public get substack(): SubStackType {
-        return this._substack;
-    }
-    public set substack(value: SubStackType) {
-        this._substack = value;
-    }
-
-    storeSubStack() {
-        const ownerId: number = this.substack.createdBy;
-        let stackId: number = 0;
-        withTransaction(async (client) => {
+    static async storeSubStack(substack: SubStackAPIType) {
+        const vSubStack = new Validator({ //Validator for SubStack Name
+            version: "1.0",
+            stringValidation: {
+                minLength: 4,
+                maxLength: 100,
+                locale: "en-us",
+            }
+        });
+        const nameChecked: boolean =
+            vSubStack.stringValidate(vSubStack.stripHtml(substack.substack_name));
+        if (nameChecked) {
             try {
-                const fetchedStack = await client.query<{ id: number }>(
-                    `SELECT id FROM stacks WHERE stackIdentifier = $1;`,
-                    [this.substack.stackIdentifier]
-                )
-                stackId = fetchedStack.rows[0]!.id;
-                await client.query(
-                    `INSERT INTO substacks (createdBy, stackIdentifier, substackIdentifier, substackName, usersList) VALUES( $1 , $2 , $3 , $4 , $5 );`,
-                    [ownerId, stackId, this.substack.substackIdentifier, this.substack.substackName, this.substack.usersList.entries().toArray().toString()]
-                )
-            } catch (error) {
-                if (error instanceof HTMLStatusError) {
-                    throw error;
-                } else {
-                    throw new HTMLStatusError((error as Error).message, 500);
-
+                const r = await query<{ created_by: number, stack_identifier: string, owner_identifier: string }>(`
+                    SELECT created_by, stack_identifier, owner_identifier FROM stacks WHERE stack_identifier = $1 ORDER BY id LIMIT 1;`,
+                    [substack.stack_identifier]);
+                let created_by: number;
+                let stack_ident: string;
+                const owner_ident = new Set<string>();
+                for (const result of r) {
+                    created_by = result.created_by;
+                    stack_ident = result.stack_identifier;
+                    owner_ident.add(result.owner_identifier);
                 }
-            };
-        })
+                const q = await withTransaction(async (client) => {
+                    return await client.query(
+                        `INSERT INTO substacks (substack_name, stack_identifier, created_by, users_list )
+                        VALUES (
+                            $1, $2, $3, $4
+                        )
+                        RETURNING id, substack_name, substack_identifier, stack_identifier, balance, users_list;`,
+                        [substack.substack_name, stack_ident, created_by, Array.from(owner_ident).toString()]
+                    )
+                });
+                const row = q.rows.at(0);
+                if (!row) {
+                    throw new HTMLStatusError("Failed to create substack", 500);
+                }
+                const subStackEntry = new SubStack({
+                    substack_name: row.substack_name,
+                    substack_identifier: row.substack_identifier,
+                    stack_identifier: row.stack_identifier,
+                    balance: row.balance,
+                    users_list: row.users_list
+                }, row.id);
+                return subStackEntry.substack;
+            } catch (error) {
+                throw new Error((error as Error).message);
+            }
+        }
+        return undefined;
     }
-    static async getSubStack(key: string | number, type: string = ''): Promise<SubStackType[] | undefined> {
-        const output: Array<SubStackType> = [];
+    public readSubStack(): SubStackAPIType {
+        return this.substack;
+    }
+    static async getSubStack(type: string, substack: SubStackAPIType) {
+        const output: Array<SubStackAPIType> = [];
         try {
             let fetchedSubstacks;
             switch (type) {
-                case SubStackQueryTypes.OWNERID:
-                    fetchedSubstacks = query<{
-                        id: number;
-                        balance: number;
-                        stackIdentifier: string;
-                        substackName: string;
-                        substackIdentifier: string;
-                        createdBy: number;
-                        usersList: string
-                    }>(
-                        `SELECT id, balance, stackIdentifier, substackName, substackIdentifier, createdBy, usersList FROM substacks WHERE deleted = FALSE AND createdBy = $1;`,
-                        [key]
-
+                case SubStackQueryTypes.STACKID:
+                    fetchedSubstacks = query<SubStackAPIType>(
+                        `SELECT substack_name, substack_identifier, stack_identifier, balance, users_list FROM substacks WHERE deleted = FALSE AND stack_identifier = $1;`,
+                        [substack.stack_identifier]
                     );
                     break;
-                case SubStackQueryTypes.STACKID:
-                    fetchedSubstacks = query<{
-                        id: number;
-                        balance: number;
-                        stackIdentifier: string;
-                        substackName: string;
-                        substackIdentifier: string;
-                        createdBy: number;
-                        usersList: string
-                    }>(
-                        `SELECT id, balance, stackIdentifier, substackName, substackIdentifier, createdBy, usersList FROM substacks WHERE deleted = FALSE AND stackIdentifier = $1;`,
-                        [key]
+                case SubStackQueryTypes.OWNERID:
+                    fetchedSubstacks = query<SubStackAPIType>(
+                        `SELECT s.owner_identifier, ss.substack_name, ss.substack_identifier, ss.stack_identifier, ss.balance, ss.users_list FROM stacks AS s INNER JOIN substacks AS ss ON s.stack_identifier = ss.stack_identifier WHERE POSITION(owner_identifier::text IN users_list) > 0 AND s.owner_identifier = $1`,
+                        [substack.owner_identifier]
 
                     );
                     break;
                 case SubStackQueryTypes.SUBSTACKNAME:
-                    fetchedSubstacks = query<{
-                        id: number;
-                        balance: number;
-                        stackIdentifier: string;
-                        substackName: string;
-                        substackIdentifier: string;
-                        createdBy: number;
-                        usersList: string
-                    }>(
-                        `SELECT id, balance, stackIdentifier, substackName, substackIdentifier, createdBy, usersList FROM substacks WHERE deleted = FALSE AND substackName = $1;`,
-                        [key]
+                    fetchedSubstacks = query<SubStackAPIType>(
+                        `SELECT substack_name, substack_identifier, stack_identifier, balance, users_list FROM substacks WHERE deleted = FALSE AND substack_name = $1;`,
+                        [substack.substack_name]
 
                     );
                     break;
@@ -104,13 +117,11 @@ export class SubStack {
             } else {
                 for (const substack of await fetchedSubstacks) {
                     output.push({
-                        id: substack.id,
                         balance: substack.balance,
-                        stackIdentifier: substack.stackIdentifier,
-                        substackName: substack.substackName,
-                        substackIdentifier: substack.substackIdentifier,
-                        usersList: stringToSet(substack.usersList),
-                        createdBy: substack.createdBy
+                        stack_identifier: substack.stack_identifier,
+                        substack_name: substack.substack_name,
+                        substack_identifier: substack.substack_identifier,
+                        users_list: substack.users_list
                     })
                 }
             }
@@ -123,18 +134,33 @@ export class SubStack {
             }
         }
     }
-    static renameSubstack(substackID: number, data: SubStackAPIType) {
-        withTransaction(async (client) => {
+    static async renameSubstack(substack: SubStackAPIType) {
+        let isUpdated = false;
+        const vSubStack = new Validator({ //Validator for SubStack Name
+            version: "1.0",
+            stringValidation: {
+                minLength: 4,
+                maxLength: 100,
+                locale: "en-us",
+            }
+        });
+        const nameChecked: boolean =
+            vSubStack.stringValidate(vSubStack.stripHtml(substack.substack_name));
+        if (nameChecked) {
             try {
-                const users = [...data.usersList].toString();
+                const q = await withTransaction(async (client) => {
+                    const users = new Set<string>(substack.users_list);
 
-                const updatedSubstack = await client.query(
-                    `UPDATE substacks set substackName= $1 , usersList= $2 WHERE deleted = FALSE AND id = $3;`,
-                    [data.substackName, users, substackID]
-                )
-                if (updatedSubstack === undefined) {
+                    return await client.query(
+                        `UPDATE substacks set substack_name= $1 , users_list= $2 WHERE deleted = FALSE AND substack_identifier = $3;`,
+                        [substack.substack_name, Array.from(users).toString(), substack.substack_identifier]
+                    );
+                });
+                const rowCount = q.rowCount;
+                if (rowCount === 0) {
                     throw new HTMLStatusError("Substack Not Found", 404);
-
+                } else {
+                    isUpdated = true;
                 }
             } catch (error) {
                 if (error instanceof HTMLStatusError) {
@@ -143,56 +169,69 @@ export class SubStack {
                     throw new HTMLStatusError((error as Error).message, 500);
                 }
             }
-        });
+        }
+        return isUpdated;
     }
-    static deleteSubstack(substackID: number, data: SubStackAPIType) {
-                withTransaction(async (client) => {
-            try {
-                const deletedSubstack = await client.query(
-                    `UPDATE substacks set deleted = TRUE WHERE deleted = FALSE AND id = $1 AND substackIdentifier = $2;`,
-                    [substackID, data.substackIdentifier]
-                )
-                if (deletedSubstack === undefined) {
-                    throw new HTMLStatusError("Substack Not Found", 404);
-
-                }
-            } catch (error) {
-                if (error instanceof HTMLStatusError) {
-                    throw error;
-                } else {
-                    throw new HTMLStatusError((error as Error).message, 500);
-                }
+    static async deleteSubstack(substack: SubStackAPIType) {
+        let isDeleted = false;
+        try {
+            const q = await withTransaction(async (client) => {
+                return await client.query(
+                    `UPDATE substacks set deleted = TRUE WHERE deleted = FALSE AND substack_identifier = $1;`,
+                    [substack.substack_identifier]
+                );
+            });
+            const rowCount = q.rowCount;
+            if (rowCount === 0) {
+                throw new HTMLStatusError("Substack Not Found", 404);
+            } else {
+                isDeleted = true;
             }
-        });
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+        return isDeleted;
     }
-    static async getBalance(identifier: string) {//: Promise<number>
-        let balance = 0;
-        const fetchedBalance = await query<{ id: number; balance: number }>(
-            `SELECT id, balance FROM substacks WHERE substackIdentifier = $1;`,
-            [identifier]
-        );
-        balance = fetchedBalance[0]!.balance;
-        return balance / 100;
+    static async getBalance(substack_identifier: string) {
+        let balance = undefined;
+        try {
+            const fetchedBalance = await query<SubStackAPIType>(
+                `SELECT balance FROM substacks WHERE substack_identifier = $1;`,
+                [substack_identifier]
+            );
+            for(const balances in fetchedBalance){
+                balance = Number.parseInt(balances)/100;
+            }
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+        return balance;
     }
-    static async getParentStack(stackID: string) {
-        const stacks = await query<{ stackIdentifier: string }>(
-            `SELECT DISTINCT stackIdentifier FROM substacks WHERE stackIdentifier = $1;`,
-            [stackID]
-        )
-
-        return stacks[0]!.stackIdentifier;
+    static async getParentStack(substack_identifier: string) {
+        let parentStackID: string = '';
+        try {
+            const substacks = await query<SubStackAPIType>(
+                `SELECT DISTINCT stack_identifier FROM substacks WHERE substack_identifier = $1;`,
+                [substack_identifier]
+            );
+            for(const stack of substacks){
+                parentStackID = stack.stack_identifier;
+            }
+        } catch (error) {
+            if (error instanceof HTMLStatusError) {
+                throw error;
+            } else {
+                throw new HTMLStatusError((error as Error).message, 500);
+            }
+        }
+        return parentStackID;
     }
-
-}
-/**
- *
- * @param dataString
- * @returns Set
- */
-function stringToSet(dataString: string): Set<number> {
-    const arrayData = dataString.split(",")
-        .map(part => Number.parseInt(part.trim()))
-
-    const outputSet = new Set<number>(arrayData);
-    return outputSet;
 }
