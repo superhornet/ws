@@ -2,22 +2,22 @@ import express from "express";
 import helmet from "helmet";
 import {generalLimiter, sessionLimiter, financialLimiter} from "./libs/rateLimiter.ts";
 import {sessionAuth} from "./libs/sessionAuth.ts";
+import {router as healthRouter} from "./routes/index.ts";
 import {router as auditRouter} from "./controllers/AuditController.ts";
 import {router as sessionRouter} from "./controllers/SessionController.ts";
 import {router as userRouter} from "./controllers/UserController.ts";
+import {router as affiliateRouter  } from "./controllers/AffiliateController.ts";
 import {router as notificationRouter} from "./controllers/NotificationController.ts";
 import {router as stackRouter } from "./controllers/StackController.ts";
 import {router as substackRouter } from "./controllers/SubstackController.ts";
 import {router as cybridRouter } from "./controllers/CybridController.ts";
 import {router as transactionRouter } from "./controllers/TransactionController.ts";
-import {router as healthRouter} from "./routes/index.ts";
 /**
  * @class App
  *
  */
 export class App {
     public express;
-    //public database;
     public applicationName = "WeStack API";
 
     /**
@@ -54,6 +54,7 @@ export class App {
         this.express.use("/api", substackRouter);
         this.express.use("/api", cybridRouter);
         this.express.use("/api", transactionRouter);
+        this.express.use("/api", affiliateRouter);
     }
 }
 

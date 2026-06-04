@@ -6,6 +6,7 @@ import { type SubStackAPIType } from '../types/SubStackAPITypes.ts';
 import { SubscriptionType } from '../types/SubscriptionTypes.ts';
 import { TransactionItemType, TransactionProcessorType, type TransactionAPIType } from '../types/TransactionAPITypes.ts';
 import type { UserAPIType } from '../types/UserAPITypes.ts';
+import { AffiliationType, type AffiliateAPIType } from '../types/AffiliateAPITypes.ts';
 
 export function findRouteHandler(router: typeof AuditRouter| typeof SessionRouter, method: string, path: string) {
     const layer = router.stack.find(
@@ -105,7 +106,8 @@ export function mockUser(data?: { body?: { data?: UserAPIType; message: string|n
                 state: "",
                 zipcode: "",
                 subscription_level: SubscriptionType,
-                user_identifier: ""
+                user_identifier: "",
+                affiliate: ""
             },
             message: "",
             session: "",
@@ -268,6 +270,31 @@ export function mockTransactionList( data?: { body?: {key: string, value: string
                 from_identifier: "",
                 notation: "",
                 initiated_by: ""
+            }],
+            message: "", //Creation message
+            session: ""
+        },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: typeof this.body) {
+            this.body = payload;
+            return this;
+        }
+    };
+    return { req, res };
+}
+export function mockAffiliate( data?: {body?: {data?: AffiliateAPIType, message?: string, session?: string}}){
+    const req = data ;
+    const res = {
+        statusCode: -1,
+        body: {
+            code: -1,
+            data: [{
+                affiliation_code: "",
+                affiliation_type: AffiliationType,
+                referrer: ""
             }],
             message: "", //Creation message
             session: ""

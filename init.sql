@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS raffle_entries;
+DROP TABLE IF EXISTS affiliations CASCADE;
 DROP TABLE IF EXISTS stacks;
 DROP TABLE IF EXISTS substacks CASCADE;
 DROP TABLE IF EXISTS transactions;
@@ -38,9 +39,23 @@ CREATE TABLE users(
     zipcode TEXT NOT NULL,
     subscription_level TEXT CHECK(subscription_level in ('Free', 'Basic', 'Pro')) NOT NULL DEFAULT 'Free',
     created_at TIMESTAMP DEFAULT (NOW()),
-    CONSTRAINT unique_user UNIQUE (user_identifier)
-  );
+    CONSTRAINT unique_user UNIQUE (user_identifier),
+    CONSTRAINT unique_affiliate UNIQUE (affiliate)
 
+  );
+CREATE TABLE affiliations(
+    id SERIAL PRIMARY KEY,
+    affiliation_code TEXT NOT NULL CHECK(length(affiliation_code) = 7),
+    affiliation_type TEXT CHECK(affiliation_type IN ('Ancestor', 'Descendant')) NOT NULL DEFAULT 'Descendant',
+    referrer UUID REFERENCES users(user_identifier),
+    CONSTRAINT fk_affiliation_code_users_affiliate
+        FOREIGN KEY (affiliation_code)
+        REFERENCES users (affiliate)
+    ,
+    CONSTRAINT fk_referrer_users_user_identifier
+        FOREIGN KEY (referrer)
+        REFERENCES users (user_identifier)
+    );
 DROP TABLE IF EXISTS notifications;
 CREATE TABLE notifications(
     id SERIAL PRIMARY KEY,

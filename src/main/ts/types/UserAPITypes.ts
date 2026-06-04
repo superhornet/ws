@@ -10,4 +10,5 @@ export interface UserAPIType{
     zipcode: string|number;
     subscription_level: SubscriptionEnum;
     user_identifier?: string;
+    affiliate?: string;
 }

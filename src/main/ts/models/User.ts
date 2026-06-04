@@ -27,23 +27,13 @@ export class User implements IUser {
         this.pId = value;
     }
 
-    private pAffiliate: string;
-    public get affiliate(): string {
-        return this.pAffiliate;
-    }
-    public set affiliate(value: string) {
-        this.pAffiliate = value;
-    }
-
     constructor(
         user: UserAPIType,
-        id: number | bigint,
-        affiliate: string
+        id: number | bigint
     ) {
         try {
             this.user = user;
             this.id = Number(id);
-            this.pAffiliate = affiliate;
         } catch (error) {
             throw new Error((error as Error).message);
         }
@@ -65,7 +55,7 @@ export class User implements IUser {
                 domainMaxLength: 36,
             },
             stringValidation: {
-                minLength: 5,
+                minLength: 3,
                 maxLength: 128
             }
         });
@@ -132,8 +122,9 @@ export class User implements IUser {
                 state: row.state,
                 zipcode: row.zipcode,
                 subscription_level: row.subscription_level,
-                user_identifier: row.user_identifier
-            }, row.id, row.affiliate);
+                user_identifier: row.user_identifier,
+                affiliate: row.affiliate
+            }, row.id);
             return userEntry.user;
         }
         return undefined;

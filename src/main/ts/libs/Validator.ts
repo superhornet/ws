@@ -62,6 +62,9 @@ export class Validator {
      * @returns boolean
      */
     public stringValidate(str: string): boolean {
+        if (typeof str !== "string") {
+            throw new TypeError("Input must be a string.");
+        }
         let isValid = true;
         //console.log(this.options);
         const stringOptions = this.options.stringValidation;
