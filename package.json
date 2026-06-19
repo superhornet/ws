@@ -36,7 +36,7 @@
         "dev": "nodemon --watch src -e ts --exec npm run dev:start",
         "start": "node .",
         "test:cucumber": "cucumber-js --format progress",
-        "test": "node --test './src/test/ts/**/*.Test.ts",
+        "test": "node --test './src/test/ts/**/*.Test.ts'",
         "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./src/test/ts/**/*.Test.ts",
         "test:cybrid": "node --experimental-test-module-mocks --test './test/ts/**/*.test.ts'",
         "testWithCoverage:cybrid": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./test/ts/**/*.test.ts"
@@ -72,6 +72,7 @@
     },
     "dependencies": {
         "@cybrid/cybrid-api-bank-typescript": "^0.128.102",
+        "@privy-io/node": "^0.21.0",
         "cors": "^2.8.6",
         "dotenv": "^17.3.1",
         "express": "^5.2.1",

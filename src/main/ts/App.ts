@@ -18,6 +18,7 @@ import {router as notificationRouter} from "./controllers/NotificationController
 import {router as stackRouter } from "./controllers/StackController.ts";
 import {router as substackRouter } from "./controllers/SubstackController.ts";
 import {router as cybridRouter } from "./controllers/CybridController.ts";
+import {router as privyRouter } from "./controllers/PrivyController.ts";
 import {router as transactionRouter } from "./controllers/TransactionController.ts";
 import {router as recurringDepositRouter } from "./controllers/RecurringDepositController.ts";
 import {router as otpRouter } from "./controllers/OtpController.ts";
@@ -81,6 +82,7 @@ export class App {
         this.express.use(generalLimiter);
         this.express.use("/api/session", sessionLimiter);
         this.express.use("/api/cybrid", financialLimiter);
+        this.express.use("/api/privy", financialLimiter);
         this.express.use("/api/transaction", financialLimiter);
         this.express.use(express.json({ limit: '100kb' }));
         this.express.use(express.urlencoded({ limit: '100kb' }));
@@ -98,6 +100,7 @@ export class App {
         this.express.use("/api", stackRouter);
         this.express.use("/api", substackRouter);
         this.express.use("/api", cybridRouter);
+        this.express.use("/api", privyRouter);
         this.express.use("/api", transactionRouter);
         this.express.use("/api", recurringDepositRouter);
         this.express.use("/api", affiliateRouter);
