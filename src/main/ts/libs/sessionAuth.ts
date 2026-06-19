@@ -1,6 +1,7 @@
 import type * as express from "express";
 import { HTMLStatusError, processError } from "./HTMLStatusError.ts";
 import { query } from "./postgresDB.ts";
+import { readSessionToken } from "./session.ts";
 
 /**
  * Central session gate for all /api routes mounted after it.
@@ -10,8 +11,10 @@ import { query } from "./postgresDB.ts";
  * sessions table (unexpired match required). Replaces the previous
  * presence-only checks, which accepted any well-formed string as auth.
  *
- * Note: this authenticates that a session exists and is unexpired. It does NOT
- * bind the session to a user
+ * Note: this authenticates that a session exists and is unexpired. The session
+ * may still be anonymous (not yet bound to a user via signup/login); when it is
+ * bound, the user_identifier is attached to `req.authUser` for downstream
+ * authorization. Per-resource ownership is enforced in the controllers.
  */
 export async function sessionAuth(
     req: express.Request,
@@ -19,18 +22,19 @@ export async function sessionAuth(
     next: express.NextFunction,
 ): Promise<void> {
     try {
-        const sessionId =
-            (req.headers["x-session"] as string | undefined) ?? req.body?.session;
+        const sessionId = readSessionToken(req);
         if (!sessionId) {
             throw new HTMLStatusError("Forbidden", 403);
         }
-        const rows = await query(
-            "SELECT id FROM sessions WHERE uuid = $1 AND expires > NOW()",
+        const rows = await query<{ user_identifier: string | null }>(
+            "SELECT user_identifier FROM sessions WHERE uuid = $1 AND expires > NOW()",
             [sessionId],
         );
-        if (rows.length === 0) {
+        const row = rows.at(0);
+        if (!row) {
             throw new HTMLStatusError("Forbidden", 403);
         }
+        req.authUser = row.user_identifier ?? null;
         next();
     } catch (error) {
         if (error instanceof HTMLStatusError) {
@@ -40,4 +44,4 @@ export async function sessionAuth(
             processError(req, res, new HTMLStatusError("Internal Server Error", 500));
         }
     }
-}
+}

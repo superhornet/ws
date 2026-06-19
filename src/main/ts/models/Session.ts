@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { HTMLStatusError, as500 } from "../libs/HTMLStatusError.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts"
 
 /**
@@ -86,11 +86,50 @@ export class Session implements ISession {
                 return true;
             }
         } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
+            as500(error);
+        }
+    }
+    /**
+     * Binds a session to the user it has authenticated as (after signup or a
+     * login OTP). Once bound, authorization can derive the acting user from the
+     * session instead of trusting client-supplied identifiers.
+     */
+    static async bindUser(session: string, userIdentifier: string): Promise<void> {
+        if (session?.length !== 36) {
+            throw new HTMLStatusError("Invalid session", 400);
+        }
+        try {
+            const updated = await query<{ id: number }>(
+                `UPDATE sessions
+                SET user_identifier = $2
+                WHERE uuid = $1 AND expires > NOW()
+                RETURNING id;`,
+                [session, userIdentifier],
+            );
+            if (updated.length === 0) {
+                throw new HTMLStatusError("Session not found", 404);
             }
+        } catch (error) {
+            as500(error);
+        }
+    }
+
+    /**
+     * Returns the user_identifier a session is bound to, or null when the
+     * session is anonymous (not yet through signup/login) or expired/missing.
+     */
+    static async getUserForSession(session: string | undefined): Promise<string | null> {
+        if (!session || session.length !== 36) {
+            return null;
+        }
+        try {
+            const rows = await query<{ user_identifier: string | null }>(
+                `SELECT user_identifier FROM sessions WHERE uuid = $1 AND expires > NOW();`,
+                [session],
+            );
+            return rows.at(0)?.user_identifier ?? null;
+        } catch (error) {
+            as500(error);
         }
     }
     /**
@@ -109,11 +148,7 @@ export class Session implements ISession {
                 throw new HTMLStatusError("Session not found.", 404);
             }
         } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
-            }
+            as500(error);
         }
     };
     /**
