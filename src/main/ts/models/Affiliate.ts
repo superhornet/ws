@@ -1,5 +1,6 @@
 import { withTransaction } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
+import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import { AffiliationType, type AffiliateAPIType } from "../types/AffiliateAPITypes.ts";
 
 export interface IAffiliate {
@@ -49,24 +50,24 @@ export class Affiliate implements IAffiliate {
                     `SELECT affiliate, user_identifier FROM users WHERE affiliate = $1;`,
                     [code]
                 );
-                if (relation) {
-                    const refCode = relation.rows.at(0);
-                    return await client.query(
-                        `INSERT INTO affiliations (affiliation_code, affiliation_type, referrer)
+                const refCode = relation.rows.at(0);
+                if (!refCode) {
+                    throw new HTMLStatusError("Affiliate code not found", 404);
+                }
+                return await client.query(
+                    `INSERT INTO affiliations (affiliation_code, affiliation_type, referrer)
                         VALUES( $1, $2, $3 ),($4, $5, $6)
                         RETURNING affiliation_code, affiliation_type, referrer;`,
-                        [
-                            refCode.affiliate,AffiliationType.ANCESTOR,refCode.user_identifier,
-                            refCode.affiliate, AffiliationType.DESCENDANT, user_identifier
-                        ]
-                    );
-                } return null;
+                    [
+                        refCode.affiliate, AffiliationType.ANCESTOR, refCode.user_identifier,
+                        refCode.affiliate, AffiliationType.DESCENDANT, user_identifier
+                    ]
+                );
             });
-            const rows = q?.rows;
-            const entries: Array<AffiliateAPIType>=[];
-            for (const row of rows!) {
+            const entries: Array<AffiliateAPIType> = [];
+            for (const row of q.rows) {
                 const affiliateEntry = new Affiliate({
-                    affiliation_code: row.affiliate_code,
+                    affiliation_code: row.affiliation_code,
                     affiliation_type: row.affiliation_type,
                     referrer: row.referrer
                 });
@@ -74,9 +75,8 @@ export class Affiliate implements IAffiliate {
             }
             return entries;
         } else {
-            throw new Error("Code failed");
+            throw new HTMLStatusError("Code failed", 400);
         }
-        return undefined;
     };
     public detail(): AffiliateAPIType {
         return this.affiliate

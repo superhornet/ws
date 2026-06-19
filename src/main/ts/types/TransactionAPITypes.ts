@@ -1,28 +1,36 @@
 export const TransactionItemType = {
-    INITIAL_FUND: "Initial" as string,
-    CREDIT: "Credit" as string,
-    DEBIT: "Debit" as string,
-    FEE: "Fee" as string,
-    PENALTY: "Penalty" as string,
-    ADJUSTMENT: "Adjustment" as string,
-    SETTLED: "Settled" as string,
-    ROUNDUP: "Roundup" as string,
+    INITIAL_FUND: "Initial",
+    CREDIT: "Credit",
+    DEBIT: "Debit",
+    FEE: "Fee",
+    PENALTY: "Penalty",
+    ADJUSTMENT: "Adjustment",
+    SETTLED: "Settled",
+    ROUNDUP: "Roundup",
 } as const;
 
 export type TransactionEnum = (typeof TransactionItemType)[keyof typeof TransactionItemType];
 
 export const TransactionProcessorType = {
-    INTERNAL: "Internal" as string,
-    ACH: "ACH" as string,
-    MOONPAY: "Moonpay" as string,
-    STRIPE: "Stripe" as string,
-    APPLE: "Apple" as string,
-    GOOGLE: "Google" as string,
-    CASHAPP: "CashApp" as string,
-    BITCOIN: "Bitcoin" as string,
+    INTERNAL: "Internal",
+    ACH: "ACH",
+    MOONPAY: "Moonpay",
+    STRIPE: "Stripe",
+    APPLE: "Apple",
+    GOOGLE: "Google",
+    CASHAPP: "CashApp",
+    BITCOIN: "Bitcoin",
 } as const;
 
 export type TransactionProcessorEnum = (typeof TransactionProcessorType)[keyof typeof TransactionProcessorType];
+
+export const TransactionStatusType = {
+    PENDING: "pending",
+    SETTLED: "settled",
+    FAILED: "failed",
+} as const;
+
+export type TransactionStatusEnum = (typeof TransactionStatusType)[keyof typeof TransactionStatusType];
 /**
  * Data transmitted to/from the API before meta information is added
  */
@@ -35,12 +43,16 @@ export interface TransactionAPIType{
     from_identifier: string; //substackIdentifier
     notation: string;
     balance?: number;
+    /** ISO timestamp the transaction was created. */
+    created_at?: string | null;
+    /** Settlement lifecycle state. */
+    status?: TransactionStatusEnum | null;
 };
 
 export const TransactionQueryTypes = {
-    SUBSTACK: "substack_identifier" as string,
-    STACK: "stack_identifier" as string,
-    USER: "owner_identifier" as string
+    SUBSTACK: "substack_identifier",
+    STACK: "stack_identifier",
+    USER: "owner_identifier"
 } as const;
 
 export type TransactionQueryEnum = (typeof TransactionQueryTypes)[keyof typeof TransactionQueryTypes];
