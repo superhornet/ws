@@ -1,0 +1,18 @@
+{
+  "name": "otp-relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal OTP delivery relay for the WeStack backend. Receives the backend's generic OTP webhook payload and forwards it to a real provider (SMS via Twilio, email via SendGrid).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "twilio": "^6.0.2"
+  }
+}
