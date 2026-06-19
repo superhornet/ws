@@ -1,0 +1,131 @@
+# Render Blueprint for the WeStack API.
+#
+# Defines ONE project with TWO isolated environments:
+#   - staging    -> what the TestFlight beta build points at (separate data)
+#   - production -> what the App Store release points at (real data)
+#
+# Each environment has its OWN Postgres database, so beta testers never touch
+# production data. `networking.isolation: enabled` blocks cross-environment DB
+# access, and `permissions.protection: enabled` on production requires an admin
+# for destructive changes.
+#
+# After Render first provisions each database, run init.sql against it ONCE to
+# create the base tables (init.sql is destructive and is NOT run on boot; the
+# app only runs incremental migrations at startup). uuidv7() requires PG 18,
+# which is pinned below.
+#
+# Secrets (Cybrid keys, OTP provider tokens) use `sync: false` so Render prompts
+# for them on deploy instead of storing them in git.
+
+projects:
+  - name: westack
+    environments:
+      # ----------------------------------------------------------------------
+      # PRODUCTION
+      # ----------------------------------------------------------------------
+      - name: production
+        networking:
+          isolation: enabled
+        permissions:
+          protection: enabled
+        databases:
+          - name: westack-db
+            plan: basic-256mb
+            postgresMajorVersion: "18"
+        services:
+          - name: westack-api
+            type: web
+            runtime: docker
+            dockerfilePath: ./Dockerfile
+            plan: starter
+            branch: main
+            healthCheckPath: /health
+            envVars:
+              - key: NODE_ENV
+                value: production
+              - key: DATABASE_URL
+                fromDatabase:
+                  name: westack-db
+                  property: connectionString
+              - key: POSTGRES_SSL
+                value: "true"
+              - key: POSTGRES_SSL_REJECT_UNAUTHORIZED
+                value: "false"
+              - key: TRUST_PROXY
+                value: "1"
+              - key: OTP_HASH_SECRET
+                generateValue: true
+              - key: OTP_DEV_EXPOSE
+                value: "false"
+              - key: OTP_DEV_LOG
+                value: "false"
+              # Real OTP delivery via your otp-relay (Twilio/SendGrid).
+              - key: OTP_SMS_WEBHOOK_URL
+                sync: false
+              - key: OTP_EMAIL_WEBHOOK_URL
+                sync: false
+              - key: OTP_PROVIDER_AUTH_TOKEN
+                sync: false
+              # Cybrid (production). API base/auth default to sandbox in code;
+              # set the live URLs here when you go live.
+              - key: CYBRID_CLIENT_ID
+                sync: false
+              - key: CYBRID_CLIENT_SECRET
+                sync: false
+              - key: CYBRID_API_BASE
+                sync: false
+              - key: CYBRID_AUTH_URL
+                sync: false
+
+      # ----------------------------------------------------------------------
+      # STAGING  (TestFlight beta target)
+      # ----------------------------------------------------------------------
+      - name: staging
+        networking:
+          isolation: enabled
+        databases:
+          - name: westack-db-staging
+            plan: basic-256mb
+            postgresMajorVersion: "18"
+        services:
+          - name: westack-api-staging
+            type: web
+            runtime: docker
+            dockerfilePath: ./Dockerfile
+            plan: starter
+            # Point staging at a separate branch (e.g. "staging") if you want a
+            # pre-prod gate; using main deploys the same code as production.
+            branch: main
+            healthCheckPath: /health
+            envVars:
+              - key: NODE_ENV
+                value: production
+              - key: DATABASE_URL
+                fromDatabase:
+                  name: westack-db-staging
+                  property: connectionString
+              - key: POSTGRES_SSL
+                value: "true"
+              - key: POSTGRES_SSL_REJECT_UNAUTHORIZED
+                value: "false"
+              - key: TRUST_PROXY
+                value: "1"
+              - key: OTP_HASH_SECRET
+                generateValue: true
+              - key: OTP_DEV_EXPOSE
+                value: "false"
+              - key: OTP_DEV_LOG
+                value: "false"
+              # For easier beta testing you can wire the relay below, OR set a
+              # fixed code so testers don't need real SMS (less secure).
+              - key: OTP_SMS_WEBHOOK_URL
+                sync: false
+              - key: OTP_EMAIL_WEBHOOK_URL
+                sync: false
+              - key: OTP_PROVIDER_AUTH_TOKEN
+                sync: false
+              # Cybrid sandbox for staging.
+              - key: CYBRID_CLIENT_ID
+                sync: false
+              - key: CYBRID_CLIENT_SECRET
+                sync: false
