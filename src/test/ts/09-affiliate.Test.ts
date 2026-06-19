@@ -60,6 +60,11 @@ suite("Affiliation test suite", () => {
             // @ts-expect-error req is fine as-is
             await handler(req, res, null);
             const firstSession = res.body.data.uuid;
+            // Each user signs up on its own session (a session binds to one user).
+            const { req: req2, res: res2 } = mockSession();
+            // @ts-expect-error req is fine as-is
+            await handler(req2, res2, null);
+            const secondSession = res2.body.data.uuid;
 
             it("Create user 1", async () => {
                 const handler = findRouteHandler(userRouter, 'post', '/user');
@@ -104,7 +109,7 @@ suite("Affiliation test suite", () => {
                             subscription_level: SubscriptionType.BASIC
                         },
                         message: "Create User2",
-                        session: firstSession
+                        session: secondSession
                     }
                 });
                 // @ts-expect-error req is fine as-is
@@ -121,7 +126,7 @@ suite("Affiliation test suite", () => {
                             referrer: user2.user_identifier!
                         },
                         message: "Create affiliate relationship",
-                        session: firstSession
+                        session: secondSession
                     }
                 });
                 test("Handler is okay", () => {

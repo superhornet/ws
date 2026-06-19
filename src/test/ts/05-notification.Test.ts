@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { router as notificationRouter } from "../../main/ts/controllers/NotificationController.ts";
-import { findRouteHandler, mockSession, mockUser, mockNotification } from '../../main/ts/libs/mocks.ts'
+import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockNotification } from '../../main/ts/libs/mocks.ts'
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 
 suite("Testing the Notification routes without session", () => {
@@ -120,15 +120,12 @@ suite("Testing the Notification routes with session", () => {
             test("List Notifications", { skip: false }, async () => {
                 const handler = findRouteHandler(notificationRouter, 'get', '/notifications');
                 assert.ok(handler, "Missing handler for notification endpoint");
-                const { req, res } = mockNotification({
-                    body: {
-                        data: {
-                            message: "",
-                            notification_for: sharedUser
-                        },
+                const { req, res } = mockGetRequest({
+                    headers: { "x-session": sharedSession },
+                    query: {
+                        notification_for: sharedUser,
                         message: "List notifications",
-                        session: sharedSession,
-                    }
+                    },
                 });
                 // @ts-expect-error req is fine as-is
                 await handler(req, res, null);

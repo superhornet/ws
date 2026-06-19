@@ -2,21 +2,30 @@ import { after, describe, test } from "node:test";
 import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
-import { findRouteHandler, mockSession, mockUser } from '../../main/ts/libs/mocks.ts'
+import { findRouteHandler, mockGetRequest, mockSession, mockUser } from '../../main/ts/libs/mocks.ts'
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 import { type UserAPIType } from "../../main/ts/types/UserAPITypes.ts";
 
 let sharedSession: string = "";
+let regularSession: string = "";
 let adminUser: string = "";
 let regularUser: string = "";
-describe("Get a session", async () => {
+
+/**
+ * Each session can be bound to exactly one user (at signup), so tests that need
+ * multiple users create a fresh session per user.
+ */
+async function createSession(): Promise<string> {
     const handler = findRouteHandler(sessionRouter, 'get', '/session');
     assert.ok(handler, "Missing handler for session get");
-
     const { req, res } = mockSession();
     // @ts-expect-error req is fine as-is
-    await handler(req, res, ()=>null);
-    sharedSession = (res.body.data).uuid;
+    await handler(req, res, () => null);
+    return (res.body.data).uuid;
+}
+
+describe("Get a session", async () => {
+    sharedSession = await createSession();
 });
 
 describe("Testing the /api/user endpoint", () => {
@@ -72,6 +81,9 @@ describe("Testing the /api/user endpoint", () => {
     test("inserts first sample record", async () => {
         const handler = findRouteHandler(userRouter, 'post', '/user');
         assert.ok(handler, "Missing handler for user endpoint");
+        // A bound session cannot create a second user, so this user signs up on
+        // its own fresh session.
+        regularSession = await createSession();
         const { req, res } = mockUser(
             {
                 body: {
@@ -87,7 +99,7 @@ describe("Testing the /api/user endpoint", () => {
                         subscription_level: SubscriptionType.FREE,
                     },
                     message: "Bare API Creation",
-                    session: sharedSession,
+                    session: regularSession,
                 }
             });
 
@@ -101,6 +113,7 @@ describe("Testing the /api/user endpoint", () => {
     test("response is 201 Created when supply appropriate data", async () => {
         const handler = findRouteHandler(userRouter, 'post', '/user');
         assert.ok(handler, "Missing handler for user endpoint");
+        const peterSession = await createSession();
         const { req, res } = mockUser(
             {
                 body: {
@@ -116,7 +129,7 @@ describe("Testing the /api/user endpoint", () => {
                         subscription_level: SubscriptionType.BASIC
                     },
                     message: "Test Sucessful response",
-                    session: sharedSession,
+                    session: peterSession,
                 }
             });
 
@@ -128,14 +141,13 @@ describe("Testing the /api/user endpoint", () => {
     test("response is 200 OK and contains data.", async () => {
         const handler = findRouteHandler(userRouter, 'get', '/user');
         assert.ok(handler, "Missing handler for user endpoint");
-        const { req, res } = mockUser({
-            body: {
+        const { req, res } = mockGetRequest({
+            headers: { "x-session": regularSession },
+            query: {
+                user_identifier: regularUser,
                 message: `Fetch user ${regularUser}`,
-                session: sharedSession,
-                user_identifier: regularUser
-            }
-        }
-        );
+            },
+        });
         // @ts-expect-error req is fine as-is
         await handler(req, res, null);
         assert.equal(res.statusCode, 200);
@@ -158,7 +170,7 @@ describe("Testing the /api/user endpoint", () => {
                     subscription_level: SubscriptionType.BASIC,
                 },
                 message: `Update user ${regularUser}`,
-                session: sharedSession,
+                session: regularSession,
                 user_identifier: regularUser,
             }
         });
@@ -173,7 +185,7 @@ describe("Testing the /api/user endpoint", () => {
         const { req, res } = mockUser({
             body: {
                 message: `Delete ${regularUser}`,
-                session: sharedSession,
+                session: regularSession,
                 user_identifier: regularUser,
             }
         });

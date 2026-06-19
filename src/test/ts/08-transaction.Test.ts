@@ -5,7 +5,7 @@ import { router as userRouter } from "../../main/ts/controllers/UserController.t
 import { router as stackRouter } from "../../main/ts/controllers/StackController.ts";
 import { router as substackRouter } from "../../main/ts/controllers/SubstackController.ts";
 import { router as transactionRouter } from "../../main/ts/controllers/TransactionController.ts";
-import { findRouteHandler, mockSession, mockUser, mockStack, mockSubStack, mockTransaction, mockTransactionList } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack, mockSubStack, mockTransaction } from "../../main/ts/libs/mocks.ts";
 import { TransactionItemType, TransactionProcessorType, TransactionQueryTypes } from "../../main/ts/types/TransactionAPITypes.ts";
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 // import { TransactionItemType, TransactionProcessorType } from "../../main/ts/types/TransactionAPITypes.ts";
@@ -47,6 +47,9 @@ suite("Testing the Transaction routes without session", { skip: false }, () => {
 suite("Testing the Transaction routes with session", () => {
     let sharedUser: string, superUser: string;
     let companyStack: string;
+    // Hoisted so the ownership-scoped reads of the company stack / admin user
+    // below run on the session bound to their owner (admin).
+    let firstSession: string;
     describe("Get a session", async () => {
         const handler = findRouteHandler(sessionRouter, 'get', '/session');
         assert.ok(handler, "Missing handler for session post");
@@ -54,7 +57,7 @@ suite("Testing the Transaction routes with session", () => {
         const { req, res } = mockSession();
         // @ts-expect-error req is fine as-is
         await handler(req, res, null);
-        const firstSession = res.body.data.uuid;
+        firstSession = res.body.data.uuid;
         it("Create a user", async () => {
             const handler = findRouteHandler(userRouter, 'post', '/user');
             assert.ok(handler, "Missing handler for user post");
@@ -449,13 +452,13 @@ suite("Testing the Transaction routes with session", () => {
                 });
                 const handler = findRouteHandler(transactionRouter, 'get', '/transactions');
                 assert.ok(handler, "Missing handler for transactions endpoint");
-                const { req, res } = mockTransactionList({
-                    body: {
+                const { req, res } = mockGetRequest({
+                    headers: { "x-session": firstSession },
+                    query: {
                         key: TransactionQueryTypes.STACK,
                         value: companyStack,
                         message: "Listing transactions by stack",
-                        session: secondSession,
-                    }
+                    },
                 });
                 // @ts-expect-error req is fine as-is
                 await handler(req, res, null);
@@ -470,13 +473,13 @@ suite("Testing the Transaction routes with session", () => {
                 });
                 const handler = findRouteHandler(transactionRouter, 'get', '/transactions');
                 assert.ok(handler, "Missing handler for transactions endpoint");
-                const { req, res } = mockTransactionList({
-                    body: {
+                const { req, res } = mockGetRequest({
+                    headers: { "x-session": secondSession },
+                    query: {
                         key: TransactionQueryTypes.SUBSTACK,
                         value: cottonCandySubStack,
                         message: "Listing transactions by substack",
-                        session: secondSession,
-                    }
+                    },
                 });
                 // @ts-expect-error req is fine as-is
                 await handler(req, res, null);
@@ -492,13 +495,13 @@ suite("Testing the Transaction routes with session", () => {
             });
             const handler = findRouteHandler(transactionRouter, 'get', '/transactions');
             assert.ok(handler, "Missing handler for transactions endpoint");
-            const { req, res } = mockTransactionList({
-                body: {
+            const { req, res } = mockGetRequest({
+                headers: { "x-session": firstSession },
+                query: {
                     key: TransactionQueryTypes.USER,
                     value: superUser,
                     message: "Listing transactions by user",
-                    session: secondSession,
-                }
+                },
             });
             // @ts-expect-error req is fine as-is
             await handler(req, res, null);

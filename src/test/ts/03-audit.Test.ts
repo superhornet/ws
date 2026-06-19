@@ -34,7 +34,7 @@ suite("Testing the Audit routes without session", () => {
             });
             test("response is 403 Unauthorized, if sessuin has been omitted.", async () => {
                 assert.equal(res.statusCode, 403);
-                assert.equal(res.body.message, 'Unauthorized');
+                assert.equal(res.body.message, 'Session ID Required');
             });
         });
     });
