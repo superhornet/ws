@@ -3,12 +3,17 @@ DROP TABLE IF EXISTS affiliations CASCADE;
 DROP TABLE IF EXISTS stacks;
 DROP TABLE IF EXISTS substacks CASCADE;
 DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS otp_requests;
 DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
     expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
     otp TEXT NOT NULL CHECK(length(otp) = 6),
-    uuid UUID DEFAULT uuidv7()
+    uuid UUID DEFAULT uuidv7(),
+    -- Bound user once the session has authenticated (signup or login OTP).
+    -- NULL while the session is still anonymous. The FK is added after the
+    -- users table is created below.
+    user_identifier UUID
 );
 
 DROP TABLE IF EXISTS audit;
@@ -26,6 +31,7 @@ CREATE TABLE users(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
     email TEXT NOT NULL,
+    phone_e164 TEXT,
     email_host TEXT NOT NULL,
     emailid TEXT NOT NULL,
     firstname TEXT NOT NULL,
@@ -43,6 +49,32 @@ CREATE TABLE users(
     CONSTRAINT unique_affiliate UNIQUE (affiliate)
 
   );
+CREATE UNIQUE INDEX idx_users_phone_e164 ON users(phone_e164) WHERE phone_e164 IS NOT NULL AND deleted = FALSE;
+
+-- Bind sessions to a user now that the users table exists.
+ALTER TABLE sessions
+    ADD CONSTRAINT fk_sessions_user_identifier
+    FOREIGN KEY (user_identifier)
+    REFERENCES users (user_identifier);
+CREATE INDEX idx_sessions_user_identifier ON sessions(user_identifier);
+
+CREATE TABLE otp_requests(
+    otp_request_id UUID PRIMARY KEY,
+    channel TEXT NOT NULL CHECK(channel IN ('phone', 'email')),
+    destination_hash TEXT NOT NULL CHECK(length(destination_hash) = 64),
+    purpose TEXT NOT NULL CHECK(purpose IN ('login', 'signup', 'recovery_email')),
+    session_uuid UUID,
+    phone_e164 TEXT,
+    otp_hash TEXT NOT NULL CHECK(length(otp_hash) = 64),
+    expires_at TIMESTAMP NOT NULL,
+    verified_at TIMESTAMP DEFAULT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    resend_available_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW()),
+    updated_at TIMESTAMP NOT NULL DEFAULT (NOW())
+);
+CREATE INDEX idx_otp_requests_lookup ON otp_requests(channel, destination_hash, purpose, created_at DESC);
+CREATE INDEX idx_otp_requests_session ON otp_requests(session_uuid);
 CREATE TABLE affiliations(
     id SERIAL PRIMARY KEY,
     affiliation_code TEXT NOT NULL CHECK(length(affiliation_code) = 7),
@@ -72,7 +104,12 @@ CREATE TABLE stacks(
     owner_identifier UUID REFERENCES users(user_identifier),
     stack_name TEXT NOT NULL,
     stack_identifier UUID DEFAULT uuidv7(),
+    goal_amount INTEGER, --Target in cents, NULL when unset
+    goal_deadline TIMESTAMP,
+    category TEXT,
+    emoji TEXT,
     created_at TIMESTAMP DEFAULT (NOW()),
+    updated_at TIMESTAMP DEFAULT (NOW()),
     created_by INTEGER,
     CONSTRAINT fk_owner_id
         FOREIGN KEY (owner_identifier)
@@ -82,7 +119,10 @@ CREATE TABLE stacks(
 CREATE TABLE substacks(
     id SERIAL PRIMARY KEY,
     balance INTEGER DEFAULT 0, --Value in cents
+    goal_amount INTEGER, --Target in cents, NULL when unset
+    goal_deadline TIMESTAMP,
     created_at TIMESTAMP DEFAULT (NOW()),
+    updated_at TIMESTAMP DEFAULT (NOW()),
     created_by INTEGER,
     deleted BOOLEAN DEFAULT FALSE,
     stack_identifier UUID,
@@ -99,6 +139,7 @@ CREATE TABLE transactions(
     occurred_at TIMESTAMP NOT NULL DEFAULT (NOW()),
     processor TEXT CHECK(processor IN ('Internal', 'ACH', 'Moonpay', 'Stripe', 'Apple', 'Google', 'CashApp', 'Bitcoin')) NOT NULL DEFAULT 'Internal',
     processed_at TIMESTAMP DEFAULT NULL,
+    status TEXT CHECK(status IN ('pending', 'settled', 'failed')) NOT NULL DEFAULT 'settled',
     from_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
     to_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
     notation TEXT DEFAULT NULL,
@@ -113,6 +154,21 @@ CREATE TABLE transactions(
         FOREIGN KEY (to_identifier)
         REFERENCES substacks (substack_identifier)
 );
+
+CREATE TABLE recurring_deposits(
+    id SERIAL PRIMARY KEY,
+    recurring_deposit_identifier UUID DEFAULT uuidv7(),
+    deleted BOOLEAN DEFAULT FALSE,
+    from_identifier UUID NOT NULL,
+    to_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    frequency TEXT NOT NULL CHECK(frequency IN ('weekly', 'biweekly', 'monthly')) DEFAULT 'monthly',
+    next_run_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW()),
+    updated_at TIMESTAMP NOT NULL DEFAULT (NOW()),
+    CONSTRAINT unique_recurring_deposit UNIQUE (recurring_deposit_identifier)
+);
+CREATE INDEX idx_recurring_deposits_to ON recurring_deposits(to_identifier);
 
 DROP TABLE IF EXISTS raffles;
 CREATE TABLE raffles(

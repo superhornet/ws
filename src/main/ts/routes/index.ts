@@ -2,6 +2,7 @@
 import * as express from "express";
 import JSONResponse from "../libs/JSONResponse.ts";
 import { withTransaction } from "../libs/postgresDB.ts";
+import { AUDIT_DDL, IDEMPOTENCY_KEYS_DDL, OTP_REQUESTS_DDL, RECURRING_DEPOSITS_DDL, SESSIONS_USER_BINDING_DDL } from "../libs/schema.ts";
 export const router = express.Router();
 
 /**
@@ -26,32 +27,29 @@ router.get("/reset", (req, res) => {
             await client.query(`
 DROP TABLE IF EXISTS raffle_entries;
 DROP TABLE IF EXISTS affiliations CASCADE;
+DROP TABLE IF EXISTS recurring_deposits;
 DROP TABLE IF EXISTS stacks;
 DROP TABLE IF EXISTS substacks CASCADE;
 DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS otp_requests;
 DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
     expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
     otp TEXT NOT NULL CHECK(length(otp) = 6),
-    uuid UUID DEFAULT uuidv7()
+    uuid UUID DEFAULT uuidv7(),
+    user_identifier UUID
 );
 
 DROP TABLE IF EXISTS audit;
-CREATE TABLE audit(
-    id SERIAL PRIMARY KEY,
-    deleted BOOLEAN DEFAULT FALSE,
-    message TEXT NOT NULL,
-    session UUID DEFAULT uuidv7(),
-    time_at timestamp NOT NULL DEFAULT (NOW()),
-    type TEXT
-    );
+${AUDIT_DDL}
 
 DROP TABLE IF EXISTS users;
 CREATE TABLE users(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
     email TEXT NOT NULL,
+    phone_e164 TEXT,
     email_host TEXT NOT NULL,
     emailid TEXT NOT NULL,
     firstname TEXT NOT NULL,
@@ -69,6 +67,11 @@ CREATE TABLE users(
     CONSTRAINT unique_affiliate UNIQUE (affiliate)
 
   );
+CREATE UNIQUE INDEX idx_users_phone_e164 ON users(phone_e164) WHERE phone_e164 IS NOT NULL AND deleted = FALSE;
+
+${SESSIONS_USER_BINDING_DDL}
+
+${OTP_REQUESTS_DDL}
 
   CREATE TABLE affiliations(
     id SERIAL PRIMARY KEY,
@@ -100,7 +103,12 @@ CREATE TABLE stacks(
     owner_identifier UUID REFERENCES users(user_identifier),
     stack_name TEXT NOT NULL,
     stack_identifier UUID DEFAULT uuidv7(),
+    goal_amount INTEGER,
+    goal_deadline TIMESTAMP,
+    category TEXT,
+    emoji TEXT,
     created_at TIMESTAMP DEFAULT (NOW()),
+    updated_at TIMESTAMP DEFAULT (NOW()),
     created_by INTEGER,
     CONSTRAINT fk_owner_id
         FOREIGN KEY (owner_identifier)
@@ -110,7 +118,10 @@ CREATE TABLE stacks(
 CREATE TABLE substacks(
     id SERIAL PRIMARY KEY,
     balance INTEGER DEFAULT 0, --Value in cents
+    goal_amount INTEGER,
+    goal_deadline TIMESTAMP,
     created_at TIMESTAMP DEFAULT (NOW()),
+    updated_at TIMESTAMP DEFAULT (NOW()),
     created_by INTEGER,
     deleted BOOLEAN DEFAULT FALSE,
     stack_identifier UUID,
@@ -127,6 +138,7 @@ CREATE TABLE transactions(
     occurred_at TIMESTAMP NOT NULL DEFAULT (NOW()),
     processor TEXT CHECK(processor IN ('Internal', 'ACH', 'Moonpay', 'Stripe', 'Apple', 'Google', 'CashApp', 'Bitcoin')) NOT NULL DEFAULT 'Internal',
     processed_at TIMESTAMP DEFAULT NULL,
+    status TEXT CHECK(status IN ('pending', 'settled', 'failed')) NOT NULL DEFAULT 'settled',
     from_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
     to_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
     notation TEXT DEFAULT NULL,
@@ -141,6 +153,8 @@ CREATE TABLE transactions(
         FOREIGN KEY (to_identifier)
         REFERENCES substacks (substack_identifier)
 );
+
+${RECURRING_DEPOSITS_DDL}
 
 DROP TABLE IF EXISTS raffles;
 CREATE TABLE raffles(
@@ -163,19 +177,7 @@ CREATE TABLE raffle_entries(
 );
 
 DROP TABLE IF EXISTS idempotency_keys;
-CREATE TABLE idempotency_keys(
-    id SERIAL PRIMARY KEY,
-    idempotency_key TEXT NOT NULL CHECK(length(idempotency_key) >= 1 AND length(idempotency_key) <= 255),
-    session_id TEXT NOT NULL CHECK(length(session_id) = 36),
-    route_path TEXT NOT NULL,
-    status TEXT NOT NULL CHECK(status IN ('in_progress', 'completed')) DEFAULT 'in_progress',
-    response_code INTEGER,
-    response_body JSONB,
-    created_at TIMESTAMP NOT NULL DEFAULT (NOW()),
-    completed_at TIMESTAMP,
-    UNIQUE(session_id, idempotency_key, route_path)
-);
-CREATE INDEX idx_idempotency_keys_created ON idempotency_keys(created_at);
+${IDEMPOTENCY_KEYS_DDL}
 `)});
         JSONResponse.goodToGo(req, res, "OK", null);
     } catch (error) {

@@ -1,11 +1,13 @@
 import dotenv from "dotenv";
 import { App } from "./App.ts";
+import { ensureDatabaseSchema } from "./libs/postgresDB.ts";
 
 // initialize configuration
 dotenv.config();
 
-// port available to the node.js runtime like an environment variable
-const port: string | undefined = process.env.SERVER_PORT;
+// Port for the HTTP server. Managed platforms (Render, Railway, Fly, Cloud Run,
+// Heroku, etc.) inject `PORT`; local/dev and docker-compose use `SERVER_PORT`.
+const port: string = process.env.PORT ?? process.env.SERVER_PORT ?? "3000";
 
 /**
  * Listen method:
@@ -14,6 +16,8 @@ const port: string | undefined = process.env.SERVER_PORT;
  * @param lambda
  * Starts the Express server
  */
+await ensureDatabaseSchema();
+
 new App().express.listen( port, () => {
   // tslint:disable-next-line:no-console
     console.log( `server started at http://localhost:${ port }` );
