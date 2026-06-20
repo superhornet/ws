@@ -11,10 +11,10 @@ isolated environments — **staging** (what the TestFlight beta uses) and
 One Render **project** (`westack`) contains two **environments**, each with its
 own web service and its own Postgres database:
 
-| App build | EAS profile | API URL (example) | Render environment | Database |
-|-----------|-------------|-------------------|--------------------|----------|
-| TestFlight beta | `preview` | `https://westack-api-staging.onrender.com` | `staging` | `westack-db-staging` |
-| App Store release | `production` | `https://westack-api.onrender.com` | `production` | `westack-db` |
+| App build | EAS profile | API URL (example) | Render environment | Deploys from | Database |
+|-----------|-------------|-------------------|--------------------|--------------|----------|
+| TestFlight beta | `preview` | `https://westack-api-staging.onrender.com` | `staging` | `staging` branch | `westack-db-staging` |
+| App Store release | `production` | `https://westack-api.onrender.com` | `production` | `main` branch | `westack-db` |
 
 - `networking.isolation: enabled` blocks a service in one environment from
   reaching the other environment's database.
@@ -170,9 +170,10 @@ The eventual App Store build uses `--profile production`.
 
 ## Day-to-day
 
-- **Deploys:** both services auto-deploy from `main` by default. To make staging
-  a true pre-prod gate, change the staging service's `branch` in `render.yaml`
-  to a `staging`/`develop` branch.
+- **Deploys:** production auto-deploys from `main`; staging auto-deploys from the
+  dedicated `staging` branch (see `render.yaml`). Promote a release by merging
+  `staging` into `main`. Push beta changes to `staging` to ship them to the
+  TestFlight build's API without touching production.
 - **Schema changes:** add incremental, idempotent migrations to
   `ensureDatabaseSchema()` in `src/main/ts/libs/postgresDB.ts` (runs on every
   boot). Do **not** re-run `init.sql` against a database with real data.

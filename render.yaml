@@ -92,9 +92,10 @@ projects:
             runtime: docker
             dockerfilePath: ./Dockerfile
             plan: starter
-            # Point staging at a separate branch (e.g. "staging") if you want a
-            # pre-prod gate; using main deploys the same code as production.
-            branch: main
+            # Staging is a pre-prod gate: it deploys from the dedicated `staging`
+            # branch so beta (TestFlight) code can be validated before it is
+            # merged into `main` for the production App Store release.
+            branch: staging
             healthCheckPath: /health
             envVars:
               - key: NODE_ENV
