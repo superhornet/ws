@@ -9,7 +9,7 @@ CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
     expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
     otp TEXT NOT NULL CHECK(length(otp) = 6),
-    uuid UUID DEFAULT uuidv7(),
+    uuid UUID DEFAULT gen_random_uuid(),
     -- Bound user once the session has authenticated (signup or login OTP).
     -- NULL while the session is still anonymous. The FK is added after the
     -- users table is created below.
@@ -21,7 +21,7 @@ CREATE TABLE audit(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL,
-    session UUID DEFAULT uuidv7(),
+    session UUID DEFAULT gen_random_uuid(),
     time_at timestamp NOT NULL DEFAULT (NOW()),
     type TEXT
     );
@@ -36,7 +36,7 @@ CREATE TABLE users(
     emailid TEXT NOT NULL,
     firstname TEXT NOT NULL,
     lastname TEXT NOT NULL,
-    user_identifier UUID DEFAULT uuidv7(),
+    user_identifier UUID DEFAULT gen_random_uuid(),
     affiliate TEXT NOT NULL CHECK(length(affiliate) = 7),
     address1 TEXT NOT NULL,
     address2 TEXT NOT NULL,
@@ -92,7 +92,7 @@ DROP TABLE IF EXISTS notifications;
 CREATE TABLE notifications(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
-    notification_identifier UUID DEFAULT uuidv7(),
+    notification_identifier UUID DEFAULT gen_random_uuid(),
     notification_for UUID DEFAULT NULL,
     seen BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL
@@ -103,7 +103,7 @@ CREATE TABLE stacks(
     deleted BOOLEAN DEFAULT FALSE,
     owner_identifier UUID REFERENCES users(user_identifier),
     stack_name TEXT NOT NULL,
-    stack_identifier UUID DEFAULT uuidv7(),
+    stack_identifier UUID DEFAULT gen_random_uuid(),
     goal_amount INTEGER, --Target in cents, NULL when unset
     goal_deadline TIMESTAMP,
     category TEXT,
@@ -126,7 +126,7 @@ CREATE TABLE substacks(
     created_by INTEGER,
     deleted BOOLEAN DEFAULT FALSE,
     stack_identifier UUID,
-    substack_identifier UUID DEFAULT uuidv7(),
+    substack_identifier UUID DEFAULT gen_random_uuid(),
     substack_name TEXT NOT NULL,
     users_list TEXT NOT NULL,
     CONSTRAINT unique_substack UNIQUE (substack_identifier)
@@ -157,7 +157,7 @@ CREATE TABLE transactions(
 
 CREATE TABLE recurring_deposits(
     id SERIAL PRIMARY KEY,
-    recurring_deposit_identifier UUID DEFAULT uuidv7(),
+    recurring_deposit_identifier UUID DEFAULT gen_random_uuid(),
     deleted BOOLEAN DEFAULT FALSE,
     from_identifier UUID NOT NULL,
     to_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
@@ -172,7 +172,7 @@ CREATE INDEX idx_recurring_deposits_to ON recurring_deposits(to_identifier);
 
 DROP TABLE IF EXISTS raffles;
 CREATE TABLE raffles(
-    raffle_id UUID PRIMARY KEY DEFAULT uuidv7(),
+    raffle_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     raffle_name TEXT NOT NULL,
     drawing_date TIMESTAMP DEFAULT (NOW() + INTERVAL '30 Days')
 );

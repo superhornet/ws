@@ -3,8 +3,9 @@ import { createHash } from "node:crypto";
 import type { Request } from "express";
 
 function otpDestinationKey(req: Request): string {
-    const body = req.body as { phone?: string; email?: string } | undefined;
-    const destination = body?.phone ?? body?.email ?? "missing-destination";
+    const body = req.body as { phone?: unknown; email?: unknown } | undefined;
+    const candidate = body?.phone ?? body?.email;
+    const destination = typeof candidate === "string" ? candidate : "missing-destination";
     return createHash("sha256")
         .update(`${ipKeyGenerator(req.ip ?? "unknown")}:${destination.trim().toLowerCase()}`)
         .digest("hex");

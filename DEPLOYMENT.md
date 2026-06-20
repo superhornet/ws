@@ -59,8 +59,9 @@ recreates tables. It is **not** run on boot. On startup the app only runs
 Therefore each fresh Render database must be initialized **once** with
 `init.sql`.
 
-`init.sql` uses `uuidv7()`, which requires **PostgreSQL 18** — this is pinned
-via `postgresMajorVersion: "18"` in `render.yaml`.
+`init.sql` uses `gen_random_uuid()`, which is available on **PostgreSQL 13+**,
+so no specific major version is pinned in `render.yaml` (and it runs on managed
+hosts like Supabase that don't ship the PG 18 `uuidv7()` builtin).
 
 > Running `init.sql` against a database that already has data will erase it. Run
 > it only on a brand-new database.

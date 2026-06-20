@@ -11,8 +11,9 @@
 #
 # After Render first provisions each database, run init.sql against it ONCE to
 # create the base tables (init.sql is destructive and is NOT run on boot; the
-# app only runs incremental migrations at startup). uuidv7() requires PG 18,
-# which is pinned below.
+# app only runs incremental migrations at startup). The schema uses
+# gen_random_uuid() (available on PG 13+), so no specific major version is
+# required.
 #
 # Secrets (Cybrid keys, OTP provider tokens) use `sync: false` so Render prompts
 # for them on deploy instead of storing them in git.
@@ -31,7 +32,6 @@ projects:
         databases:
           - name: westack-db
             plan: basic-256mb
-            postgresMajorVersion: "18"
         services:
           - name: westack-api
             type: web
@@ -86,7 +86,6 @@ projects:
         databases:
           - name: westack-db-staging
             plan: basic-256mb
-            postgresMajorVersion: "18"
         services:
           - name: westack-api-staging
             type: web

@@ -66,7 +66,7 @@ export const OTP_REQUESTS_DDL = `
 export const RECURRING_DEPOSITS_DDL = `
   CREATE TABLE IF NOT EXISTS recurring_deposits(
     id SERIAL PRIMARY KEY,
-    recurring_deposit_identifier UUID DEFAULT uuidv7(),
+    recurring_deposit_identifier UUID DEFAULT gen_random_uuid(),
     deleted BOOLEAN DEFAULT FALSE,
     from_identifier UUID NOT NULL,
     to_identifier UUID NOT NULL REFERENCES substacks(substack_identifier),
@@ -111,6 +111,9 @@ export const SESSIONS_USER_BINDING_DDL = `
  * frontend integration relies on (goals, timestamps, transaction status, and
  * optional stack presentation metadata). Written with `IF EXISTS` /
  * `IF NOT EXISTS` so it is safe to run on both fresh and existing databases.
+ * The `transactions.status` CHECK constraint is (re)added under a guard so
+ * databases migrated from the old column-only definition match the constraint
+ * that `init.sql` bakes in for fresh databases (`transactions_status_check`).
  */
 export const FRONTEND_FIELDS_DDL = `
   ALTER TABLE IF EXISTS stacks ADD COLUMN IF NOT EXISTS goal_amount INTEGER;
@@ -122,4 +125,20 @@ export const FRONTEND_FIELDS_DDL = `
   ALTER TABLE IF EXISTS substacks ADD COLUMN IF NOT EXISTS goal_deadline TIMESTAMP;
   ALTER TABLE IF EXISTS substacks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT (NOW());
   ALTER TABLE IF EXISTS transactions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'settled';
+  DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'transactions' AND column_name = 'status'
+    ) AND NOT EXISTS (
+      SELECT 1 FROM information_schema.table_constraints
+      WHERE table_schema = 'public'
+        AND table_name = 'transactions'
+        AND constraint_name = 'transactions_status_check'
+    ) THEN
+      ALTER TABLE transactions
+        ADD CONSTRAINT transactions_status_check
+        CHECK (status IN ('pending', 'settled', 'failed'));
+    END IF;
+  END $$;
 `;

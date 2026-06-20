@@ -2,7 +2,7 @@ import * as express from "express";
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import { TransactionQueryTypes, type TransactionAPIType } from "../types/TransactionAPITypes.ts";
 import { Transaction } from "../models/Transaction.ts";
-import { queryOrBody, requireBody, requireParam } from "../libs/requestValidation.ts";
+import { queryOrBody, requireBody, requireGuid, requireParam } from "../libs/requestValidation.ts";
 import { endpoint } from "../libs/endpoint.ts";
 import { requireActingUser, assertSelf, assertStackAccess, assertSubstackAccess } from "../libs/authorization.ts";
 
@@ -25,11 +25,12 @@ const TRANSACTION_QUERY_AUTH: Record<string, (actingUser: string, value: string)
 router.post("/transaction", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
     const t: { data: TransactionAPIType, message: string, session: string } = req.body;
+    // Reject a malformed body (missing `data`/source) here, during plan(), so it
+    // becomes a 400 before session resolution/authorize run — the 403/401 checks
+    // must never dereference an absent `data` and surface a 500 instead.
+    requireGuid(t.data?.from_identifier, "Transaction source");
     return {
-        // Built defensively: the audit message is assembled before session
-        // resolution, so a malformed body (missing `data`) must not throw here
-        // and pre-empt the 403/400 the helper would otherwise return.
-        message: `Transaction $${t.data?.amount}: From ${t.data?.from_identifier} to ${t.data?.to_identifier}.`,
+        message: `Transaction $${t.data.amount}: From ${t.data.from_identifier} to ${t.data.to_identifier}.`,
         authorize: async () => {
             const actingUser = await requireActingUser(req);
             t.data.initiated_by = actingUser;

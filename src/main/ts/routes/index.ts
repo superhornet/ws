@@ -37,7 +37,7 @@ CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
     expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
     otp TEXT NOT NULL CHECK(length(otp) = 6),
-    uuid UUID DEFAULT uuidv7(),
+    uuid UUID DEFAULT gen_random_uuid(),
     user_identifier UUID
 );
 
@@ -54,7 +54,7 @@ CREATE TABLE users(
     emailid TEXT NOT NULL,
     firstname TEXT NOT NULL,
     lastname TEXT NOT NULL,
-    user_identifier UUID DEFAULT uuidv7(),
+    user_identifier UUID DEFAULT gen_random_uuid(),
     affiliate TEXT NOT NULL CHECK(length(affiliate) = 7),
     address1 TEXT NOT NULL,
     address2 TEXT NOT NULL,
@@ -91,7 +91,7 @@ ${OTP_REQUESTS_DDL}
 CREATE TABLE notifications(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
-    notification_identifier UUID DEFAULT uuidv7(),
+    notification_identifier UUID DEFAULT gen_random_uuid(),
     notification_for UUID DEFAULT NULL,
     seen BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL
@@ -102,7 +102,7 @@ CREATE TABLE stacks(
     deleted BOOLEAN DEFAULT FALSE,
     owner_identifier UUID REFERENCES users(user_identifier),
     stack_name TEXT NOT NULL,
-    stack_identifier UUID DEFAULT uuidv7(),
+    stack_identifier UUID DEFAULT gen_random_uuid(),
     goal_amount INTEGER,
     goal_deadline TIMESTAMP,
     category TEXT,
@@ -125,7 +125,7 @@ CREATE TABLE substacks(
     created_by INTEGER,
     deleted BOOLEAN DEFAULT FALSE,
     stack_identifier UUID,
-    substack_identifier UUID DEFAULT uuidv7(),
+    substack_identifier UUID DEFAULT gen_random_uuid(),
     substack_name TEXT NOT NULL,
     users_list TEXT NOT NULL,
     CONSTRAINT unique_substack UNIQUE (substack_identifier)
@@ -158,7 +158,7 @@ ${RECURRING_DEPOSITS_DDL}
 
 DROP TABLE IF EXISTS raffles;
 CREATE TABLE raffles(
-    raffle_id UUID PRIMARY KEY DEFAULT uuidv7(),
+    raffle_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     raffle_name TEXT NOT NULL,
     drawing_date TIMESTAMP DEFAULT (NOW() + INTERVAL '30 Days')
 );
