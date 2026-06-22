@@ -1,25 +1,28 @@
 # WeStack API Deployment Guide
 
-How to deploy the WeStack backend to [Render](https://render.com) with two
-isolated environments — **staging** (what the TestFlight beta uses) and
-**production** (the App Store release) — so beta data never touches real data.
+How to deploy the WeStack backend with two environments — **staging** (what the
+TestFlight beta uses) and **production** (the App Store release) — so beta data
+never touches real data. The Express app runs on
+[Render](https://render.com); Postgres is hosted on
+[Supabase](https://supabase.com).
 
 ---
 
 ## Architecture
 
-One Render **project** (`westack`) contains two **environments**, each with its
-own web service and its own Postgres database:
+One Render **project** (`westack`) contains two **environments**, each a web
+service that connects to its **own Supabase project**:
 
-| App build | EAS profile | API URL (example) | Render environment | Deploys from | Database |
-|-----------|-------------|-------------------|--------------------|--------------|----------|
-| TestFlight beta | `preview` | `https://westack-api-staging.onrender.com` | `staging` | `staging` branch | `westack-db-staging` |
-| App Store release | `production` | `https://westack-api.onrender.com` | `production` | `main` branch | `westack-db` |
+| App build | EAS profile | API URL (example) | Render environment | Deploys from | Database (Supabase project) |
+|-----------|-------------|-------------------|--------------------|--------------|------------------------------|
+| TestFlight beta | `preview` | `https://westack-api-staging.onrender.com` | `staging` | `staging` branch | staging Supabase project |
+| App Store release | `production` | `https://westack-api.onrender.com` | `production` | `main` branch | production Supabase project |
 
-- `networking.isolation: enabled` blocks a service in one environment from
-  reaching the other environment's database.
+- Postgres is **not** provisioned by Render. Each Render service points at a
+  separate Supabase project via a `DATABASE_URL` secret, so beta data lives in a
+  different database from production data.
 - `permissions.protection: enabled` on production requires a workspace admin to
-  make destructive changes.
+  make destructive changes to the service.
 
 All of this is declared in [`render.yaml`](./render.yaml).
 
@@ -42,9 +45,10 @@ The backend was made deployment-ready for this:
 - Binds to the platform-injected `PORT` (falls back to `SERVER_PORT`, then `3000`).
 - Honors `TRUST_PROXY` so rate limiting keys on the real client IP behind
   Render's load balancer.
-- Accepts a `DATABASE_URL` connection string (Render's Blueprint only surfaces
-  `connectionString`), falling back to discrete `POSTGRES_*` vars locally.
-- Supports `POSTGRES_SSL` for TLS connections to managed Postgres.
+- Accepts a `DATABASE_URL` connection string (Supabase provides one per
+  project), falling back to discrete `POSTGRES_*` vars locally.
+- Supports `POSTGRES_SSL` for TLS connections to managed Postgres (Supabase
+  requires TLS).
 
 ---
 
@@ -56,53 +60,67 @@ recreates tables. It is **not** run on boot. On startup the app only runs
 **not** create the core tables (`users`, `stacks`, `substacks`,
 `transactions`, `notifications`, `sessions`, `affiliations`, ...).
 
-Therefore each fresh Render database must be initialized **once** with
-`init.sql`.
+Therefore each fresh Supabase project (staging and production) must be
+initialized **once** with `init.sql`.
 
-`init.sql` uses `gen_random_uuid()`, which is available on **PostgreSQL 13+**,
-so no specific major version is pinned in `render.yaml` (and it runs on managed
-hosts like Supabase that don't ship the PG 18 `uuidv7()` builtin).
+`init.sql` uses `gen_random_uuid()`, which is available on **PostgreSQL 13+** —
+Supabase ships this, so no specific major version is pinned.
 
 > Running `init.sql` against a database that already has data will erase it. Run
-> it only on a brand-new database.
+> it only on a brand-new Supabase project.
 
 ---
 
 ## First-time deploy
 
-### 1. Push the Blueprint
+### 1. Create the Supabase projects
+
+Create **two** Supabase projects — one for staging, one for production. For each,
+copy the **Session pooler** connection string (Project → Connect → "Session
+pooler"). It looks like:
+
+```
+postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+Prefer the Session pooler (port `5432`) over the direct connection: it is
+IPv4-reachable from Render and suits a long-lived `pg` Pool. Keep these strings
+for steps 2 and 3.
+
+### 2. Push the Blueprint
 
 Commit and push `render.yaml`, then in the Render dashboard:
 **New → Blueprint** → select this repository. Render provisions both
-environments, both Postgres databases, and both web services.
+environments and both web services (no databases — those live on Supabase).
 
-### 2. Provide secrets
+### 3. Provide secrets
 
 Render prompts for every `sync: false` variable. Set at minimum:
 
 | Variable | Notes |
 |----------|-------|
+| `DATABASE_URL` | The Supabase Session pooler string for **that environment** (staging string on staging, production string on production). |
 | `CYBRID_CLIENT_ID`, `CYBRID_CLIENT_SECRET` | Cybrid credentials (sandbox for staging, live for production). |
 | `CYBRID_API_BASE`, `CYBRID_AUTH_URL` | Production only; defaults to sandbox in code if unset. |
 | `OTP_SMS_WEBHOOK_URL`, `OTP_EMAIL_WEBHOOK_URL`, `OTP_PROVIDER_AUTH_TOKEN` | Point at your deployed `otp-relay`. Optional for early beta (see OTP section). |
 
 `OTP_HASH_SECRET` is auto-generated per environment; `NODE_ENV`, `POSTGRES_SSL`,
-`TRUST_PROXY`, and `DATABASE_URL` are set automatically by the Blueprint.
+and `TRUST_PROXY` are set automatically by the Blueprint.
 
-### 3. Initialize each database (once)
+### 4. Initialize each database (once)
 
-Copy each database's **External** connection string from the Render dashboard
-and run:
+Using the Supabase connection strings from step 1, run `init.sql` against each
+project once:
 
 ```bash
 # Staging
-psql "<staging external connection string>" -f init.sql
+psql "<staging supabase connection string>" -f init.sql
 
 # Production
-psql "<production external connection string>" -f init.sql
+psql "<production supabase connection string>" -f init.sql
 ```
 
-### 4. Verify
+### 5. Verify
 
 ```bash
 curl https://westack-api-staging.onrender.com/health
@@ -188,7 +206,7 @@ See [`.env.example`](./.env.example) for the full list. Production-relevant ones
 | Variable | Purpose |
 |----------|---------|
 | `PORT` | Injected by Render; takes precedence over `SERVER_PORT`. |
-| `DATABASE_URL` | Render connection string; overrides discrete `POSTGRES_*`. |
+| `DATABASE_URL` | Supabase Session pooler connection string; overrides discrete `POSTGRES_*`. |
 | `POSTGRES_SSL` | `true` to use TLS to managed Postgres. |
 | `POSTGRES_SSL_REJECT_UNAUTHORIZED` | `true` only with a trusted CA bundle. |
 | `TRUST_PROXY` | `1` behind Render's load balancer (correct client IPs for rate limiting). |
