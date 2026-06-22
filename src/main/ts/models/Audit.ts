@@ -7,7 +7,7 @@ import { Validator } from "../libs/Validator.ts";
  * No outside interface
  */
 export interface IAudit {
-    audit(): Promise<{ message: string }|undefined>;
+    audit(): Promise<{ message: string }>;
 }
 
 /**
@@ -21,6 +21,12 @@ export interface IAudit {
  */
 export class Audit implements IAudit {
     private readonly message: string;
+
+    /** Bounds for the stored audit message (matches the historical validator policy). */
+    private static readonly MIN_MESSAGE_LENGTH = 2;
+    private static readonly MAX_MESSAGE_LENGTH = 512;
+    /** Substituted when the caller-supplied message is empty/too short after sanitizing. */
+    private static readonly FALLBACK_MESSAGE = "(no message)";
 
     /**
      * @param {string} message Text content of the logged message
@@ -36,30 +42,41 @@ export class Audit implements IAudit {
             throw new Error((error as Error).message);
         }
     }
-    static async logMessage(message: string, session: string): Promise<{ message: string; } | undefined> {
-        const v = new Validator({
-            version: "1.0",
-            stringValidation: {
-                minLength: 2,
-                maxLength: 512,
-                locale: "en-us",
-            }
+
+    /**
+     * Sanitize and clamp a caller-supplied audit message into the stored range.
+     *
+     * Auditing must be guaranteed: an authorized action always produces exactly
+     * one audit row, and the (often client-supplied) message text must never be
+     * able to *suppress* that row. So instead of rejecting an out-of-range
+     * message, we strip HTML, then clamp it — truncating when too long and
+     * substituting a safe placeholder when empty/too short — so the insert always
+     * has a valid value.
+     */
+    private static normalizeMessage(message: string): string {
+        // Only `stripHtml` is needed here; it ignores Validator options, and the
+        // 2..512 range is enforced explicitly below.
+        const v = new Validator();
+        // stripHtml can expand input (e.g. "&" -> "{ampersand}"), so clamp after.
+        const sanitized = typeof message === "string" ? v.stripHtml(message).trim() : "";
+        const clamped = sanitized.slice(0, Audit.MAX_MESSAGE_LENGTH);
+        return clamped.length >= Audit.MIN_MESSAGE_LENGTH ? clamped : Audit.FALLBACK_MESSAGE;
+    }
+
+    static async logMessage(message: string, session: string): Promise<{ message: string; }> {
+        const safeMessage = Audit.normalizeMessage(message);
+        const q = await withTransaction(async (client) => {
+            return client.query(
+                `INSERT INTO audit (message, session, type) VALUES ($1, $2, $3) RETURNING message;`,
+                [safeMessage, session, 'info']
+            )
         });
-        if (v.stringValidate(v.stripHtml(message))) {
-            const q = await withTransaction(async (client) => {
-                return client.query(
-                    `INSERT INTO audit (message, session, type) VALUES ($1, $2, $3) RETURNING message;`,
-                    [v.stripHtml(message), session, 'info']
-                )
-            });
-            const row = q.rows.at(0);
-            if (!row) {
-                throw new HTMLStatusError("Failed to write to audit log", 500);
-            }
-            const auditEntry = new Audit(row.message);
-            return auditEntry.audit();
+        const row = q.rows.at(0);
+        if (!row) {
+            throw new HTMLStatusError("Failed to write to audit log", 500);
         }
-        return undefined;
+        const auditEntry = new Audit(row.message);
+        return auditEntry.audit();
     }
     /**
      * @returns Object

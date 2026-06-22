@@ -2,6 +2,7 @@ import { suite, after, describe, it, test } from "node:test";
 import assert from "node:assert";
 import { router as auditRouter } from "../../main/ts/controllers/AuditController.ts";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
+import { Audit } from "../../main/ts/models/Audit.ts";
 
 import { mockAudit, mockSession, findRouteHandler } from "../../main/ts/libs/mocks.ts";
 
@@ -67,6 +68,29 @@ suite("Testing the audit routes with session", () => {
         });
     });
 
+    });
+
+    describe("Auditing is guaranteed even for out-of-range messages", async () => {
+        const sessionHandler = findRouteHandler(sessionRouter, 'get', '/session');
+        assert.ok(sessionHandler, "Missing handler for session get");
+
+        const { req, res } = mockSession();
+        // @ts-expect-error req is fine as-is
+        await sessionHandler(req, res, null);
+        const guaranteeSession = res.body.data.uuid;
+
+        it("Writes a row with a placeholder when the message is too short", async () => {
+            const entry = await Audit.logMessage("a", guaranteeSession);
+            assert.ok(entry, "Expected an audit row to be written for a too-short message");
+            assert.equal(entry?.message, "(no message)");
+        });
+
+        it("Writes a row with a clamped message when the message is too long", async () => {
+            const longMessage = "x".repeat(600);
+            const entry = await Audit.logMessage(longMessage, guaranteeSession);
+            assert.ok(entry, "Expected an audit row to be written for a too-long message");
+            assert.equal(entry?.message.length, 512);
+        });
     });
 
     after(async () => {

@@ -34,7 +34,7 @@ mock.module('../../src/main/ts/models/Audit.ts', {
     namedExports: {
         Audit: class {
             static async create() { return { message: '', session: '' }; }
-            static async logMessage() { return undefined; }
+            static async logMessage() { return { message: '' }; }
         }
     }
 });
