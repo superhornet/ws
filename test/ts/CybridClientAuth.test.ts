@@ -3,9 +3,8 @@ import assert from "node:assert/strict";
 import { Observable, of } from "rxjs";
 import { HTMLStatusError } from "../../src/main/ts/libs/HTMLStatusError.ts";
 
-// Ensure known credentials and auth URL BEFORE CybridClient imports dotenv.
-// dotenv.config() does not overwrite existing process.env entries, so assigning
-// here wins over whatever `.env` holds.
+// Ensure known credentials and auth URL BEFORE CybridClient is imported. The
+// module captures these process.env values at load time, so assigning here wins.
 process.env.CYBRID_CLIENT_ID = "test-client-id";
 process.env.CYBRID_CLIENT_SECRET = "test-client-secret";
 process.env.CYBRID_AUTH_URL = "https://auth.test.invalid/oauth/token";

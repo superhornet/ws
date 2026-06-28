@@ -1,4 +1,3 @@
-import * as dotenv from 'dotenv';
 // @ts-expect-error - xhr2 has no type definitions
 import XMLHttpRequest from 'xhr2';
 (globalThis as { XMLHttpRequest?: unknown }).XMLHttpRequest = XMLHttpRequest;
@@ -99,8 +98,6 @@ import type {
 } from '@cybrid/cybrid-api-bank-typescript';
 import type { PostTransferParticipantBankModel } from '@cybrid/cybrid-api-bank-typescript';
 import { HTMLStatusError } from './HTMLStatusError.ts';
-
-dotenv.config({ quiet: true });
 
 const CYBRID_API_BASE = process.env.CYBRID_API_BASE || 'https://bank.sandbox.cybrid.app';
 const CYBRID_AUTH_URL = process.env.CYBRID_AUTH_URL || 'https://id.sandbox.cybrid.app/oauth/token';

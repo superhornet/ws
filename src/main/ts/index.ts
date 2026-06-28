@@ -1,9 +1,5 @@
-import dotenv from "dotenv";
 import { App } from "./App.ts";
 import { ensureDatabaseSchema } from "./libs/postgresDB.ts";
-
-// initialize configuration
-dotenv.config();
 
 // Port for the HTTP server. Managed platforms (Render, Railway, Fly, Cloud Run,
 // Heroku, etc.) inject `PORT`; local/dev and docker-compose use `SERVER_PORT`.

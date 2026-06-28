@@ -1,8 +1,5 @@
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
-import * as dotenv from 'dotenv';
 import { AUDIT_DDL, FRONTEND_FIELDS_DDL, IDEMPOTENCY_KEYS_DDL, OTP_REQUESTS_DDL, RECURRING_DEPOSITS_DDL, SESSIONS_USER_BINDING_DDL } from './schema.ts';
-
-dotenv.config({quiet: true});
 
 // Managed hosts like Render expose a single `DATABASE_URL` connection string
 // (their Blueprint `fromDatabase` only surfaces connectionString, not discrete

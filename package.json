@@ -48,7 +48,6 @@
     "devDependencies": {
         "@cucumber/cucumber": "^12.4.0",
         "@types/cors": "^2.8.19",
-        "@types/dotenv": "^6.1.1",
         "@types/express": "^5.0.6",
         "@types/fs-extra": "^11.0.4",
         "@types/node": "^25.9.1",
@@ -74,7 +73,6 @@
         "@cybrid/cybrid-api-bank-typescript": "^0.128.102",
         "@privy-io/node": "^0.21.0",
         "cors": "^2.8.6",
-        "dotenv": "^17.3.1",
         "express": "^5.2.1",
         "express-rate-limit": "^8.3.2",
         "helmet": "^8.1.0",
