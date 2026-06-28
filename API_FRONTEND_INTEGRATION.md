@@ -19,7 +19,6 @@ Most application endpoints are mounted under `/api`.
 Public routes (no session required):
 
 - `GET /health`
-- `GET /reset` (dev only — do not call from production UI)
 - `GET /api/session`
 - `DELETE /api/session`
 - `POST /api/otp/phone/start`
@@ -425,8 +424,8 @@ curl -sS -X POST http://localhost:3000/api/otp/email/verify \
 
 End-to-end flow (session → user → stack → substack → transaction) that exercises
 the new `goal_amount`, `created_at`/`updated_at`, `users_list` (array), and
-transaction `created_at`/`status` fields. Run after a `GET /reset` on a fresh dev
-database.
+transaction `created_at`/`status` fields. Run against a fresh dev database
+(provisioned with `init.sql`).
 
 ```bash
 # 1. Session
@@ -561,10 +560,6 @@ Auth: none.
 ```json
 { "code": 200, "data": null, "message": "OK" }
 ```
-
-### `GET /reset`
-
-Auth: none. **Destructive dev endpoint** — drops and recreates all database tables.
 
 ---
 
@@ -1536,7 +1531,6 @@ Rate-limited responses: HTTP `429` with standard envelope.
 - **Phone OTP endpoints are public**. Email OTP endpoints require `X-Session` and `session` in the body.
 - **Do not hardcode `123456`**. Use the real OTP start/verify flow; only local dev may expose `data.dev_otp`.
 - **Sessions are bound to a user** — after signup/login a session acts as exactly one user, and authenticated endpoints enforce that the session's user owns or belongs to the resource being read/modified (otherwise `403`). An anonymous (unbound) session is rejected with `403` on endpoints that need a user.
-- **Do not call `GET /reset`** from UI code.
 - **`POST /api/transaction` is not idempotent** — avoid automatic retry.
 - **Money units**: substack balances and Cybrid fiat transfers use **cents**; internal transaction create accepts decimal dollars but returns cents.
 - **`204` responses still include JSON** — do not assume an empty body.
@@ -1559,7 +1553,7 @@ Rate-limited responses: HTTP `429` with standard envelope.
 
 | Group | Count |
 |-------|-------|
-| Infrastructure (`/health`, `/reset`) | 2 |
+| Infrastructure (`/health`) | 1 |
 | Session | 2 |
 | OTP | 4 |
 | Audit | 1 |
@@ -1571,4 +1565,4 @@ Rate-limited responses: HTTP `429` with standard envelope.
 | Notification | 5 |
 | Affiliate | 1 |
 | Cybrid proxy | 65 |
-| **Total** | **100** |
+| **Total** | **99** |
