@@ -4,7 +4,7 @@ import { router as sessionRouter } from "../../main/ts/controllers/SessionContro
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { router as stackRouter } from "../../main/ts/controllers/StackController.ts";
 import { router as substackRouter } from "../../main/ts/controllers/SubstackController.ts";
-import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack, mockSubStack } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack, mockSubStack } from "./mocks.ts";
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 import { SubStackQueryTypes } from "../../main/ts/types/SubStackAPITypes.ts";
 
@@ -189,7 +189,7 @@ suite("Testing the SubStack routes with session", () => {
                     assert.equal(res.body.message, 'OK');
                 });
                 test("That two results were retrieved", () => {
-                    assert.equal(res.body.data.length, 2);
+                    assert.equal((res.body.data as unknown[]).length, 2);
                 });
             });
             test("List Substacks by Owner ID", async () => {
@@ -211,7 +211,7 @@ suite("Testing the SubStack routes with session", () => {
                     assert.equal(res.body.message, 'OK');
                 });
                 test("That two results were retrieved", () => {
-                    assert.equal(res.body.data.length, 2);
+                    assert.equal((res.body.data as unknown[]).length, 2);
                 });
             });
             test("List Substacks by Substack Name", async () => {
@@ -233,7 +233,7 @@ suite("Testing the SubStack routes with session", () => {
                     assert.equal(res.body.message, 'OK');
                 });
                 test("That one result is retrieved", () => {
-                    assert.notEqual(res.body.data.length, 0);
+                    assert.notEqual((res.body.data as unknown[]).length, 0);
                 });
             });
             test("Rename Substack", async () => {

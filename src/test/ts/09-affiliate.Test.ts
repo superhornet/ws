@@ -7,7 +7,7 @@ import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { router as affiliateRouter } from "../../main/ts/controllers/AffiliateController.ts";
-import { findRouteHandler, mockSession, mockUser, mockAffiliate } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockSession, mockUser, mockAffiliate } from "./mocks.ts";
 import { type UserAPIType } from "../../main/ts/types/UserAPITypes.ts";
 
 suite("Affiliation test suite", () => {
@@ -141,7 +141,7 @@ suite("Affiliation test suite", () => {
                     assert.equal(res.body.message, "Created", "Response message should be Created");
                 })
                 test("Returns the two relations", async () => {
-                    if (res.body.data.length === 2) {
+                    if ((res.body.data as unknown[]).length === 2) {
                         const relation1 = res.body.data.at(0);
                         const relation2 = res.body.data.at(1);
                         assert.strictEqual(relation1!.affiliation_type, AffiliationType.ANCESTOR);

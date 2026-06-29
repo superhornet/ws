@@ -5,7 +5,7 @@ import { router as userRouter } from "../../main/ts/controllers/UserController.t
 import { router as stackRouter } from "../../main/ts/controllers/StackController.ts";
 import { router as substackRouter } from "../../main/ts/controllers/SubstackController.ts";
 import { router as transactionRouter } from "../../main/ts/controllers/TransactionController.ts";
-import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack, mockSubStack, mockTransaction } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack, mockSubStack, mockTransaction } from "./mocks.ts";
 import { TransactionItemType, TransactionProcessorType, TransactionQueryTypes } from "../../main/ts/types/TransactionAPITypes.ts";
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 // import { TransactionItemType, TransactionProcessorType } from "../../main/ts/types/TransactionAPITypes.ts";
@@ -464,7 +464,7 @@ suite("Testing the Transaction routes with session", () => {
                 await handler(req, res, null);
                 test("Check that it was successful", () => {
                     assert.equal(res.statusCode, 200);
-                    assert.equal(res.body.data.length, 3);
+                    assert.equal((res.body.data as unknown[]).length, 3);
                 });
             });
             it("List transactions for Cotton Candy Substack", async () => {
@@ -485,7 +485,7 @@ suite("Testing the Transaction routes with session", () => {
                 await handler(req, res, null);
                 test("Check that it was successful", () => {
                     assert.equal(res.statusCode, 200);
-                    assert.equal(res.body.data.length, 3);
+                    assert.equal((res.body.data as unknown[]).length, 3);
                 });
             });
         });
@@ -507,7 +507,7 @@ suite("Testing the Transaction routes with session", () => {
             await handler(req, res, null);
             test("Check that it was successful", () => {
                 assert.equal(res.statusCode, 200);
-                assert.equal(res.body.data.length, 2);
+                assert.equal((res.body.data as unknown[]).length, 2);
             });
         });
     });

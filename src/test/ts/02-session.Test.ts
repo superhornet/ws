@@ -1,7 +1,7 @@
 import { describe, it, suite, test, after } from "node:test";
 import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
-import { findRouteHandler, mockSession } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockSession } from "./mocks.ts";
 
 suite("Testing the Session routes", () => {
     describe("Make GET request to /api/session endpoint", () => {

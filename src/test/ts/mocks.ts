@@ -1,12 +1,12 @@
-import { router as AuditRouter } from '../../../main/ts/controllers/AuditController.ts'
-import { router as SessionRouter } from '../../../main/ts/controllers/SessionController.ts'
-import type { NotificationAPIType } from '../types/NotificationAPITypes.ts';
-import type { StackAPIType } from '../types/StackAPITypes.ts';
-import { type SubStackAPIType } from '../types/SubStackAPITypes.ts';
-import { SubscriptionType } from '../types/SubscriptionTypes.ts';
-import { TransactionItemType, TransactionProcessorType, type TransactionAPIType } from '../types/TransactionAPITypes.ts';
-import type { UserAPIType } from '../types/UserAPITypes.ts';
-import { AffiliationType, type AffiliateAPIType } from '../types/AffiliateAPITypes.ts';
+import { router as AuditRouter } from '../../main/ts/controllers/AuditController.ts'
+import { router as SessionRouter } from '../../main/ts/controllers/SessionController.ts'
+import type { NotificationAPIType } from '../../main/ts/types/NotificationAPITypes.ts';
+import type { StackAPIType } from '../../main/ts/types/StackAPITypes.ts';
+import { type SubStackAPIType } from '../../main/ts/types/SubStackAPITypes.ts';
+import { SubscriptionType } from '../../main/ts/types/SubscriptionTypes.ts';
+import { TransactionItemType, TransactionProcessorType, type TransactionAPIType } from '../../main/ts/types/TransactionAPITypes.ts';
+import type { UserAPIType } from '../../main/ts/types/UserAPITypes.ts';
+import { AffiliationType, type AffiliateAPIType } from '../../main/ts/types/AffiliateAPITypes.ts';
 
 type MockResponse = {
     statusCode: number;

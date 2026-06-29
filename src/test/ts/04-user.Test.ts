@@ -2,7 +2,7 @@ import { after, describe, test } from "node:test";
 import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
-import { findRouteHandler, mockGetRequest, mockSession, mockUser } from '../../main/ts/libs/mocks.ts'
+import { findRouteHandler, mockGetRequest, mockSession, mockUser } from './mocks.ts'
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 import { type UserAPIType } from "../../main/ts/types/UserAPITypes.ts";
 
