@@ -4,7 +4,7 @@ import { router as auditRouter } from "../../main/ts/controllers/AuditController
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { Audit } from "../../main/ts/models/Audit.ts";
 
-import { mockAudit, mockSession, findRouteHandler } from "../../main/ts/libs/mocks.ts";
+import { mockAudit, mockSession, findRouteHandler } from "./mocks.ts";
 
 suite("Testing the Audit routes without session", () => {
     describe("Make a POST request to /api/audit endpoint", () => {

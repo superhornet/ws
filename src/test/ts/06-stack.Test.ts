@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { router as stackRouter } from "../../main/ts/controllers/StackController.ts";
-import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack } from "./mocks.ts";
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 
 let sharedSession: string = "";

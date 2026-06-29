@@ -1,7 +1,7 @@
 import { test, after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { router as healthRouter } from "../../main/ts/routes/index.ts"
-import { findRouteHandler, mockHealth } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockHealth } from "./mocks.ts";
 
 describe("Testing the health routes", { skip: false }, async () => {
     describe("Make GET request to /health endpoint", async () => {
