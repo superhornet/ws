@@ -99,11 +99,11 @@ export class Session implements ISession {
             throw new HTMLStatusError("Invalid session", 400);
         }
         try {
-            const updated = await query<{ id: number }>(
+            const updated = await query<{ uuid: string }>(
                 `UPDATE sessions
                 SET user_identifier = $2
                 WHERE uuid = $1 AND expires > NOW()
-                RETURNING id;`,
+                RETURNING uuid;`,
                 [session, userIdentifier],
             );
             if (updated.length === 0) {
