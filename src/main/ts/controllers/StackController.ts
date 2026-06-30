@@ -1,103 +1,83 @@
 import * as express from "express";
-import JSONResponse from "../libs/JSONResponse.ts";
-import { Audit } from "../models/Audit.ts";
-import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import type { StackAPIType } from "../types/StackAPITypes.ts";
 import { Stack } from "../models/Stack.ts";
-import { Session } from "../models/Session.ts";
+import { queryOrBody, requireBody, requireParam } from "../libs/requestValidation.ts";
+import { endpoint } from "../libs/endpoint.ts";
+import { requireActingUser, assertSelf, assertStackAccess, assertStackOwner } from "../libs/authorization.ts";
 export const router = express.Router();
 
 /**
- * Create a Stack
+ * Create a Stack. The owner is always the acting user; any client-supplied
+ * owner_identifier is ignored so a session cannot create stacks for someone else.
  */
-router.post("/stack", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const s: { data: StackAPIType, message: string, session: string } = req.body;
-
-        if (s.session === undefined || s.session.length === 0) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else if (await Session.exists(s.session)) {
-            await Audit.logMessage(s.message, s.session);
-            const stack = await Stack.storeStack(s.data);
-            JSONResponse.creationSuccess(req, res, "Created", stack as unknown as JSON);
-        } else {
-            throw new HTMLStatusError("Unauthorized", 403);
-        }
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
+router.post("/stack", (req, res) => endpoint(req, res, () => {
+    requireBody(req);
+    const s: { data: StackAPIType, message: string, session: string } = req.body;
+    return {
+        message: s.message,
+        authorize: async () => {
+            s.data.owner_identifier = await requireActingUser(req);
+        },
+        run: async () => ({ status: "created", data: await Stack.storeStack(s.data) }),
+    };
+}));
 
 /**
  * List a user's stacks
  */
-router.get("/stacks", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const s: { data: StackAPIType, message: string, session: string } = req.body;
-        if (s.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else if (await Session.exists(s.session)) {
-            Audit.logMessage(s.message, s.session);
-            const stacks: Array<StackAPIType> = await Stack.getForUser(s.data.owner_identifier || "");
-            JSONResponse.goodToGo(req, res, "OK", stacks as unknown as JSON)
-        } else {
-            throw new HTMLStatusError("Unauthorized", 403);
-        }
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError)
-    }
-});
+router.get("/stacks", (req, res) => endpoint(req, res, () => {
+    const owner_identifier = queryOrBody(req, "owner_identifier", req.body?.data?.owner_identifier);
+    requireParam(owner_identifier, "Owner identifier");
+    const message = queryOrBody(req, "message", req.body?.message) ?? `List stacks for ${owner_identifier}`;
+    return {
+        message,
+        authorize: async () => assertSelf(await requireActingUser(req), owner_identifier),
+        run: async () => ({ status: "ok", data: await Stack.getForUser(owner_identifier) }),
+    };
+}));
+
+/**
+ * List the members of a shared stack
+ */
+router.get("/stack/members", (req, res) => endpoint(req, res, () => {
+    const stack_identifier = queryOrBody(req, "stack_identifier", req.body?.data?.stack_identifier);
+    requireParam(stack_identifier, "Stack identifier");
+    const message = queryOrBody(req, "message", req.body?.message) ?? `List members for ${stack_identifier}`;
+    return {
+        message,
+        authorize: async () => assertStackAccess(await requireActingUser(req), stack_identifier),
+        run: async () => ({ status: "ok", data: await Stack.getMembers(stack_identifier) }),
+    };
+}));
 
 /**
  * Update a stack's name
-*/
-router.put("/stack", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const s: { data: StackAPIType, message: string, session: string } = req.body;
-        if (s.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else if (await Session.exists(s.session)) {
-            Audit.logMessage(s.message, s.session);
-            if (await Stack.updateStack(s.data)) {
-                JSONResponse.updateSuccess(req, res, "Accepted", null)
-            }
-        } else {
-            throw new HTMLStatusError("Unauthorized", 403);
-        }
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError)
-    }
-});
+ */
+router.put("/stack", (req, res) => endpoint(req, res, () => {
+    requireBody(req);
+    const s: { data: StackAPIType, message: string, session: string } = req.body;
+    return {
+        message: s.message,
+        authorize: async () => assertStackOwner(await requireActingUser(req), s.data.stack_identifier),
+        run: async () => {
+            await Stack.updateStack(s.data);
+            return { status: "accepted" };
+        },
+    };
+}));
 
 /**
  * Delete a stack
  */
-router.delete("/stack", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON body", 400);
-        }
-        const s: { data: StackAPIType, message: string, session: string } = req.body;
-        if (s.session === undefined) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else if (await Session.exists(s.session)) {
-            Audit.logMessage(s.message, s.session);
-            if (await Stack.deleteStack(s.data.stack_identifier || "")) {
-                JSONResponse.noContent(req, res, "No content", null)
-            }
-        } else {
-            throw new HTMLStatusError("Unauthorized", 403);
-        }
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError)
-    }
-});
+router.delete("/stack", (req, res) => endpoint(req, res, () => {
+    requireBody(req);
+    const s: { data: StackAPIType, message: string, session: string } = req.body;
+    return {
+        message: s.message,
+        authorize: async () => assertStackOwner(await requireActingUser(req), s.data.stack_identifier),
+        run: async () => {
+            await Stack.deleteStack(s.data.stack_identifier || "");
+            return { status: "noContent" };
+        },
+    };
+}));

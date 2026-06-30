@@ -1,5 +1,5 @@
-import { TransactionItemType, TransactionProcessorType, TransactionQueryTypes, type TransactionAPIType } from "../types/TransactionAPITypes.ts";
-import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { TransactionItemType, TransactionProcessorType, TransactionQueryTypes, type TransactionAPIType, type TransactionEnum, type TransactionProcessorEnum } from "../types/TransactionAPITypes.ts";
+import { HTMLStatusError, as500 } from "../libs/HTMLStatusError.ts";
 import { SubStack } from "./SubStack.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
@@ -64,15 +64,18 @@ export class Transaction {
         const isAuthorized = authorizedUsers.has(transaction.initiated_by)
         if (amountChecked && noteChecked && isAuthorized) {
             try {
+                const feeBearingTypes: TransactionEnum[] = [TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND];
+                const feeBearingProcessors: TransactionProcessorEnum[] = [
+                    TransactionProcessorType.APPLE,
+                    TransactionProcessorType.BITCOIN,
+                    TransactionProcessorType.CASHAPP,
+                    TransactionProcessorType.GOOGLE,
+                    TransactionProcessorType.MOONPAY,
+                    TransactionProcessorType.STRIPE,
+                ];
                 const q = await withTransaction(async (client) => {
-                    if ([TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND].includes(transaction.transaction_type) &&
-                        [TransactionProcessorType.APPLE,
-                        TransactionProcessorType.BITCOIN,
-                        TransactionProcessorType.CASHAPP,
-                        TransactionProcessorType.GOOGLE,
-                        TransactionProcessorType.MOONPAY,
-                        TransactionProcessorType.STRIPE,
-                        ].includes(transaction.processor)) {
+                    if (feeBearingTypes.includes(transaction.transaction_type) &&
+                        feeBearingProcessors.includes(transaction.processor)) {
                         let fee = 0;
                         if (transaction.amount > 2500) {
                             fee = 25;
@@ -132,7 +135,7 @@ export class Transaction {
                             $7
                           )
                         RETURNING id, amount, processor, from_identifier, to_identifier,
-                        notation, transaction_type, initiated_by;`,
+                        notation, transaction_type, initiated_by, status, occurred_at AS created_at;`,
                         [transaction.amount * 100, transaction.processor, transaction.from_identifier, transaction.to_identifier,
                         transaction.notation, transaction.transaction_type, transaction.initiated_by]
                     )
@@ -149,14 +152,19 @@ export class Transaction {
                     notation: row.notation,
                     transaction_type: row.transaction_type,
                     initiated_by: row.initiated_by,
-                    balance: to_balance + row.amount
+                    balance: to_balance + row.amount,
+                    status: row.status ?? null,
+                    created_at: row.created_at ?? null,
                 }, row.id);
                 return transactionEntry.transaction;
             } catch (error) {
-                throw new Error((error as Error).message)
+                as500(error);
             }
         }
-        return undefined;
+        if (!isAuthorized) {
+            throw new HTMLStatusError("Not authorized to transact on this substack", 403);
+        }
+        throw new HTMLStatusError("Transaction fields are invalid", 400);
     }
     public readTransaction(): TransactionAPIType {
         return this.transaction;
@@ -175,9 +183,12 @@ export class Transaction {
                         amount,
                         to_identifier,
                         from_identifier,
-                        notation
+                        notation,
+                        status,
+                        occurred_at AS created_at
                         FROM transactions
-                        WHERE to_identifier = $1 OR from_identifier=$1;`,
+                        WHERE to_identifier = $1::uuid OR from_identifier = $1::uuid
+                        ORDER BY occurred_at DESC;`,
                         [value]
                     );
                     break;
@@ -190,16 +201,24 @@ export class Transaction {
                         t.amount,
                         t.to_identifier,
                         t.from_identifier,
-                        t.notation
+                        t.notation,
+                        t.status,
+                        t.occurred_at AS created_at
                         FROM transactions AS t
                         INNER JOIN substacks AS s ON
                         t.from_identifier = s.substack_identifier OR
                         t.to_identifier = s.substack_identifier
-                        WHERE s.stack_identifier = $1;`,
+                        WHERE s.stack_identifier = $1::uuid
+                        ORDER BY t.occurred_at DESC;`,
                         [value]
                     );
                     break;
                 case TransactionQueryTypes.USER:
+                    // `occurred_at` is unique per transaction and shared by the
+                    // duplicate rows the OR-join produces (a transfer matches both
+                    // its source and destination substack), so DISTINCT collapses
+                    // those join duplicates to one row per transaction. Ordered
+                    // newest-first.
                     fetchedTransactions = await query<TransactionAPIType>(
                         `SELECT DISTINCT
                         u.email,
@@ -209,7 +228,9 @@ export class Transaction {
                         t.amount,
                         t.to_identifier,
                         t.from_identifier,
-                        t.notation
+                        t.notation,
+                        t.status,
+                        t.occurred_at AS created_at
                         FROM transactions AS t
                         INNER JOIN substacks AS ss ON
                         t.from_identifier = ss.substack_identifier OR
@@ -218,7 +239,8 @@ export class Transaction {
                         ss.stack_identifier = s.stack_identifier
                         INNER JOIN users AS u ON
                         s.owner_identifier = u.user_identifier
-                        WHERE s.owner_identifier = $1;`,
+                        WHERE s.owner_identifier = $1::uuid
+                        ORDER BY created_at DESC;`,
                     [value]
                     );
                     break;
@@ -236,13 +258,14 @@ export class Transaction {
                         amount: transaction.amount,
                         to_identifier: transaction.to_identifier,
                         from_identifier: transaction.from_identifier,
-                        notation: transaction.notation
+                        notation: transaction.notation,
+                        status: transaction.status ?? null,
+                        created_at: transaction.created_at ?? null,
                     });
                 }
             }
         } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
-
+            as500(error);
         }
         return output;
     }
@@ -259,11 +282,7 @@ export class Transaction {
             return substackID;
 
         } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
-            }
+            as500(error);
         }
     }
 

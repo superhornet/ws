@@ -1,22 +1,8 @@
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
-import * as dotenv from 'dotenv';
-
-dotenv.config({quiet: true});
-
-// Validate required env vars
-const requiredEnv = ['POSTGRES_HOST', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DATABASE', 'POSTGRES_PORT'];
-for (const key of requiredEnv) {
-  if (!process.env[key]) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-}
+import { getPostgresConnectionConfig } from './postgresConfig.ts';
 
 const pool = new Pool({
-  host: process.env.POSTGRES_HOST,
-  user: process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
-  database: process.env.POSTGRES_DATABASE,
-  port: Number(process.env.POSTGRES_PORT),
+  ...getPostgresConnectionConfig(),
   max: Number(process.env.POSTGRES_MAX) || 10,
   idleTimeoutMillis: Number(process.env.POSTGRES_IDLETIMEOUT) || 30000,
   connectionTimeoutMillis: Number(process.env.POSTGRES_CONNECTIONTIMEOUT) || 2000,

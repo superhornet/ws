@@ -1,54 +1,61 @@
 import * as express from "express";
-import JSONResponse from "../libs/JSONResponse.ts";
-import { Audit } from "../models/Audit.ts";
-import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { type TransactionAPIType } from "../types/TransactionAPITypes.ts";
+import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { TransactionQueryTypes, type TransactionAPIType } from "../types/TransactionAPITypes.ts";
 import { Transaction } from "../models/Transaction.ts";
-import { Session } from "../models/Session.ts";
+import { queryOrBody, requireBody, requireGuid, requireParam } from "../libs/requestValidation.ts";
+import { endpoint } from "../libs/endpoint.ts";
+import { requireActingUser, assertSelf, assertStackAccess, assertSubstackAccess } from "../libs/authorization.ts";
 
 export const router = express.Router();
 
 /**
- * Create Transaction
+ * Who may read transactions for a given query key. Declared once as a table so
+ * the key→authorization mapping lives in one place rather than a `switch`.
  */
-router.post("/transaction", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON Body", 400);
-        }
-        const t: {data: TransactionAPIType, message: string, session: string} = req.body;
-        if (t.session === undefined || t.session.length === 0) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else if(await Session.exists(t.session)){
-            await Audit.logMessage(`Transaction $${t.data.amount}: From ${t.data.from_identifier} to ${t.data.to_identifier}.`, t.session);
-            const transaction = await Transaction.storeTransaction(t.data);
-            JSONResponse.creationSuccess(req, res, 'Created', transaction as unknown as JSON);
-        } else {
-            throw new HTMLStatusError("Unauthorized", 403);
-        }
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
-    }
-});
+const TRANSACTION_QUERY_AUTH: Record<string, (actingUser: string, value: string) => Promise<void> | void> = {
+    [TransactionQueryTypes.SUBSTACK]: (actingUser, value) => assertSubstackAccess(actingUser, value),
+    [TransactionQueryTypes.STACK]: (actingUser, value) => assertStackAccess(actingUser, value),
+    [TransactionQueryTypes.USER]: (actingUser, value) => assertSelf(actingUser, value),
+};
+
+/**
+ * Create Transaction. The acting user is always recorded as the initiator and
+ * must have access to the source substack money is moving out of.
+ */
+router.post("/transaction", (req, res) => endpoint(req, res, () => {
+    requireBody(req, "Empty JSON Body");
+    const t: { data: TransactionAPIType, message: string, session: string } = req.body;
+    // Reject a malformed body (missing `data`/source) here, during plan(), so it
+    // becomes a 400 before session resolution/authorize run — the 403/401 checks
+    // must never dereference an absent `data` and surface a 500 instead.
+    requireGuid(t.data?.from_identifier, "Transaction source");
+    return {
+        message: `Transaction $${t.data.amount}: From ${t.data.from_identifier} to ${t.data.to_identifier}.`,
+        authorize: async () => {
+            const actingUser = await requireActingUser(req);
+            t.data.initiated_by = actingUser;
+            await assertSubstackAccess(actingUser, t.data.from_identifier);
+        },
+        run: async () => ({ status: "created", data: await Transaction.storeTransaction(t.data) }),
+    };
+}));
+
 /**
  * Read transactions
  */
-router.get("/transactions", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            throw new HTMLStatusError("Empty JSON Body", 400);
-        }
-        const t: {key: string, value: string, message: string, session: string} = req.body;
-        if (t.session === undefined || t.session.length === 0) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        } else if (await Session.exists(t.session)) {
-            await Audit.logMessage(t.message, t.session);
-            const transactions = await Transaction.getTransactions(t.key, t.value);
-            JSONResponse.goodToGo(req, res, "OK", transactions as unknown as JSON);
-        } else {
-            throw new HTMLStatusError("Unauthorized", 403);
-        }
-    } catch (error) {
-        processError(req, res, error as HTMLStatusError);
+router.get("/transactions", (req, res) => endpoint(req, res, () => {
+    const key = queryOrBody(req, "key", req.body?.key);
+    const value = queryOrBody(req, "value", req.body?.value);
+    requireParam(key, "Transaction query key");
+    requireParam(value, "Transaction query value");
+    const authorizeForKey = TRANSACTION_QUERY_AUTH[key];
+    if (!authorizeForKey) {
+        throw new HTMLStatusError("Invalid transaction query key", 400);
     }
-});
+    const message = queryOrBody(req, "message", req.body?.message) ?? `List transactions by ${key}`;
+    return {
+        message,
+        authorize: async () => authorizeForKey(await requireActingUser(req), value),
+        run: async () => ({ status: "ok", data: await Transaction.getTransactions(key, value) }),
+    };
+}));

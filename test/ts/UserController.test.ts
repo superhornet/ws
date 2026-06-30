@@ -237,30 +237,30 @@ describe('POST /api/user', () => {
 });
 
 // =============================================================================
-// GET /api/user — session via x-session header, identifier via query string
+// GET /api/user — session via x-session header, user_identifier via query string
 // =============================================================================
 
 describe('GET /api/user', () => {
     beforeEach(() => { resetAllMocks(); });
 
     it('returns 403 when the x-session header is missing', async () => {
-        const res = await sendJSON(createApp(), 'GET', '/api/user?identifier=uid-1');
+        const res = await sendJSON(createApp(), 'GET', '/api/user?user_identifier=uid-1');
         assert.equal(res.status, 403);
         assert.match(res.body.message as string, /Session/);
     });
 
-    it('returns 400 when the identifier query param is missing', async () => {
+    it('returns 400 when the user_identifier query param is missing', async () => {
         const res = await sendJSON(createApp(), 'GET', '/api/user', undefined, {
             'x-session': 'sess-1'
         });
         assert.equal(res.status, 400);
-        assert.match(res.body.message as string, /identifier/);
+        assert.match(res.body.message as string, /User identifier/);
     });
 
     it('returns 200 with the fetched user on success', async () => {
         const fetched = { id: 7, identifier: 'uid-1', firstname: 'Jane' };
         mockFetchById.mock.mockImplementation(async () => fetched);
-        const res = await sendJSON(createApp(), 'GET', '/api/user?identifier=uid-1', undefined, {
+        const res = await sendJSON(createApp(), 'GET', '/api/user?user_identifier=uid-1', undefined, {
             'x-session': 'sess-1'
         });
         assert.equal(res.status, 200);
@@ -273,14 +273,14 @@ describe('GET /api/user', () => {
         mockFetchById.mock.mockImplementation(async () => {
             throw new HTMLStatusError('User was not found', 404);
         });
-        const res = await sendJSON(createApp(), 'GET', '/api/user?identifier=missing', undefined, {
+        const res = await sendJSON(createApp(), 'GET', '/api/user?user_identifier=missing', undefined, {
             'x-session': 'sess-1'
         });
         assert.equal(res.status, 404);
     });
 
     it('records an Audit entry tied to the session header', async () => {
-        await sendJSON(createApp(), 'GET', '/api/user?identifier=uid-1', undefined, {
+        await sendJSON(createApp(), 'GET', '/api/user?user_identifier=uid-1', undefined, {
             'x-session': 'sess-1'
         });
         assert.equal(mockAuditCreate.mock.callCount(), 1);

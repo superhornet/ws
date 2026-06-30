@@ -17,6 +17,18 @@ export class HTMLStatusError extends Error {
         this.statusCode = statusCode;
     }
 }
+/**
+ * Re-throw helper for model catch blocks: preserves an already-typed
+ * `HTMLStatusError` (so a 404/403/400 isn't downgraded to 500) and wraps any
+ * other error as a generic 500. Centralizing this guarantees no catch block can
+ * forget the `instanceof` check.
+ */
+export function as500(error: unknown): never {
+    if (error instanceof HTMLStatusError) {
+        throw error;
+    }
+    throw new HTMLStatusError((error as Error).message, 500);
+}
 export function processError(req: Request, res: Response, error: HTMLStatusError) {
     if (error instanceof HTMLStatusError) {
         switch (error.statusCode.toString()) {
@@ -37,6 +49,9 @@ export function processError(req: Request, res: Response, error: HTMLStatusError
                 break;
             case "501":
                 JSONResponse.notImplemented(req, res, error.message, null);
+                break;
+            case "502":
+                JSONResponse.badGateway(req, res, error.message, null);
                 break;
             default:
                 JSONResponse.serverError(req, res, error.message, null);

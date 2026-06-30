@@ -19,7 +19,6 @@ class MockSession {
     public uuid = "11111111-1111-1111-1111-111111111111";
     public otp = "ABC123";
     public expires = "2030-01-01T00:00:00.000Z";
-    public dbID = 7;
 
     constructor() {
         mockSessionConstructor();
@@ -33,13 +32,12 @@ class MockSession {
         return {
             uuid: this.uuid,
             expires: this.expires,
-            dbID: this.dbID,
             otp: this.otp,
         };
     }
 
     public toString() {
-        return `{ uuid: '${this.uuid}', expires: '${this.expires}', dbID: ${this.dbID}}`;
+        return `{ uuid: '${this.uuid}', expires: '${this.expires}' }`;
     }
 
     static async kill(...args: unknown[]): Promise<unknown> {
@@ -126,16 +124,13 @@ describe("GET /api/session", () => {
         assert.equal(res.body.code, 200);
     });
 
-    // Documents the current response shape. The payload includes dbID and otp,
-    // both of which arguably should not be returned to clients. If this test
-    // breaks because those fields were removed, update it deliberately.
-    it("includes uuid, expires, dbID, and otp in the response", async () => {
+    it("includes uuid, expires, and otp without exposing a database row id", async () => {
         const res = await sendJSON(createApp(), "GET", "/api/session");
         const data = res.body.data as Record<string, unknown>;
         assert.equal(data.uuid, "11111111-1111-1111-1111-111111111111");
         assert.equal(data.expires, "2030-01-01T00:00:00.000Z");
-        assert.equal(data.dbID, 7);
         assert.equal(data.otp, "ABC123");
+        assert.equal("dbID" in data, false);
     });
 
     it("returns 500 when the Session constructor throws", async () => {

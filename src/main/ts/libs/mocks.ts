@@ -8,6 +8,48 @@ import { TransactionItemType, TransactionProcessorType, type TransactionAPIType 
 import type { UserAPIType } from '../types/UserAPITypes.ts';
 import { AffiliationType, type AffiliateAPIType } from '../types/AffiliateAPITypes.ts';
 
+type MockResponse = {
+    statusCode: number;
+    body: Record<string, unknown>;
+    status(code: number): MockResponse;
+    json(payload: Record<string, unknown>): Record<string, unknown>;
+};
+
+function createMockResponse() {
+    // statusCode/code start at -1 as a "no response sent yet" sentinel so a
+    // handler that never responds is visibly distinguishable in tests.
+    const res: MockResponse = {
+        statusCode: -1,
+        body: { code: -1, data: null, message: "" },
+        status(code: number) {
+            this.statusCode = code;
+            return this;
+        },
+        json(payload: Record<string, unknown>) {
+            this.body = payload;
+            return this.body;
+        },
+    };
+    return res;
+}
+
+/**
+ * Builds a mock Express request for GET read endpoints that accept query params
+ * and an `X-Session` header instead of a JSON body.
+ */
+export function mockGetRequest(data?: {
+    headers?: Record<string, string>;
+    query?: Record<string, string>;
+    body?: Record<string, unknown>;
+}) {
+    const req = {
+        headers: data?.headers ?? {},
+        query: data?.query ?? {},
+        body: data?.body,
+    };
+    return { req, res: createMockResponse() };
+}
+
 export function findRouteHandler(router: typeof AuditRouter| typeof SessionRouter, method: string, path: string) {
     const layer = router.stack.find(
         (layer) =>

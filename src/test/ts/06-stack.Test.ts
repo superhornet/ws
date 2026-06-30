@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { router as stackRouter } from "../../main/ts/controllers/StackController.ts";
-import { findRouteHandler, mockSession, mockUser, mockStack } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack } from "../../main/ts/libs/mocks.ts";
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 
 let sharedSession: string = "";
@@ -163,16 +163,12 @@ suite("Endpoint Tests", () => {
         it("List Stacks", async () => {
             const handler = findRouteHandler(stackRouter, 'get', '/stacks');
             assert.ok(handler, "Missing handler for stack endpoint");
-            const { req, res } = mockStack({
-                body: {
-                    data: {
-                        stack_name: "",
-                        stack_identifier: "",
-                        owner_identifier: sharedUser
-                    },
-                    session: sharedSession,
-                    message: "List Stacks"
-                }
+            const { req, res } = mockGetRequest({
+                headers: { "x-session": sharedSession },
+                query: {
+                    owner_identifier: sharedUser,
+                    message: "List Stacks",
+                },
             });
 
             // @ts-expect-error req is fine as-is

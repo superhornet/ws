@@ -4,7 +4,7 @@ import { router as sessionRouter } from "../../main/ts/controllers/SessionContro
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { router as stackRouter } from "../../main/ts/controllers/StackController.ts";
 import { router as substackRouter } from "../../main/ts/controllers/SubstackController.ts";
-import { findRouteHandler, mockSession, mockUser, mockStack, mockSubStack, mockSubStackList } from "../../main/ts/libs/mocks.ts";
+import { findRouteHandler, mockGetRequest, mockSession, mockUser, mockStack, mockSubStack } from "../../main/ts/libs/mocks.ts";
 import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 import { SubStackQueryTypes } from "../../main/ts/types/SubStackAPITypes.ts";
 
@@ -173,19 +173,13 @@ suite("Testing the SubStack routes with session", () => {
             test("List Substacks by Stack ID", async () => {
                 const handler = findRouteHandler(substackRouter, 'get', '/substacks');
                 assert.ok(handler, "Missing handler for substack endpoint");
-                const { req, res } = mockSubStackList({
-                    body: {
+                const { req, res } = mockGetRequest({
+                    headers: { "x-session": sharedSession },
+                    query: {
                         type: SubStackQueryTypes.STACKID,
-                        data: [{
-                            substack_name: "",
-                            stack_identifier: sharedStack,
-                            substack_identifier: "",
-                            users_list: [],
-                            balance: 0
-                        }],
+                        stack_identifier: sharedStack,
                         message: "List substacks",
-                        session: sharedSession,
-                    }
+                    },
                 });
 
                 // @ts-expect-error req is fine as-is
@@ -201,20 +195,13 @@ suite("Testing the SubStack routes with session", () => {
             test("List Substacks by Owner ID", async () => {
                 const handler = findRouteHandler(substackRouter, 'get', '/substacks');
                 assert.ok(handler, "Missing handler for substack endpoint");
-                const { req, res } = mockSubStackList({
-                    body: {
+                const { req, res } = mockGetRequest({
+                    headers: { "x-session": sharedSession },
+                    query: {
                         type: SubStackQueryTypes.OWNERID,
-                        data: [{
-                            substack_name: "",
-                            stack_identifier: "",
-                            substack_identifier: "",
-                            users_list: [],
-                            balance: 0,
-                            owner_identifier: sharedUser
-                        }],
+                        owner_identifier: sharedUser,
                         message: "List substacks",
-                        session: sharedSession,
-                    }
+                    },
                 });
 
                 // @ts-expect-error req is fine as-is
@@ -230,19 +217,13 @@ suite("Testing the SubStack routes with session", () => {
             test("List Substacks by Substack Name", async () => {
                 const handler = findRouteHandler(substackRouter, 'get', '/substacks');
                 assert.ok(handler, "Missing handler for substack endpoint");
-                const { req, res } = mockSubStackList({
-                    body: {
+                const { req, res } = mockGetRequest({
+                    headers: { "x-session": sharedSession },
+                    query: {
                         type: SubStackQueryTypes.SUBSTACKNAME,
-                        data: [{
-                            substack_name: "Air Conditioner",
-                            stack_identifier: "",
-                            substack_identifier: "",
-                            users_list: [],
-                            balance: 0,
-                        }],
+                        substack_name: "Air Conditioner",
                         message: "List substacks",
-                        session: sharedSession,
-                    }
+                    },
                 });
 
                 // @ts-expect-error req is fine as-is

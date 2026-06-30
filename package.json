@@ -35,6 +35,10 @@
         "dev:start": "npm-run-all build start",
         "dev": "nodemon --watch src -e ts --exec npm run dev:start",
         "start": "node .",
+        "migrate": "npm run tsc && node scripts/migrate.mjs up",
+        "migrate:built": "node scripts/migrate.mjs up",
+        "migrate:down": "npm run tsc && node scripts/migrate.mjs down",
+        "migrate:down:built": "node scripts/migrate.mjs down",
         "test:cucumber": "cucumber-js --format progress",
         "test": "node --test './src/test/ts/**/*.Test.ts'",
         "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./src/test/ts/**/*.Test.ts",
@@ -47,7 +51,7 @@
     },
     "devDependencies": {
         "@cucumber/cucumber": "^12.4.0",
-        "@types/dotenv": "^6.1.1",
+        "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",
         "@types/fs-extra": "^11.0.4",
         "@types/node": "^25.9.1",
@@ -67,16 +71,17 @@
         "tslint": "^5.20.1",
         "typedoc": "^0.28.15",
         "typedoc-plugin-rename-defaults": "^0.7.3",
-        "typescript": "^5.9.3",
-        "xhr2": "^0.2.1"
+        "typescript": "^5.9.3"
     },
     "dependencies": {
         "@cybrid/cybrid-api-bank-typescript": "^0.128.102",
         "@privy-io/node": "^0.21.0",
-        "dotenv": "^17.3.1",
+        "cors": "^2.8.6",
         "express": "^5.2.1",
         "express-rate-limit": "^8.3.2",
         "helmet": "^8.1.0",
-        "pg": "^8.20.0"
+        "node-pg-migrate": "^8.0.4",
+        "pg": "^8.20.0",
+        "xhr2": "^0.2.1"
     }
 }

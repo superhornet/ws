@@ -225,13 +225,13 @@ describe('GET /api/notifications', () => {
         const res = await sendJSON(
             createApp(),
             'GET',
-            `/api/notifications?identifier=${validBody.identifier}`
+            `/api/notifications?notification_for=${validBody.identifier}`
         );
         assert.equal(res.status, 403);
         assert.match(res.body.message as string, /Session/);
     });
 
-    it('returns 400 when identifier query is missing', async () => {
+    it('returns 400 when notification_for query is missing', async () => {
         const res = await sendJSON(
             createApp(),
             'GET',
@@ -248,7 +248,7 @@ describe('GET /api/notifications', () => {
         const res = await sendJSON(
             createApp(),
             'GET',
-            `/api/notifications?identifier=${validBody.identifier}`,
+            `/api/notifications?notification_for=${validBody.identifier}`,
             undefined,
             { 'x-session': 'sess-1' }
         );
@@ -256,11 +256,11 @@ describe('GET /api/notifications', () => {
         assert.deepEqual(res.body.data, list);
     });
 
-    it('forwards the identifier to Notification.getAllForUser', async () => {
+    it('forwards notification_for to Notification.getAllForUser', async () => {
         await sendJSON(
             createApp(),
             'GET',
-            `/api/notifications?identifier=${validBody.identifier}`,
+            `/api/notifications?notification_for=${validBody.identifier}`,
             undefined,
             { 'x-session': 'sess-1' }
         );
@@ -275,7 +275,7 @@ describe('GET /api/notifications', () => {
         const res = await sendJSON(
             createApp(),
             'GET',
-            `/api/notifications?identifier=${validBody.identifier}`,
+            `/api/notifications?notification_for=${validBody.identifier}`,
             undefined,
             { 'x-session': 'sess-1' }
         );

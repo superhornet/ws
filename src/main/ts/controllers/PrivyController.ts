@@ -26,8 +26,8 @@ router.post("/privy/wallet", async (req, res) => {
             ...(data.display_name ? { display_name: data.display_name } : {}),
             ...(data.external_id ? { external_id: data.external_id } : {}),
         };
-        const wallet = await Privy.createWallet(input);
         await Audit.logMessage("POST /api/privy/wallet", data.session);
+        const wallet = await Privy.createWallet(input);
         JSONResponse.creationSuccess(req, res, "Wallet created", wallet as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -38,8 +38,8 @@ router.get("/privy/wallet/:wallet_id", async (req, res) => {
     try {
         const session = getSession(req);
         const walletId = req.params.wallet_id;
-        const wallet = await Privy.getWallet(walletId);
         await Audit.logMessage(`GET /api/privy/wallet/${walletId}`, session);
+        const wallet = await Privy.getWallet(walletId);
         JSONResponse.goodToGo(req, res, "OK", wallet as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
@@ -62,8 +62,8 @@ router.get("/privy/wallets", async (req, res) => {
             ...(req.query.cursor ? { cursor: req.query.cursor as string } : {}),
             ...(req.query.limit ? { limit: Number(req.query.limit) } : {}),
         };
-        const wallets = await Privy.listWallets(query);
         await Audit.logMessage("GET /api/privy/wallets", session);
+        const wallets = await Privy.listWallets(query);
         JSONResponse.goodToGo(req, res, "OK", wallets as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);

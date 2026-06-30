@@ -22,25 +22,6 @@ describe("Testing the health routes", { skip: false }, async () => {
             });
         });
     });
-    describe("Make GET request to /reset endpoint", { skip: false }, async () => {
-        it("Checks the handler-Arrange", { skip: false }, async () => {
-            const handler = findRouteHandler(healthRouter, 'get', '/reset');
-
-            const { req, res } = mockHealth();
-            test("Handler", async () => {
-                assert.ok(handler, "Missing handler for GET /reset");
-            });
-            it("Act", async () => {
-                //@ts-expect-error req is fine as-is
-                handler(req, res, null);
-            });
-            it("Assert", { skip: false }, () => {
-                test("statusCode is 200 OK", () => { assert.strictEqual(res.statusCode, 200); });
-                test("message OK", () => { assert.strictEqual(res.body.message, 'OK'); });
-                test("Empty body data", () => { assert.equal(res.body.data, null) });
-            });
-        });
-    });
     after(async () => {
         setTimeout(() => {
             process.emit('beforeExit');

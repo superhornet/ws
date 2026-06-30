@@ -74,7 +74,20 @@ GET http://localhost/health HTTP/1.1
 ###
 GET http://localhost/api/session HTTP/1.1
 
-### Reset Data for demonstration of transaction processing
-GET http://localhost/reset HTTP/1.1
-
 ```
+
+## Database schema
+
+Schema is managed with `node-pg-migrate`; migration files live in `migrations/`.
+Apply them with:
+
+```bash
+npm run migrate
+```
+
+`docker-compose up` runs this automatically against the local Postgres before
+starting the app.
+
+If you are pointing at a database that already has the legacy schema but no
+`pgmigrations` table, follow the maintenance/adoption guidance in
+[`DEPLOYMENT.md`](./DEPLOYMENT.md) before migrating.

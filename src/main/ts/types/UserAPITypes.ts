@@ -11,4 +11,5 @@ export interface UserAPIType{
     subscription_level: SubscriptionEnum;
     user_identifier?: string;
     affiliate?: string;
+    phone_e164?: string | null;
 }

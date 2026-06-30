@@ -1,5 +1,5 @@
 import type { NotificationAPIType } from "../types/NotificationAPITypes.ts";
-import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { HTMLStatusError, as500 } from "../libs/HTMLStatusError.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
 
@@ -67,7 +67,7 @@ export class Notification implements INotification {
             }, row.id);
             return notificationEntry.message;
         }
-        return undefined;
+        throw new HTMLStatusError("Notification message is invalid", 400);
     }
     public readNotification(): NotificationAPIType {
         return this.message as NotificationAPIType;
@@ -78,7 +78,7 @@ export class Notification implements INotification {
             const fetchedNotifications = await query<NotificationAPIType>(
                 `SELECT id, seen, message, notification_for, notification_identifier
                 FROM notifications WHERE deleted = FALSE
-                AND notification_for = $1;`,
+                AND notification_for = $1::uuid;`,
                 [user]
             )
             if (fetchedNotifications === undefined) {
@@ -94,11 +94,7 @@ export class Notification implements INotification {
             }
             return output;
         } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
-            }
+            as500(error);
         };
     };
     static async updateNotification(notification: NotificationAPIType) {
@@ -131,8 +127,10 @@ export class Notification implements INotification {
                     isUpdated = true;
                 }
             } catch (error) {
-                throw new HTMLStatusError((error as Error).message, 500);
+                as500(error);
             }
+        } else {
+            throw new HTMLStatusError("Notification message is invalid", 400);
         }
         return isUpdated;
     }
@@ -154,7 +152,7 @@ export class Notification implements INotification {
                 isUpdated = true;
             }
         } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
+            as500(error);
         }
         return isUpdated;
     }
@@ -176,7 +174,7 @@ export class Notification implements INotification {
                 isUpdated = true;
             }
         } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
+            as500(error);
         }
         return isUpdated;
     }
@@ -198,7 +196,7 @@ export class Notification implements INotification {
                 isDeleted = true;
             }
         } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
+            as500(error);
         }
         return isDeleted;
     }

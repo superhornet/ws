@@ -78,6 +78,13 @@ class JSONResponse {
             message: message || "not implemented"
         });
     }
+    public static badGateway(req: Request, res: Response, message: string, data: JSON | null) {
+        res.status(502).json({
+            code: 502,
+            data,
+            message: message || "bad gateway"
+        });
+    }
 }
 
 export default JSONResponse;

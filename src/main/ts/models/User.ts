@@ -1,4 +1,4 @@
-import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
+import { HTMLStatusError, as500 } from "../libs/HTMLStatusError.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
@@ -39,7 +39,7 @@ export class User implements IUser {
         }
     }
 
-    static async storeUser(user: UserAPIType) {
+    static async storeUser(user: UserAPIType, verifiedPhone?: string | null) {
         const vName = new Validator({
             version: "1.0",
             stringValidation: {
@@ -87,10 +87,10 @@ export class User implements IUser {
                     `INSERT INTO users (email,email_host,emailid,
                     firstname,lastname,affiliate,
                     address1,address2,city,state,zipcode,
-                    subscription_level) VALUES
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    subscription_level,phone_e164) VALUES
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                     RETURNING id, user_identifier, firstname, lastname, affiliate,
-                    email, address1, address2, city, state, zipcode, subscription_level`,
+                    email, phone_e164, address1, address2, city, state, zipcode, subscription_level`,
                     [
                         user.email,
                         vEmail.stripHtml(hostname as string),
@@ -103,7 +103,8 @@ export class User implements IUser {
                         vAddress.stripHtml(user.city),
                         vAddress.stripHtml(user.state),
                         user.zipcode,
-                        user.subscription_level
+                        user.subscription_level,
+                        verifiedPhone ?? null
                     ]
                 );
             });
@@ -116,6 +117,7 @@ export class User implements IUser {
                 firstname: row.firstname,
                 lastname: row.lastname,
                 email: row.email,
+                phone_e164: row.phone_e164,
                 address1: row.address1,
                 address2: row.address2,
                 city: row.city,
@@ -125,9 +127,9 @@ export class User implements IUser {
                 user_identifier: row.user_identifier,
                 affiliate: row.affiliate
             }, row.id);
-            return userEntry.user;
+            return userEntry.readUser();
         }
-        return undefined;
+        throw new HTMLStatusError("User fields are invalid", 400);
     }
     public readUser(): UserAPIType {
         return this.user as UserAPIType;
@@ -135,7 +137,7 @@ export class User implements IUser {
     static async fetchByUuid(user_identifier: string): Promise<UserAPIType> {
         try {
             const fetchedUser = await query<UserAPIType>(
-                `SELECT user_identifier, firstname, lastname, affiliate,
+                `SELECT user_identifier, firstname, lastname, affiliate, email, phone_e164,
                     address1, address2, city, state, zipcode, subscription_level
                     FROM users WHERE user_identifier = $1 AND deleted = FALSE;`,
                 [user_identifier]
@@ -147,13 +149,24 @@ export class User implements IUser {
                 throw new HTMLStatusError("User not found", 404);
             }
         } catch (error) {
-            if (error instanceof HTMLStatusError) {
-                throw error;
-            } else {
-                throw new HTMLStatusError((error as Error).message, 500);
-            }
+            as500(error);
         }
     };
+    static async findIdentifierByPhone(phone: string): Promise<string | null> {
+        try {
+            const fetchedUser = await query<{ user_identifier: string }>(
+                `SELECT user_identifier
+                FROM users
+                WHERE phone_e164 = $1 AND deleted = FALSE
+                ORDER BY id
+                LIMIT 1;`,
+                [phone]
+            );
+            return fetchedUser.at(0)?.user_identifier ?? null;
+        } catch (error) {
+            as500(error);
+        }
+    }
     static async updateUser(user: UserAPIType) {
         let isUpdated = false;
         const vName = new Validator({
@@ -230,8 +243,10 @@ export class User implements IUser {
                     isUpdated = true;
                 }
             } catch (error) {
-                throw new HTMLStatusError((error as Error).message, 500);
+                as500(error);
             }
+        } else {
+            throw new HTMLStatusError("User fields are invalid", 400);
         }
         return isUpdated;
     }
@@ -251,7 +266,7 @@ export class User implements IUser {
                 isDeleted = true;
             }
         } catch (error) {
-            throw new HTMLStatusError((error as Error).message, 500);
+            as500(error);
         }
         return isDeleted
     }
