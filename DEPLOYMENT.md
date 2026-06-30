@@ -52,22 +52,33 @@ The backend was made deployment-ready for this:
 
 ---
 
-## Database bootstrap (important)
+## Database schema (migrations)
 
-`init.sql` is the **canonical, destructive bootstrap** — it `DROP`s and
-recreates tables. It is **not** run on boot. On startup the app only runs
-`ensureDatabaseSchema()`, which performs *incremental* migrations and does
-**not** create the core tables (`users`, `stacks`, `substacks`,
-`transactions`, `notifications`, `sessions`, `affiliations`, ...).
+Schema is managed by [`node-pg-migrate`](https://github.com/salsita/node-pg-migrate).
+Migration files live in [`migrations/`](./migrations) and are the **single source
+of truth** for the schema. They are applied with `npm run migrate`, which runs
+each pending migration exactly once (tracked in a `pgmigrations` table) and is a
+no-op when the database is already up to date. The app **never** mutates schema
+on boot, and Render deploys do **not** apply schema changes automatically.
 
-Therefore each fresh Supabase project (staging and production) must be
-initialized **once** with `init.sql`.
+For staging and production, database creation and modification are explicit
+maintenance operations: take a database backup, put the environment in the
+intended maintenance posture, run the migration command, verify the app, then
+resume traffic. A fresh Supabase project is initialized by running the baseline
+migration once before the first deploy. The migrations use `gen_random_uuid()`,
+available on **PostgreSQL 13+** (Supabase ships this), so no specific major
+version is pinned.
 
-`init.sql` uses `gen_random_uuid()`, which is available on **PostgreSQL 13+** —
-Supabase ships this, so no specific major version is pinned.
+If a database was already created with the old `init.sql` / startup schema path,
+do not run the baseline migration directly against it. During the maintenance
+window, compare the live schema against `migrations/1700000000000_baseline-schema.sql`
+and either apply a corrective migration or manually record the baseline in
+`pgmigrations` only after the schema shape is verified.
 
-> Running `init.sql` against a database that already has data will erase it. Run
-> it only on a brand-new Supabase project.
+> To add a schema change, add a new migration file under `migrations/` (a new
+> timestamped `*.sql` with `-- Up Migration` / `-- Down Migration` sections).
+> Never edit an already-applied migration, and never rely on app startup or
+> deploy hooks to alter staging/production tables.
 
 ---
 
@@ -107,18 +118,22 @@ Render prompts for every `sync: false` variable. Set at minimum:
 `OTP_HASH_SECRET` is auto-generated per environment; `NODE_ENV`, `POSTGRES_SSL`,
 and `TRUST_PROXY` are set automatically by the Blueprint.
 
-### 4. Initialize each database (once)
+### 4. Initialize each database
 
-Using the Supabase connection strings from step 1, run `init.sql` against each
-project once:
+Before the first deploy, initialize each brand-new Supabase project by pointing
+the connection at it and running the migrator:
 
 ```bash
 # Staging
-psql "<staging supabase connection string>" -f init.sql
+DATABASE_URL="<staging supabase connection string>" POSTGRES_SSL=true npm run migrate
 
 # Production
-psql "<production supabase connection string>" -f init.sql
+DATABASE_URL="<production supabase connection string>" POSTGRES_SSL=true npm run migrate
 ```
+
+For an existing database that already has the old schema, do not recreate tables.
+Verify the live schema against the baseline during the maintenance window, then
+record the baseline only after that verification is complete.
 
 ### 5. Verify
 
@@ -192,9 +207,11 @@ The eventual App Store build uses `--profile production`.
   dedicated `staging` branch (see `render.yaml`). Promote a release by merging
   `staging` into `main`. Push beta changes to `staging` to ship them to the
   TestFlight build's API without touching production.
-- **Schema changes:** add incremental, idempotent migrations to
-  `ensureDatabaseSchema()` in `src/main/ts/libs/postgresDB.ts` (runs on every
-  boot). Do **not** re-run `init.sql` against a database with real data.
+- **Schema changes:** add a new migration file under `migrations/` (a new
+  timestamped `*.sql` with `-- Up Migration` / `-- Down Migration` sections).
+  Apply it during an explicit maintenance window after taking a database backup;
+  deploys do not run migrations automatically. Never edit a migration that has
+  already been applied to staging or production.
 - **Secrets rotation:** update values in the Render dashboard; redeploy to apply.
 
 ---

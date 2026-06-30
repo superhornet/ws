@@ -11,9 +11,9 @@
 # Supabase connection string on deploy. `permissions.protection: enabled` on
 # production still requires an admin for destructive changes to the service.
 #
-# After creating each Supabase project, run init.sql against it ONCE to create
-# the base tables (init.sql is destructive and is NOT run on boot; the app only
-# runs incremental migrations at startup). The schema uses gen_random_uuid()
+# Schema is managed by node-pg-migrate, but production/staging migrations are not
+# applied automatically by deploys. Run migrations as an explicit maintenance
+# operation after taking a database backup. The schema uses gen_random_uuid()
 # (available on PG 13+, which Supabase ships), so no specific major version is
 # required.
 #

@@ -425,7 +425,7 @@ curl -sS -X POST http://localhost:3000/api/otp/email/verify \
 End-to-end flow (session → user → stack → substack → transaction) that exercises
 the new `goal_amount`, `created_at`/`updated_at`, `users_list` (array), and
 transaction `created_at`/`status` fields. Run against a fresh dev database
-(provisioned with `init.sql`).
+(provisioned with `npm run migrate`).
 
 ```bash
 # 1. Session
