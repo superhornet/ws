@@ -21,7 +21,6 @@ export class Session implements ISession {
     private uuid = "";
     private readonly otp: string;
     private expires = "";
-    private dbID: number | bigint = -1;
     /**
      * Session constructor
      */
@@ -41,8 +40,8 @@ export class Session implements ISession {
 
     private async storeSession(): Promise<void> {
         const q = await withTransaction(async (client) => {
-            return client.query<{ id: number, expires: string, uuid: string }>(
-                'INSERT INTO sessions (otp) VALUES ($1) RETURNING id, otp, expires, uuid',
+            return client.query<{ expires: string, uuid: string }>(
+                'INSERT INTO sessions (otp) VALUES ($1) RETURNING otp, expires, uuid',
                 [this.otp]
             );
         });
@@ -52,7 +51,6 @@ export class Session implements ISession {
             throw new HTMLStatusError("Failed to store session", 500);
         }
 
-        this.dbID = row.id;
         this.expires = row.expires;
         this.uuid = row.uuid;
     }
@@ -60,13 +58,15 @@ export class Session implements ISession {
      * kill() prunes expired sessions from the database
      *
      */
-    static kill() {
-        return (async () => {
+    static async kill(): Promise<void> {
+        try {
             await query(
                 `DELETE FROM sessions WHERE expires < NOW();`,
                 []
             )
-        });
+        } catch (error) {
+            as500(error);
+        }
     }
     /**
      * exists
@@ -136,26 +136,20 @@ export class Session implements ISession {
      * @returns Object
      */
     public async session(): Promise<{ uuid: string; expires: string; otp: string; }> {
-        try {
-            const fetchedSession = await query<{ uuid: string, expires: string, otp: string }>(
-                `SELECT uuid, expires, otp FROM sessions WHERE id = $1;`,
-                [this.dbID]
-            )
-            const row = fetchedSession.at(0);
-            if(row){
-                return row;
-            }else{
-                throw new HTMLStatusError("Session not found.", 404);
-            }
-        } catch (error) {
-            as500(error);
+        if (!this.uuid || !this.expires) {
+            throw new HTMLStatusError("Session not found.", 404);
         }
+        return {
+            uuid: this.uuid,
+            expires: this.expires,
+            otp: this.otp,
+        };
     };
     /**
      * @returns string
      */
     public toString(): string {
-        return `{ uuid: '${this.uuid}', expires: '${this.expires}', dbID: ${this.dbID}}`;
+        return `{ uuid: '${this.uuid}', expires: '${this.expires}' }`;
     }
 
     private generateOTP(): string {
