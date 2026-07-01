@@ -29,7 +29,22 @@ suite("Testing the Transaction routes without session", { skip: false }, () => {
         });
         it("Checks the failing paths for missing session", async () => {
             const handler = findRouteHandler(transactionRouter, 'post', '/transaction');
-            const { req, res } = mockTransaction({ body: { message: "Missing session" } });
+            // Supply a well-formed body (so the 400 body-shape check passes) but no
+            // session, to exercise the 403 missing-session path in authorize().
+            const { req, res } = mockTransaction({
+                body: {
+                    data: {
+                        initiated_by: "",
+                        notation: "Missing session",
+                        from_identifier: "00000000-0000-0000-0000-000000000000",
+                        to_identifier: "11111111-1111-1111-1111-111111111111",
+                        amount: 1,
+                        processor: TransactionProcessorType.INTERNAL,
+                        transaction_type: TransactionItemType.INITIAL_FUND
+                    },
+                    message: "Missing session",
+                }
+            });
             test("Handler is okay", () => {
                 assert.ok(handler, "Missing handler for notification endpoint");
             });
