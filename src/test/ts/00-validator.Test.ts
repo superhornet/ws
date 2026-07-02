@@ -1,5 +1,5 @@
 import { describe, it, suite, test } from "node:test";
-import assert, { AssertionError } from "node:assert/strict";
+import assert from "node:assert/strict";
 import { Validator } from "../../main/ts/libs/Validator.ts";
 suite("Validator test suite", () => {
     describe("Number validation tests", () => {
@@ -88,25 +88,30 @@ suite("Validator test suite", () => {
         });
     });
     describe("Email Validation Suite", () => {
-        it("This is a valid email", () => {
-            const testEmail = "user@example.com";
-            const v = new Validator();
-            test("It should pass", () => {
-                assert.equal(v.emailValidate(testEmail), true);
-            });
+        it("Will test an array of valid email formats", () => {
+            const entries = [
+                {entry: "Simple address", input: "user@example.com"},
+                {entry: "Subdomain host", input: "user@sub.example.com"},
+                {entry: "Plus addressing", input: "user.name+tag@example.co.uk"}
+            ];
+            for (const {entry, input} of entries) {
+                const validator = new Validator();
+                test(entry, () => {
+                    assert.equal(validator.emailValidate(input), true);
+                });
+            }
         });
         it("Will test an array of bad email formats", () => {
             const entries = [
-            {entry: "No @symbol", input: "invalid-email", expected: TypeError},
-            {entry: "No Toplevel domain", input: "bad@domain", expected: TypeError},
-            {entry: "Number", input: 42, expect: TypeError},
-            {entry: "String is a space", input: " ", expect: AssertionError}
+                {entry: "No @symbol", input: "invalid-email", expected: TypeError},
+                {entry: "No Toplevel domain", input: "bad@domain", expected: TypeError},
+                {entry: "Number", input: 42, expected: TypeError},
+                {entry: "String is a space", input: " ", expected: TypeError}
             ];
-            for (const {entry, input} of entries) {
-                const v = new Validator();
-
+            for (const {entry, input, expected} of entries) {
+                const validator = new Validator();
                 test(entry, () => {
-                    assert.throws(()=>{v.emailValidate(input as string)}, TypeError)
+                    assert.throws(() => { validator.emailValidate(input as string); }, expected);
                 });
             }
         });
