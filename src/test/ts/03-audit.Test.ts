@@ -12,7 +12,7 @@ suite("Testing the Audit routes without session", () => {
             const handler = findRouteHandler(auditRouter, 'post', '/audit');
             const { req, res } = mockAudit({});
             test("Handler is okay", () => {
-                assert.ok(handler, "Missing handler for PUT /api/audit");
+                assert.ok(handler, "Missing handler for POST /api/audit");
             })
             it("Act", async () => {
                 // @ts-expect-error req is fine as-is
@@ -27,15 +27,30 @@ suite("Testing the Audit routes without session", () => {
             const handler = findRouteHandler(auditRouter, 'post', '/audit');
             const { req, res } = mockAudit({ body: { message: "Missing session." } });
             test("Handler is okay", () => {
-                assert.ok(handler, "Missing handler for PUT /api/audit");
+                assert.ok(handler, "Missing handler for POST /api/audit");
             })
             it("Act", async () => {
                 // @ts-expect-error req is fine as-is
                 await handler(req, res, null);
             });
-            test("response is 403 Unauthorized, if sessuin has been omitted.", async () => {
+            test("response is 403 Unauthorized, if session has been omitted.", async () => {
                 assert.equal(res.statusCode, 403);
                 assert.equal(res.body.message, 'Session ID Required');
+            });
+        });
+        it("Checks the failing path for a forged session", async () => {
+            const handler = findRouteHandler(auditRouter, 'post', '/audit');
+            const { req, res } = mockAudit({ body: { message: "Forged session.", session: "00000000-0000-0000-0000-000000000000" } });
+            test("Handler is okay", () => {
+                assert.ok(handler, "Missing handler for POST /api/audit");
+            })
+            it("Act", async () => {
+                // @ts-expect-error req is fine as-is
+                await handler(req, res, null);
+            });
+            test("response is 403 Unauthorized, if the session is not valid.", async () => {
+                assert.equal(res.statusCode, 403);
+                assert.equal(res.body.message, 'Unauthorized');
             });
         });
     });
@@ -43,7 +58,7 @@ suite("Testing the Audit routes without session", () => {
 suite("Testing the audit routes with session", () => {
     describe("Get a session", async () => {
         const handler = findRouteHandler(sessionRouter, 'get', '/session');
-        assert.ok(handler, "Missing handler for session post");
+        assert.ok(handler, "Missing handler for session get");
 
         const { req, res } = mockSession();
         // @ts-expect-error req is fine as-is
@@ -54,7 +69,7 @@ suite("Testing the audit routes with session", () => {
             const handler = findRouteHandler(auditRouter, 'post', '/audit');
             const { req, res } = mockAudit({ body: { message: "<Unit> Test&amp; Message", session: sharedSession } });
             test("Handler is okay", () => {
-                assert.ok(handler, "Missing handler for PUT /api/audit");
+                assert.ok(handler, "Missing handler for POST /api/audit");
             })
             it("Act", async () => {
                 // @ts-expect-error req is fine as-is
@@ -90,6 +105,42 @@ suite("Testing the audit routes with session", () => {
             const entry = await Audit.logMessage(longMessage, guaranteeSession);
             assert.ok(entry, "Expected an audit row to be written for a too-long message");
             assert.equal(entry?.message.length, 512);
+        });
+
+        it("Strips HTML from the stored message", async () => {
+            const entry = await Audit.logMessage("<b>hi there</b>", guaranteeSession);
+            assert.ok(entry, "Expected an audit row to be written for an HTML message");
+            assert.ok(!entry.message.includes("<"), "Raw '<' should not survive sanitization");
+            assert.ok(!entry.message.includes(">"), "Raw '>' should not survive sanitization");
+            assert.ok(entry.message.includes("hi there"), "Message text should be preserved");
+        });
+    });
+
+    describe("Derives the audit message when none is supplied", async () => {
+        const sessionHandler = findRouteHandler(sessionRouter, 'get', '/session');
+        assert.ok(sessionHandler, "Missing handler for session get");
+
+        const { req, res } = mockSession();
+        // @ts-expect-error req is fine as-is
+        await sessionHandler(req, res, null);
+        const derivedSession = res.body.data.uuid;
+
+        it("Joins action, entity and identifier when message is absent", async () => {
+            const handler = findRouteHandler(auditRouter, 'post', '/audit');
+            const { req, res } = mockAudit({ body: { session: derivedSession, action: "create", entity: "user", entity_identifier: "123" } });
+            // @ts-expect-error req is fine as-is
+            await handler(req, res, null);
+            assert.equal(res.statusCode, 201);
+            assert.equal((res.body.data as { message: string }).message, "create:user:123");
+        });
+
+        it("Falls back to a default label when nothing identifies the event", async () => {
+            const handler = findRouteHandler(auditRouter, 'post', '/audit');
+            const { req, res } = mockAudit({ body: { session: derivedSession } });
+            // @ts-expect-error req is fine as-is
+            await handler(req, res, null);
+            assert.equal(res.statusCode, 201);
+            assert.equal((res.body.data as { message: string }).message, "Audit event");
         });
     });
 

@@ -111,7 +111,7 @@ export function mockSession() {
     } /*as unknown as Response*/;
     return { req, res };
 }
-export function mockAudit(data?: {body?: { session?: string, message?: string }}) {
+export function mockAudit(data?: {body?: { session?: string, message?: string, action?: string, entity?: string, entity_identifier?: string }}) {
     const req = data;
     const res = {
         statusCode: -1,
