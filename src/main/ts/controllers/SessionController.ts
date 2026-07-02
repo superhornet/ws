@@ -15,7 +15,7 @@ router.get("/session", async (req, res) => {
 
 router.delete("/session", async (req, res) => {
     try{
-        Session.kill();
+        await Session.kill();
         JSONResponse.noContent(req, res, "No Content", null);
     } catch (error){
         processError(req, res, error as HTMLStatusError);
