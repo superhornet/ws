@@ -114,7 +114,7 @@ export class Notification implements INotification {
                 const q = await withTransaction(async (client) => {
                     return await client.query(
                         `UPDATE notifications
-                SET ( seen=FALSE, message=$1 )
+                SET seen=FALSE, message=$1
                 WHERE deleted = FALSE AND notification_for = $2;`,
                         [notification.message, notification.notification_for]
                     );
