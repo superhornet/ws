@@ -176,7 +176,7 @@ suite("Endpoint Tests", () => {
             it("Tests for correct results", () => {
                 assert.equal(res.statusCode, 200);
                 assert.equal(res.body.message, 'OK');
-                assert.equal(Object.keys(res.body.data).length, 3);
+                assert.equal(Object.keys(res.body.data as object).length, 3);
             });
         });
     });
@@ -224,7 +224,7 @@ suite("Endpoint Tests", () => {
             // @ts-expect-error req is fine as-is
             await handler(req, res, null);
             assert.equal(res.statusCode, 204);
-            assert.equal(res.body.message, 'No content');
+            assert.equal(res.body.message, 'No Content');
         });
     });
 });

@@ -172,7 +172,7 @@ suite("Testing the Notification routes with session", () => {
                 // @ts-expect-error req is fine as-is
                 await handler(req, res, null);
                 assert.equal(res.statusCode, 204);
-                assert.equal(res.body.message, 'No content');
+                assert.equal(res.body.message, 'No Content');
             });
         });
     });
