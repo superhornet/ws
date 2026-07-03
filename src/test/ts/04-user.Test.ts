@@ -195,7 +195,214 @@ describe("Testing the /api/user endpoint", () => {
         assert.equal(res.body.message, 'No Content');
     });
 });
+
+/**
+ * Signs up a fresh user on its own session and returns both, so authorization
+ * tests can act as (or against) a specific bound user.
+ */
+async function createBoundUser(email: string): Promise<{ session: string; user_identifier: string }> {
+    const session = await createSession();
+    const handler = findRouteHandler(userRouter, 'post', '/user');
+    assert.ok(handler, "Missing handler for user endpoint");
+    const { req, res } = mockUser({
+        body: {
+            data: {
+                firstname: "Bound",
+                lastname: "User",
+                email,
+                address1: "1 Test St",
+                address2: "",
+                city: "Testville",
+                state: "FL",
+                zipcode: "33101",
+                subscription_level: SubscriptionType.FREE,
+            },
+            message: `Signup ${email}`,
+            session,
+        },
+    });
+    // @ts-expect-error req is fine as-is
+    await handler(req, res, null);
+    assert.equal(res.statusCode, 201);
+    return { session, user_identifier: res.body.data.user_identifier };
+}
+
+describe("Testing /api/user authorization and edge cases", () => {
+    test("GET /me returns the user the session is bound to", async () => {
+        const { session, user_identifier } = await createBoundUser("me.route@westack.cash");
+        const handler = findRouteHandler(userRouter, 'get', '/me');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockGetRequest({ headers: { "x-session": session } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 200);
+        assert.equal((res.body.data as { user_identifier: string }).user_identifier, user_identifier);
+    });
+
+    test("GET /me is 403 on a session with no user bound", async () => {
+        const anonymousSession = await createSession();
+        const handler = findRouteHandler(userRouter, 'get', '/me');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockGetRequest({ headers: { "x-session": anonymousSession } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Session is not associated with a user');
+    });
+
+    test("POST /user is 409 when the session is already bound to a user", async () => {
+        const { session } = await createBoundUser("already.bound@westack.cash");
+        const handler = findRouteHandler(userRouter, 'post', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: {
+                data: {
+                    firstname: "Second",
+                    lastname: "Signup",
+                    email: "second.signup@westack.cash",
+                    address1: "2 Test St",
+                    address2: "",
+                    city: "Testville",
+                    state: "FL",
+                    zipcode: "33101",
+                    subscription_level: SubscriptionType.FREE,
+                },
+                message: "Second signup on a bound session",
+                session,
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 409);
+        assert.equal(res.body.message, 'Session is already associated with a user');
+    });
+
+    test("POST /user is 400 when the supplied fields are invalid", async () => {
+        const session = await createSession();
+        const handler = findRouteHandler(userRouter, 'post', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: {
+                data: {
+                    firstname: "X",
+                    lastname: "User",
+                    email: "invalid.fields@westack.cash",
+                    address1: "1 Test St",
+                    address2: "",
+                    city: "Testville",
+                    state: "FL",
+                    zipcode: "33101",
+                    subscription_level: SubscriptionType.FREE,
+                },
+                message: "Invalid signup",
+                session,
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'User fields are invalid');
+    });
+
+    test("GET /user is 400 when the identifier is missing", async () => {
+        const { session } = await createBoundUser("missing.id@westack.cash");
+        const handler = findRouteHandler(userRouter, 'get', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockGetRequest({ headers: { "x-session": session } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'User identifier is required');
+    });
+
+    test("GET /user cannot read another user's record (403)", async () => {
+        const attacker = await createBoundUser("attacker.get@westack.cash");
+        const victim = await createBoundUser("victim.get@westack.cash");
+        const handler = findRouteHandler(userRouter, 'get', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockGetRequest({
+            headers: { "x-session": attacker.session },
+            query: { user_identifier: victim.user_identifier },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Forbidden');
+    });
+
+    test("PUT /user cannot modify another user's record (403)", async () => {
+        const attacker = await createBoundUser("attacker.put@westack.cash");
+        const victim = await createBoundUser("victim.put@westack.cash");
+        const handler = findRouteHandler(userRouter, 'put', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: {
+                data: {
+                    firstname: "Mallory",
+                    lastname: "Hacker",
+                    email: "mallory@westack.cash",
+                    address1: "1 Evil St",
+                    address2: "",
+                    city: "Nowhere",
+                    state: "FL",
+                    zipcode: "33101",
+                    subscription_level: SubscriptionType.FREE,
+                },
+                message: `Update ${victim.user_identifier}`,
+                session: attacker.session,
+                user_identifier: victim.user_identifier,
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Forbidden');
+    });
+
+    test("DELETE /user cannot delete another user's record (403)", async () => {
+        const attacker = await createBoundUser("attacker.del@westack.cash");
+        const victim = await createBoundUser("victim.del@westack.cash");
+        const handler = findRouteHandler(userRouter, 'delete', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: {
+                message: `Delete ${victim.user_identifier}`,
+                session: attacker.session,
+                user_identifier: victim.user_identifier,
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Forbidden');
+    });
+
+    test("GET /user for a deleted user is 404", async () => {
+        const { session, user_identifier } = await createBoundUser("deleted.user@westack.cash");
+
+        const deleteHandler = findRouteHandler(userRouter, 'delete', '/user');
+        assert.ok(deleteHandler, "Missing handler for user endpoint");
+        const del = mockUser({ body: { message: `Delete ${user_identifier}`, session, user_identifier } });
+        // @ts-expect-error req is fine as-is
+        await deleteHandler(del.req, del.res, null);
+        assert.equal(del.res.statusCode, 204);
+
+        const getHandler = findRouteHandler(userRouter, 'get', '/user');
+        assert.ok(getHandler, "Missing handler for user endpoint");
+        const { req, res } = mockGetRequest({
+            headers: { "x-session": session },
+            query: { user_identifier },
+        });
+        // @ts-expect-error req is fine as-is
+        await getHandler(req, res, null);
+        assert.equal(res.statusCode, 404);
+        assert.equal(res.body.message, 'User not found');
+    });
+});
+
 after( () => {
     console.log("Tests complete");
-    process.emit('beforeExit');
+    setTimeout(() => {
+        process.emit('beforeExit');
+    }, 100);
 });

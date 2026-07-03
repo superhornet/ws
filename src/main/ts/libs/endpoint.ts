@@ -72,7 +72,7 @@ export async function endpoint(
                 JSONResponse.updateSuccess(req, res, "Accepted", (result.data ?? null) as unknown as JSON);
                 break;
             case "noContent":
-                JSONResponse.noContent(req, res, "No content", null);
+                JSONResponse.noContent(req, res, "No Content", null);
                 break;
             default: {
                 const _exhaustive: never = result;

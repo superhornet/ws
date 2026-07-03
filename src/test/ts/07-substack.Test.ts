@@ -281,9 +281,9 @@ suite("Testing the SubStack routes with session", () => {
                 });
                 // @ts-expect-error req is fine as-is
                 await handler(req, res, null);
-                test("That result is 204 No content", () => {
+                test("That result is 204 No Content", () => {
                     assert.equal(res.statusCode, 204);
-                    assert.equal(res.body.message, 'No content');
+                    assert.equal(res.body.message, 'No Content');
                 });
                 test("That data is not returned", () => {
                     assert.equal(null, res.body.data);
