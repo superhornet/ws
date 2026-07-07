@@ -1,4 +1,4 @@
-import { describe, it, suite, test, after } from "node:test";
+import { describe, suite, test, after } from "node:test";
 import assert from "node:assert";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
@@ -68,37 +68,24 @@ async function createNotification(session: string, user_identifier: string): Pro
 }
 
 suite("Testing the Notification routes without session", () => {
-    describe("Make a POST request to /api/notification endpoint", () => {
-        it("Checks the failing paths for empty body", async () => {
-            const handler = findRouteHandler(notificationRouter, 'post', '/notification');
-            const { req, res } = mockNotification({});
-            test("Handler is okay", () => {
-                assert.ok(handler, "Missing handler for notification endpoint");
-            });
-            it("Act", async () => {
-                // @ts-expect-error req is fine as-is
-                await handler(req, res, null);
-            });
-            test("response is 400 Bad Request, if body has been omitted.", async () => {
-                assert.equal(res.statusCode, 400);
-                assert.equal(res.body.message, 'Empty JSON body');
-            });
-        });
-        it("Checks the failing paths for missing session", async () => {
-            const handler = findRouteHandler(notificationRouter, 'post', '/notification');
-            const { req, res } = mockNotification({ body: { message: "Missing session" } });
-            test("Handler is okay", () => {
-                assert.ok(handler, "Missing handler for notification endpoint");
-            });
-            it("Act", async () => {
-                // @ts-expect-error req is fine as-is
-                await handler(req, res, null);
-            });
-            test("response is 403 Unauthorized, if session has been omitted.", async () => {
-                assert.equal(res.statusCode, 403);
-                assert.equal(res.body.message, 'Session ID Required');
-            });
-        });
+    test("POST is 400 when the body is empty", async () => {
+        const handler = findRouteHandler(notificationRouter, 'post', '/notification');
+        assert.ok(handler, "Missing handler for notification endpoint");
+        const { req, res } = mockNotification({});
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Empty JSON body');
+    });
+
+    test("POST is 403 when the session is missing", async () => {
+        const handler = findRouteHandler(notificationRouter, 'post', '/notification');
+        assert.ok(handler, "Missing handler for notification endpoint");
+        const { req, res } = mockNotification({ body: { message: "Missing session" } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Session ID Required');
     });
 });
 suite("Testing the Notification routes authorization and edge cases", () => {
