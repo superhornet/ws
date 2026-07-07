@@ -45,17 +45,17 @@ suite("Validator test suite", () => {
         test("a float within the range is valid", () => {
             assert.equal(numberValidator.numberValidate(5.5), true);
         });
-        test("the integer bounds are exclusive: the min and max themselves are not valid", () => {
-            assert.equal(numberValidator.numberValidate(6), false);
-            assert.equal(numberValidator.numberValidate(318), false);
+        test("the integer bounds are inclusive: the min and max themselves are valid", () => {
+            assert.equal(numberValidator.numberValidate(6), true);
+            assert.equal(numberValidator.numberValidate(318), true);
         });
-        test("the integers just inside the bounds are valid", () => {
-            assert.equal(numberValidator.numberValidate(7), true);
-            assert.equal(numberValidator.numberValidate(317), true);
+        test("the integers just outside the bounds are not valid", () => {
+            assert.equal(numberValidator.numberValidate(5), false);
+            assert.equal(numberValidator.numberValidate(319), false);
         });
-        test("the float bounds are exclusive: the min and max themselves are not valid", () => {
-            assert.equal(numberValidator.numberValidate(-6.212), false);
-            assert.equal(numberValidator.numberValidate(13.9), false);
+        test("the float bounds are inclusive: the min and max themselves are valid", () => {
+            assert.equal(numberValidator.numberValidate(-6.212), true);
+            assert.equal(numberValidator.numberValidate(13.9), true);
         });
         test("the floats just inside the bounds are valid", () => {
             assert.equal(numberValidator.numberValidate(-6.2), true);
@@ -144,22 +144,22 @@ suite("Validator test suite", () => {
             });
         }
 
-        const badEntries = [
-            { entry: "No @symbol", input: "invalid-email", expected: TypeError },
-            { entry: "No Toplevel domain", input: "bad@domain", expected: TypeError },
-            { entry: "Number", input: 42, expected: TypeError },
-            { entry: "String is a space", input: " ", expected: TypeError }
+        const malformedEntries = [
+            { entry: "No @symbol", input: "invalid-email" },
+            { entry: "No Toplevel domain", input: "bad@domain" },
+            { entry: "String is a space", input: " " },
+            { entry: "Empty string", input: "" }
         ];
-        for (const { entry, input, expected } of badEntries) {
-            test(`bad email format throws: ${entry}`, () => {
+        for (const { entry, input } of malformedEntries) {
+            test(`malformed email returns false: ${entry}`, () => {
                 const validator = new Validator();
-                assert.throws(() => { validator.emailValidate(input as string); }, expected);
+                assert.equal(validator.emailValidate(input), false);
             });
         }
-        test("an empty string throws a TypeError via the length guard", () => {
-            // Distinct branch from a regex failure: rejected on length === 0.
+        test("a non-string input throws a TypeError", () => {
             const validator = new Validator();
-            assert.throws(() => validator.emailValidate(""), TypeError);
+            // @ts-expect-error deliberately passing a non-string to exercise the guard
+            assert.throws(() => validator.emailValidate(42), TypeError);
         });
     });
 });
