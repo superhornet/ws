@@ -1,5 +1,6 @@
 import { after, describe, test } from "node:test";
 import assert from "node:assert";
+import { randomUUID } from "node:crypto";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
 import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { findRouteHandler, mockGetRequest, mockSession, mockUser } from './mocks.ts'
@@ -39,15 +40,15 @@ describe("Testing the /api/user endpoint", () => {
         assert.equal(res.statusCode, 400);
         assert.equal(res.body.message, 'Empty JSON body');
     });
-    test("Error 403 response when missing session of POST method", async () => {
+    test("Error 403 Session ID Required when the session is missing on POST", async () => {
         const handler = findRouteHandler(userRouter, 'post', '/user');
         assert.ok(handler, "Missing handler for user endpoint");
-        const { req, res } = mockUser({ body: { data: "" as unknown as UserAPIType, message: "Test unauthorized response", session: "" } });
+        const { req, res } = mockUser({ body: { data: "" as unknown as UserAPIType, message: "Test missing session", session: "" } });
 
         // @ts-expect-error req is fine as-is
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
-        assert.equal(res.body.message, 'Unauthorized');
+        assert.equal(res.body.message, 'Session ID Required');
     });
     test("Insert admin account", async () => {
         const handler = findRouteHandler(userRouter, 'post', '/user');
@@ -152,6 +153,10 @@ describe("Testing the /api/user endpoint", () => {
         await handler(req, res, null);
         assert.equal(res.statusCode, 200);
         assert.equal(res.body.message, 'OK');
+        const fetched = res.body.data as unknown as UserAPIType;
+        assert.equal(fetched.user_identifier, regularUser);
+        assert.equal(fetched.email, "onlypam@protonmail.com");
+        assert.equal(fetched.affiliate?.length, 7);
     });
     test(`Update/modify user record. Response is 202 Accepted and contains data`, async () => {
         const handler = findRouteHandler(userRouter, 'put', '/user');
@@ -397,6 +402,132 @@ describe("Testing /api/user authorization and edge cases", () => {
         await getHandler(req, res, null);
         assert.equal(res.statusCode, 404);
         assert.equal(res.body.message, 'User not found');
+    });
+
+    test("POST /user is 403 Unauthorized for a forged (well-formed but unknown) session", async () => {
+        const handler = findRouteHandler(userRouter, 'post', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: {
+                data: {
+                    firstname: "Forged",
+                    lastname: "Session",
+                    email: "forged.session@westack.cash",
+                    address1: "1 Test St",
+                    address2: "",
+                    city: "Testville",
+                    state: "FL",
+                    zipcode: "33101",
+                    subscription_level: SubscriptionType.FREE,
+                },
+                message: "Forged session signup",
+                session: randomUUID(),
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Unauthorized');
+    });
+
+    test("PUT /user is 400 when the updated fields are invalid", async () => {
+        const { session, user_identifier } = await createBoundUser("put.invalid@westack.cash");
+        const handler = findRouteHandler(userRouter, 'put', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: {
+                data: {
+                    firstname: "X", // too short for the update validator
+                    lastname: "User",
+                    email: "put.invalid@westack.cash",
+                    address1: "1 Test St",
+                    address2: "",
+                    city: "Testville",
+                    state: "FL",
+                    zipcode: "33101",
+                    subscription_level: SubscriptionType.FREE,
+                },
+                message: `Update ${user_identifier}`,
+                session,
+                user_identifier,
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'User fields are invalid');
+    });
+
+    test("PUT /user is 400 when the body is empty", async () => {
+        const handler = findRouteHandler(userRouter, 'put', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({});
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Empty JSON body');
+    });
+
+    test("DELETE /user is 400 when the body is empty", async () => {
+        const handler = findRouteHandler(userRouter, 'delete', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({});
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Empty JSON body');
+    });
+
+    test("GET /me is 403 Session ID Required when no session is supplied", async () => {
+        const handler = findRouteHandler(userRouter, 'get', '/me');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockGetRequest({});
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("POST /user stores HTML-stripped name fields", async () => {
+        // stripHtml is destructive: an apostrophe in a name is replaced with a
+        // placeholder token before storage. Pin that observable behavior.
+        const session = await createSession();
+        const postHandler = findRouteHandler(userRouter, 'post', '/user');
+        assert.ok(postHandler, "Missing handler for user endpoint");
+        const created = mockUser({
+            body: {
+                data: {
+                    firstname: "Anne",
+                    lastname: "O'Brien",
+                    email: "html.strip@westack.cash",
+                    address1: "1 Test St",
+                    address2: "",
+                    city: "Testville",
+                    state: "FL",
+                    zipcode: "33101",
+                    subscription_level: SubscriptionType.FREE,
+                },
+                message: "HTML in name",
+                session,
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await postHandler(created.req, created.res, null);
+        assert.equal(created.res.statusCode, 201);
+        const userIdentifier = created.res.body.data.user_identifier;
+
+        const getHandler = findRouteHandler(userRouter, 'get', '/user');
+        assert.ok(getHandler, "Missing handler for user endpoint");
+        const { req, res } = mockGetRequest({
+            headers: { "x-session": session },
+            query: { user_identifier: userIdentifier },
+        });
+        // @ts-expect-error req is fine as-is
+        await getHandler(req, res, null);
+        assert.equal(res.statusCode, 200);
+        const fetched = res.body.data as unknown as UserAPIType;
+        assert.equal(fetched.lastname, "O{foot_mark}Brien");
+        assert.ok(!fetched.lastname.includes("'"), "Raw apostrophe should not survive sanitization");
     });
 });
 
