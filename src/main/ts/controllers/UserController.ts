@@ -31,7 +31,7 @@ router.post("/user", async (req, res) => {
         }
         const u: { data: UserAPIType, message: string, session: string } = req.body;
         if (u.session === undefined || u.session.length === 0) {
-            throw new HTMLStatusError("Unauthorized", 403);
+            throw new HTMLStatusError("Session ID Required", 403);
         } else if (await Session.exists(u.session)) {
             if (await Session.getUserForSession(u.session)) {
                 throw new HTMLStatusError("Session is already associated with a user", 409);
@@ -47,7 +47,7 @@ router.post("/user", async (req, res) => {
             await Session.bindUser(u.session, user.user_identifier);
             JSONResponse.creationSuccess(req, res, "Created", user as unknown as JSON);
         } else {
-            throw new HTMLStatusError("Session ID Required", 403);
+            throw new HTMLStatusError("Unauthorized", 403);
         }
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
