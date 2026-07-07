@@ -1,41 +1,40 @@
 import type { ValidatorOptionsTypes } from "../types/ValidatorOptionsTypes.ts";
 
+const DEFAULT_OPTIONS: Required<ValidatorOptionsTypes> = {
+    version: "1.0",
+    stringValidation: {
+        minLength: 2,
+        maxLength: 255,
+        locale: "en-us",
+    },
+    emailValidation: {
+        domainMinLength: 2,
+        domainMaxLength: 10,
+    },
+    numberValidation: {
+        integerMin: -2147483648,
+        integerMax: 2147483647, // int4 max; bounds are inclusive
+        floatMin: -2147483648,
+        floatMax: 2147483648,
+    },
+};
+
 export class Validator {
-    private _version: string = "";
-    private _options!: ValidatorOptionsTypes;
+    public version: string;
+    public options: ValidatorOptionsTypes;
+
     constructor(options?: ValidatorOptionsTypes) {
-        this.version = options?.version || "1.0";
-        this.options = options || {
-        version: "1.0",
-        stringValidation: {
-            minLength: 2,
-            maxLength: 255,
-            locale: "en-us",
-        },
-        emailValidation: {
-            domainMinLength: 2,
-            domainMaxLength: 10,
-        },
-        numberValidation: {
-            integerMin: -2147483648,
-            integerMax: 2147483648,
-            floatMin: -2147483648,
-            floatMax: 2147483648,
-        }
-    };
+        // Merge per-section so a partial `options` object keeps the defaults for
+        // any section it omits, rather than silently disabling that validator.
+        this.options = {
+            version: options?.version ?? DEFAULT_OPTIONS.version,
+            stringValidation: options?.stringValidation ?? DEFAULT_OPTIONS.stringValidation,
+            emailValidation: options?.emailValidation ?? DEFAULT_OPTIONS.emailValidation,
+            numberValidation: options?.numberValidation ?? DEFAULT_OPTIONS.numberValidation,
+        };
+        this.version = this.options.version;
     }
-    public get options(): ValidatorOptionsTypes {
-        return this._options;
-    }
-    public set options(value: ValidatorOptionsTypes) {
-        this._options = value;
-    }
-    public get version(): string {
-        return this._version;
-    }
-    public set version(value: string) {
-        this._version = value;
-    }
+
     /**
      * stripHtml
      *
@@ -48,13 +47,14 @@ export class Validator {
         }
         return str
             .replaceAll('&', "{ampersand}")
-            .replaceAll('>', `{greater_than}`)
+            .replaceAll('>', "{greater_than}")
             .replaceAll('<', "{less_than}")
             .replaceAll('"', "{inch_mark}")
             .replaceAll('\'', "{foot_mark}")
             .replaceAll('/', "{solidus}")
             .replaceAll(';', "{semicolon}");
     }
+
     /**
      * stringValidate
      *
@@ -65,16 +65,15 @@ export class Validator {
         if (typeof str !== "string") {
             throw new TypeError("Input must be a string.");
         }
-        let isValid = true;
-        //console.log(this.options);
         const stringOptions = this.options.stringValidation;
-        if (typeof str !== "string") { isValid = false; }
-
-        if (stringOptions && str.length < stringOptions.minLength) { isValid = false; }
-        if (stringOptions && str.length > stringOptions.maxLength) { isValid = false; }
-
-        return isValid;
+        if (!stringOptions) {
+            return true;
+        }
+        // Bounds are inclusive: a string at exactly min or max length is valid.
+        return str.length >= stringOptions.minLength &&
+            str.length <= stringOptions.maxLength;
     }
+
     /**
      * emailValidate
      *
@@ -82,20 +81,13 @@ export class Validator {
      * @returns boolean
      */
     public emailValidate(str: string): boolean {
-        if (typeof str !== "string" || str.length === 0) {
-            throw new TypeError("Input must be of type string");
+        if (typeof str !== "string") {
+            throw new TypeError("Input must be a string.");
         }
         const emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        if (!emailRegex.test(str)) {
-            throw new TypeError("Input is not in the format of a valid email");
-        }
-        const [userid, host] = str.split("@");
-        if (!userid && !host) {
-            return false;
-        }
-        return true;
+        return emailRegex.test(str);
     }
+
     /**
      * numberValidate
      *
@@ -103,28 +95,20 @@ export class Validator {
      * @returns boolean
      */
     public numberValidate(num: number): boolean {
-        let isValid = false;
+        if (typeof num !== "number") {
+            return false;
+        }
         const numberOptions = this.options.numberValidation;
-        if(typeof num === 'number' && Number.isInteger(num)){
-            if(numberOptions?.integerMin !== undefined && numberOptions.integerMax !== undefined) {
-                if(
-                    num > numberOptions.integerMin &&
-                    num < numberOptions.integerMax
-                ){
-                    isValid = true;
-                }
-            }
+        if (!numberOptions) {
+            return false;
         }
-        if(typeof num === 'number' && Number.isFinite(num) && !Number.isInteger(num)){
-            if(numberOptions?.floatMin !== undefined && numberOptions.floatMax !== undefined){
-                if(
-                    num > numberOptions.floatMin &&
-                    num < numberOptions.floatMax
-                ){
-                    isValid = true;
-                }
-            }
+        // Bounds are inclusive: a value at exactly min or max is valid.
+        if (Number.isInteger(num)) {
+            return num >= numberOptions.integerMin && num <= numberOptions.integerMax;
         }
-        return isValid
+        if (Number.isFinite(num)) {
+            return num >= numberOptions.floatMin && num <= numberOptions.floatMax;
+        }
+        return false; // NaN / Infinity
     }
 }

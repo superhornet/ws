@@ -38,10 +38,10 @@ export class Transaction {
     static async storeTransaction(transaction: TransactionAPIType) {
         const vTransaction = new Validator({ //Validator for transaction
             version: "1.0",
-            numberValidation: { // Validator for transaction amount (0..$10k]
-                integerMin: 0,
+            numberValidation: { // Validator for transaction amount (0..$10k] in cents
+                integerMin: 1, // bounds are inclusive; 1 cent is the smallest allowed amount
                 integerMax: 1000000, //$10,000.00
-                floatMin: 0,
+                floatMin: 1,
                 floatMax: 10000.01
             },
             stringValidation: { //Validator for notation text
