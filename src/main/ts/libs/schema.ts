@@ -1,8 +1,7 @@
 /**
- * Canonical DDL fragments shared between the runtime migrator
- * (`ensureDatabaseSchema`) and the `/reset` dev route, so a table definition
- * lives in exactly one place rather than being duplicated across TypeScript
- * sources.
+ * Canonical DDL fragments used by the runtime migrator
+ * (`ensureDatabaseSchema`), so a table definition lives in exactly one place
+ * rather than being duplicated across TypeScript sources.
  *
  * `init.sql` intentionally keeps its own copy: it is the raw bootstrap script
  * used to provision a brand-new database (e.g. via Docker) and cannot import
