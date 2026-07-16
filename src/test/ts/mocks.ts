@@ -40,11 +40,13 @@ function createMockResponse() {
 export function mockGetRequest(data?: {
     headers?: Record<string, string>;
     query?: Record<string, string>;
+    params?: Record<string, string>;
     body?: Record<string, unknown>;
 }) {
     const req = {
         headers: data?.headers ?? {},
         query: data?.query ?? {},
+        params: data?.params ?? {},
         body: data?.body,
     };
     return { req, res: createMockResponse() };
