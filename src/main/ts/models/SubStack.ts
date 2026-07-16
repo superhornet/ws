@@ -65,18 +65,18 @@ export class SubStack {
             vSubStack.stringValidate(vSubStack.stripHtml(substack.substack_name));
         if (nameChecked) {
             try {
-                const r = await query<{ created_by: number, stack_identifier: string, owner_identifier: string }>(`
+                const stackRows = await query<{ created_by: number, stack_identifier: string, owner_identifier: string }>(`
                     SELECT created_by, stack_identifier, owner_identifier FROM stacks WHERE stack_identifier = $1 ORDER BY id LIMIT 1;`,
                     [substack.stack_identifier]);
                 let created_by: number;
                 let stack_ident: string;
                 const owner_ident = new Set<string>();
-                for (const result of r) {
+                for (const result of stackRows) {
                     created_by = result.created_by;
                     stack_ident = result.stack_identifier;
                     owner_ident.add(result.owner_identifier);
                 }
-                const q = await withTransaction(async (client) => {
+                const queryResult = await withTransaction(async (client) => {
                     return await client.query(
                         `INSERT INTO substacks (substack_name, stack_identifier, balance, created_by, users_list, goal_amount, goal_deadline )
                         VALUES (
@@ -94,7 +94,7 @@ export class SubStack {
                         ]
                     )
                 });
-                const row = q.rows.at(0);
+                const row = queryResult.rows.at(0);
                 if (!row) {
                     throw new HTMLStatusError("Failed to create substack", 500);
                 }
@@ -181,7 +181,7 @@ export class SubStack {
             vSubStack.stringValidate(vSubStack.stripHtml(substack.substack_name));
         if (nameChecked) {
             try {
-                const q = await withTransaction(async (client) => {
+                const queryResult = await withTransaction(async (client) => {
                     const users = normalizeUsersList(substack.users_list);
 
                     return await client.query(
@@ -201,7 +201,7 @@ export class SubStack {
                         ]
                     );
                 });
-                const rowCount = q.rowCount;
+                const rowCount = queryResult.rowCount;
                 if (rowCount === 0) {
                     throw new HTMLStatusError("Substack Not Found", 404);
                 } else {
@@ -218,13 +218,13 @@ export class SubStack {
     static async deleteSubstack(substack: SubStackAPIType) {
         let isDeleted = false;
         try {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `UPDATE substacks set deleted = TRUE WHERE deleted = FALSE AND substack_identifier = $1;`,
                     [substack.substack_identifier]
                 );
             });
-            const rowCount = q.rowCount;
+            const rowCount = queryResult.rowCount;
             if (rowCount === 0) {
                 throw new HTMLStatusError("Substack Not Found", 404);
             } else {

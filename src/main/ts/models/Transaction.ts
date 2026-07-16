@@ -73,7 +73,7 @@ export class Transaction {
                     TransactionProcessorType.MOONPAY,
                     TransactionProcessorType.STRIPE,
                 ];
-                const q = await withTransaction(async (client) => {
+                const queryResult = await withTransaction(async (client) => {
                     if (feeBearingTypes.includes(transaction.transaction_type) &&
                         feeBearingProcessors.includes(transaction.processor)) {
                         let fee = 0;
@@ -140,7 +140,7 @@ export class Transaction {
                         transaction.notation, transaction.transaction_type, transaction.initiated_by]
                     )
                 });
-                const row = q.rows.at(0);
+                const row = queryResult.rows.at(0);
                 if (!row) {
                     throw new HTMLStatusError("Failed to create transaction", 500);
                 }

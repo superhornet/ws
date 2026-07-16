@@ -45,7 +45,7 @@ export class Affiliate implements IAffiliate {
             }
         });
         if (vCode.stringValidate(code)) {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 const relation = await client.query(
                     `SELECT affiliate, user_identifier FROM users WHERE affiliate = $1;`,
                     [code]
@@ -65,7 +65,7 @@ export class Affiliate implements IAffiliate {
                 );
             });
             const entries: Array<AffiliateAPIType> = [];
-            for (const row of q.rows) {
+            for (const row of queryResult.rows) {
                 const affiliateEntry = new Affiliate({
                     affiliation_code: row.affiliation_code,
                     affiliation_type: row.affiliation_type,

@@ -49,14 +49,14 @@ export class Stack implements IStack {
             vStack.stringValidate(vStack.stripHtml(stack.stack_name));
         if (nameChecked) {
             try {
-                const r = await query<{id: number, user_identifier: string}>(`SELECT id, user_identifier FROM users WHERE user_identifier = $1 ORDER BY id LIMIT 1;`, [stack.owner_identifier]);
+                const userRows = await query<{id: number, user_identifier: string}>(`SELECT id, user_identifier FROM users WHERE user_identifier = $1 ORDER BY id LIMIT 1;`, [stack.owner_identifier]);
                 let id: number;
                 let user_ident: string;
-                for (const result of r) {
+                for (const result of userRows) {
                     id = result.id;
                     user_ident = result.user_identifier;
                 }
-                const q = await withTransaction(async (client) => {
+                const queryResult = await withTransaction(async (client) => {
                     return await client.query(
                         `INSERT INTO stacks ( owner_identifier, stack_name, created_by, goal_amount, goal_deadline, category, emoji )
                     VALUES (
@@ -73,7 +73,7 @@ export class Stack implements IStack {
                             stack.emoji ?? null,
                         ]);
                 });
-                const row = q.rows.at(0);
+                const row = queryResult.rows.at(0);
                 if (!row) {
                     throw new HTMLStatusError("Failed to create stack", 500);
                 }
@@ -221,7 +221,7 @@ export class Stack implements IStack {
             vStack.stringValidate(vStack.stripHtml(stack.stack_name));
         if (nameChecked) {
             try {
-                const q = await withTransaction(async (client) => {
+                const queryResult = await withTransaction(async (client) => {
                     return await client.query(
                         `UPDATE stacks
                     SET stack_name = $1,
@@ -240,7 +240,7 @@ export class Stack implements IStack {
                             stack.emoji ?? null,
                         ]);
                 });
-                const rowCount = q.rowCount;
+                const rowCount = queryResult.rowCount;
                 if (rowCount === 0) {
                     throw new HTMLStatusError("Stack not updated", 404);
                 } else {
@@ -257,14 +257,14 @@ export class Stack implements IStack {
     static async deleteStack(stack_identifier: string) {
         let isDeleted = false;
         try {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `UPDATE stacks
                     SET deleted=TRUE
                     WHERE deleted = FALSE AND stack_identifier = $1;`,
                     [stack_identifier]);
             });
-            const rowCount = q.rowCount;
+            const rowCount = queryResult.rowCount;
             if (rowCount === 0) {
                 throw new HTMLStatusError("Stack not deleted", 404);
             } else {

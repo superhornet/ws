@@ -48,7 +48,7 @@ export class Notification implements INotification {
         const messageChecked: boolean =
             vMessage.stringValidate(vMessage.stripHtml(notification.message));
         if (messageChecked) {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `INSERT INTO notifications (message, notification_for) VALUES( $1, $2 )
                     RETURNING id, notification_identifier, message, notification_for;`,
@@ -56,7 +56,7 @@ export class Notification implements INotification {
                 );
             });
 
-            const row = q.rows.at(0);
+            const row = queryResult.rows.at(0);
             if (!row) {
                 throw new HTMLStatusError("Failed to create notification", 500)
             }
@@ -111,7 +111,7 @@ export class Notification implements INotification {
             vMessage.stringValidate(vMessage.stripHtml(notification.message));
         if (messageChecked) {
             try {
-                const q = await withTransaction(async (client) => {
+                const queryResult = await withTransaction(async (client) => {
                     return await client.query(
                         `UPDATE notifications
                 SET seen=FALSE, message=$1
@@ -120,7 +120,7 @@ export class Notification implements INotification {
                     );
                 });
 
-                const rowCount = q.rowCount;
+                const rowCount = queryResult.rowCount;
                 if (rowCount === 0) {
                     throw new HTMLStatusError("Notification not updated", 404);
                 } else {
@@ -137,7 +137,7 @@ export class Notification implements INotification {
     static async setAsSeen(notification_identifier: string) {
         let isUpdated = false;
         try {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `UPDATE notifications
                     SET seen=TRUE
@@ -145,7 +145,7 @@ export class Notification implements INotification {
                     [notification_identifier]
                 );
             });
-            const rowCount = q.rowCount;
+            const rowCount = queryResult.rowCount;
             if (rowCount === 0) {
                 throw new HTMLStatusError("Notification not updated", 404);
             } else {
@@ -159,7 +159,7 @@ export class Notification implements INotification {
     static async setAsUnseen(notification_identifier: string) {
         let isUpdated = false;
         try {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `UPDATE notifications
                     SET seen=FALSE
@@ -167,7 +167,7 @@ export class Notification implements INotification {
                     [notification_identifier]
                 );
             });
-            const rowCount = q.rowCount;
+            const rowCount = queryResult.rowCount;
             if (rowCount === 0) {
                 throw new HTMLStatusError("Notification not updated", 404);
             } else {
@@ -181,7 +181,7 @@ export class Notification implements INotification {
     static async deleteNotification(notification_identifier: string) {
         let isDeleted = false;
         try {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `UPDATE notifications
                     SET deleted=TRUE
@@ -189,7 +189,7 @@ export class Notification implements INotification {
                     [notification_identifier]
                 );
             });
-            const rowCount = q.rowCount;
+            const rowCount = queryResult.rowCount;
             if (rowCount === 0) {
                 throw new HTMLStatusError("Notification not deleted", 404);
             } else {

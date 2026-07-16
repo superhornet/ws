@@ -82,7 +82,7 @@ export class User implements IUser {
             vAddress.stringValidate(vAddress.stripHtml(user.city)) &&
             vAddress.stringValidate(vAddress.stripHtml(user.state)));
         if (emailChecked && nameChecked && addressChecked) {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `INSERT INTO users (email,email_host,emailid,
                     firstname,lastname,affiliate,
@@ -109,7 +109,7 @@ export class User implements IUser {
                 );
             });
 
-            const row = q.rows.at(0);
+            const row = queryResult.rows.at(0);
             if (!row) {
                 throw new HTMLStatusError("Failed to create user.", 500)
             }
@@ -212,7 +212,7 @@ export class User implements IUser {
             vAddress.stringValidate(vAddress.stripHtml(user.state)));
         if (emailChecked && nameChecked && addressChecked) {
             try {
-                const q = await withTransaction(async (client) => {
+                const queryResult = await withTransaction(async (client) => {
                     return await client.query(
                         `UPDATE users SET (email,email_host,emailid,
                     firstname,lastname,
@@ -236,7 +236,7 @@ export class User implements IUser {
                         ])
                 });
 
-                const rowCount = q.rowCount;
+                const rowCount = queryResult.rowCount;
                 if (rowCount === 0) {
                     throw new HTMLStatusError("User not updated", 404);
                 } else {
@@ -253,13 +253,13 @@ export class User implements IUser {
     static async deleteUser(user_identifier: string) {
         let isDeleted = false;
         try {
-            const q = await withTransaction(async (client) => {
+            const queryResult = await withTransaction(async (client) => {
                 return await client.query(
                     `UPDATE users SET deleted=TRUE WHERE user_identifier = $1`,
                     [user_identifier]
                 )
             });
-            const rowCount = q.rowCount;
+            const rowCount = queryResult.rowCount;
             if (rowCount === 0) {
                 throw new HTMLStatusError("User not found", 404);
             } else {

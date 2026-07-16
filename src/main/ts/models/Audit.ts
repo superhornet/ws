@@ -56,22 +56,22 @@ export class Audit implements IAudit {
     private static normalizeMessage(message: string): string {
         // Only `stripHtml` is needed here; it ignores Validator options, and the
         // 2..512 range is enforced explicitly below.
-        const v = new Validator();
+        const validator = new Validator();
         // stripHtml can expand input (e.g. "&" -> "{ampersand}"), so clamp after.
-        const sanitized = typeof message === "string" ? v.stripHtml(message).trim() : "";
+        const sanitized = typeof message === "string" ? validator.stripHtml(message).trim() : "";
         const clamped = sanitized.slice(0, Audit.MAX_MESSAGE_LENGTH);
         return clamped.length >= Audit.MIN_MESSAGE_LENGTH ? clamped : Audit.FALLBACK_MESSAGE;
     }
 
     static async logMessage(message: string, session: string): Promise<{ message: string; }> {
         const safeMessage = Audit.normalizeMessage(message);
-        const q = await withTransaction(async (client) => {
+        const queryResult = await withTransaction(async (client) => {
             return client.query(
                 `INSERT INTO audit (message, session, type) VALUES ($1, $2, $3) RETURNING message;`,
                 [safeMessage, session, 'info']
             )
         });
-        const row = q.rows.at(0);
+        const row = queryResult.rows.at(0);
         if (!row) {
             throw new HTMLStatusError("Failed to write to audit log", 500);
         }

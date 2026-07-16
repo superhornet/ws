@@ -40,14 +40,14 @@ export class Session implements ISession {
     }
 
     private async storeSession(): Promise<void> {
-        const q = await withTransaction(async (client) => {
+        const queryResult = await withTransaction(async (client) => {
             return client.query<{ id: number, expires: string, uuid: string }>(
                 'INSERT INTO sessions (otp) VALUES ($1) RETURNING id, otp, expires, uuid',
                 [this.otp]
             );
         });
 
-        const row = q.rows.at(0);
+        const row = queryResult.rows.at(0);
         if (!row) {
             throw new HTMLStatusError("Failed to store session", 500);
         }
