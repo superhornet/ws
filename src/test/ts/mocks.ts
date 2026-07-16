@@ -8,29 +8,21 @@ import { TransactionItemType, TransactionProcessorType, type TransactionAPIType 
 import type { UserAPIType } from '../../main/ts/types/UserAPITypes.ts';
 import { AffiliationType, type AffiliateAPIType } from '../../main/ts/types/AffiliateAPITypes.ts';
 
-type MockResponse = {
-    statusCode: number;
-    body: Record<string, unknown>;
-    status(code: number): MockResponse;
-    json(payload: Record<string, unknown>): Record<string, unknown>;
-};
-
-function createMockResponse() {
+function createMockResponse<TBody>(initialBody: TBody) {
     // statusCode/code start at -1 as a "no response sent yet" sentinel so a
     // handler that never responds is visibly distinguishable in tests.
-    const res: MockResponse = {
+    return {
         statusCode: -1,
-        body: { code: -1, data: null, message: "" },
+        body: initialBody,
         status(code: number) {
             this.statusCode = code;
             return this;
         },
-        json(payload: Record<string, unknown>) {
+        json(payload: TBody) {
             this.body = payload;
-            return this.body;
+            return this;
         },
     };
-    return res;
 }
 
 /**
@@ -49,7 +41,10 @@ export function mockGetRequest(data?: {
         params: data?.params ?? {},
         body: data?.body,
     };
-    return { req, res: createMockResponse() };
+    return {
+        req,
+        res: createMockResponse<Record<string, unknown>>({ code: -1, data: null, message: "" }),
+    };
 }
 
 export function findRouteHandler(router: typeof AuditRouter| typeof SessionRouter, method: string, path: string) {
@@ -62,83 +57,43 @@ export function findRouteHandler(router: typeof AuditRouter| typeof SessionRoute
     return layer?.route?.stack[0]?.handle;
 }
 export function mockHealth() {
-    const req = { Request };
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: {},
+        res: createMockResponse({
             code: -1,
             data: null,
             message: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockSession() {
-    const req = {};
-    const res = {
-        statusCode: -1,
-        body: {
-                code: -1,
-                data: {
-                    uuid: "",
-                    expires: "",
-                    otp: ""
-                },
-                message: ""
-            },
-        status(code: number)/*: Response */{
-            this.statusCode = code;
-            return this /*as Response*/;
-        },
-        json(payload: typeof this.body/*{
-                code: number,
-                data: {
-                    uuid: string,
-                    expires: string,
-                    otp: string
-                },
-                message: string
-            }*/)/*: Response */{
-            this.body = payload;
-            return this.body/* as Response*/;
-        }
-    } /*as unknown as Response*/;
-    return { req, res };
-}
-export function mockAudit(data?: {body?: { session?: string, message?: string, action?: string, entity?: string, entity_identifier?: string }}) {
-    const req = data;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: {},
+        res: createMockResponse({
             code: -1,
-            data:{
+            data: {
+                uuid: "",
+                expires: "",
+                otp: ""
             },
             message: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
+}
+export function mockAudit(data?: {body?: { session?: string, message?: string, action?: string, entity?: string, entity_identifier?: string }}) {
+    return {
+        req: data,
+        res: createMockResponse({
+            code: -1,
+            data: {},
+            message: ""
+        }),
+    };
 }
 export function mockUser(data?: { body?: { data?: UserAPIType; message: string|null; session: string; user_identifier?: string}}) {
-    const req =  data ;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             code: -1,
             data: {
                 firstname: "",
@@ -155,24 +110,13 @@ export function mockUser(data?: { body?: { data?: UserAPIType; message: string|n
             },
             message: "",
             session: "",
-
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockNotification( data?: {params?:{id: number}, body?: { data?: Array<NotificationAPIType>|NotificationAPIType; message?: string; session?: string}}) {
-    const req = data;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             code: -1,
             data: [{
                 message: "", //Notification Text
@@ -181,23 +125,13 @@ export function mockNotification( data?: {params?:{id: number}, body?: { data?: 
             }],
             message: "", //Creation message
             session: "",
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockStack( data?: { body?: { data?: StackAPIType; message: string|null; session: string;}}) {
-    const req = data ;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             code: -1,
             data: {
                 stack_name: "", //Stack Name
@@ -206,23 +140,13 @@ export function mockStack( data?: { body?: { data?: StackAPIType; message: strin
             },
             message: "", //Creation message
             session: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockSubStack( data?: { body?: { data?: SubStackAPIType; message?: string; session?: string;}}) {
-    const req = data ;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             code: -1,
             data: {
                 substack_name: "", //SubStack Name
@@ -233,23 +157,13 @@ export function mockSubStack( data?: { body?: { data?: SubStackAPIType; message?
             },
             message: "", //Creation message
             session: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockSubStackList( data?: { body?: {type: string}|{ data?: Array<SubStackAPIType>; message?: string; session?: string;}}) {
-    const req = data ;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             code: -1,
             data: [{
                 substack_name: "", //SubStack Name
@@ -260,23 +174,13 @@ export function mockSubStackList( data?: { body?: {type: string}|{ data?: Array<
             }],
             message: "", //Creation message
             session: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockTransaction(data?: {body?: {data?: TransactionAPIType, message?: string, session?: string}}) {
-    const req = data ;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             data: {
                 processor: TransactionProcessorType,
                 transactionType: TransactionItemType,
@@ -288,23 +192,13 @@ export function mockTransaction(data?: {body?: {data?: TransactionAPIType, messa
             },
             message: "",
             session: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockTransactionList( data?: { body?: {key: string, value: string, message?: string, session?: string;}|{ data?: TransactionAPIType; message?: string; session?: string;}}) {
-    const req = data ;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             code: -1,
             data: [{
                 processor: TransactionProcessorType,
@@ -317,23 +211,13 @@ export function mockTransactionList( data?: { body?: {key: string, value: string
             }],
             message: "", //Creation message
             session: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
 export function mockAffiliate( data?: {body?: {data?: AffiliateAPIType, message?: string, session?: string}}){
-    const req = data ;
-    const res = {
-        statusCode: -1,
-        body: {
+    return {
+        req: data,
+        res: createMockResponse({
             code: -1,
             data: [{
                 affiliation_code: "",
@@ -342,15 +226,6 @@ export function mockAffiliate( data?: {body?: {data?: AffiliateAPIType, message?
             }],
             message: "", //Creation message
             session: ""
-        },
-        status(code: number) {
-            this.statusCode = code;
-            return this;
-        },
-        json(payload: typeof this.body) {
-            this.body = payload;
-            return this;
-        }
+        }),
     };
-    return { req, res };
 }
