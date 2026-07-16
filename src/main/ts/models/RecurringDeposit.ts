@@ -62,7 +62,7 @@ export class RecurringDeposit {
             throw new HTMLStatusError("amount_cents must be a positive integer", 400);
         }
         try {
-            const q = await withTransaction((client) =>
+            const queryResult = await withTransaction((client) =>
                 client.query<RecurringDepositRow>(
                     `INSERT INTO recurring_deposits (from_identifier, to_identifier, amount_cents, frequency, next_run_at)
                      VALUES ($1, $2, $3, $4, $5)
@@ -70,7 +70,7 @@ export class RecurringDeposit {
                     [deposit.from_identifier, deposit.to_identifier, amount, deposit.frequency, deposit.next_run_at]
                 )
             );
-            const row = q.rows.at(0);
+            const row = queryResult.rows.at(0);
             if (!row) {
                 throw new HTMLStatusError("Failed to create recurring deposit", 500);
             }
@@ -126,7 +126,7 @@ export class RecurringDeposit {
             throw new HTMLStatusError("Invalid frequency", 400);
         }
         try {
-            const q = await withTransaction((client) =>
+            const queryResult = await withTransaction((client) =>
                 client.query(
                     `UPDATE recurring_deposits
                      SET amount_cents = COALESCE($1, amount_cents),
@@ -146,7 +146,7 @@ export class RecurringDeposit {
                     ]
                 )
             );
-            if (q.rowCount === 0) {
+            if (queryResult.rowCount === 0) {
                 throw new HTMLStatusError("Recurring deposit not found", 404);
             }
             return true;
@@ -163,14 +163,14 @@ export class RecurringDeposit {
             throw new HTMLStatusError("recurring_deposit_identifier is required", 400);
         }
         try {
-            const q = await withTransaction((client) =>
+            const queryResult = await withTransaction((client) =>
                 client.query(
                     `UPDATE recurring_deposits SET deleted = TRUE, updated_at = NOW()
                      WHERE deleted = FALSE AND recurring_deposit_identifier = $1;`,
                     [recurring_deposit_identifier]
                 )
             );
-            if (q.rowCount === 0) {
+            if (queryResult.rowCount === 0) {
                 throw new HTMLStatusError("Recurring deposit not found", 404);
             }
             return true;
