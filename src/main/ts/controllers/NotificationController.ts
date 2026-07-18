@@ -13,11 +13,16 @@ export const router = express.Router();
  */
 router.post("/notification", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const n: { data: NotificationAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: NotificationAPIType, message: string, session: string } = req.body;
+    // Reject a malformed body (missing `data`/fields) here, during plan(), so it
+    // becomes a 400 — authorize/run must never dereference an absent `data` and
+    // surface a 500 instead.
+    requireParam(requestBody.data?.notification_for, "Notification recipient");
+    requireParam(requestBody.data?.message, "Notification message");
     return {
-        message: n.message,
-        authorize: async () => assertSelf(await requireActingUser(req), n.data.notification_for),
-        run: async () => ({ status: "created", data: await Notification.storeNotification(n.data) }),
+        message: requestBody.message,
+        authorize: async () => assertSelf(await requireActingUser(req), requestBody.data.notification_for),
+        run: async () => ({ status: "created", data: await Notification.storeNotification(requestBody.data) }),
     };
 }));
 
@@ -45,12 +50,14 @@ router.get("/notifications", (req, res) => endpoint(req, res, () => {
  */
 router.put("/notification", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const n: { data: NotificationAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: NotificationAPIType, message: string, session: string } = req.body;
+    requireParam(requestBody.data?.notification_for, "Notification recipient");
+    requireParam(requestBody.data?.message, "Notification message");
     return {
-        message: n.message,
-        authorize: async () => assertSelf(await requireActingUser(req), n.data.notification_for),
+        message: requestBody.message,
+        authorize: async () => assertSelf(await requireActingUser(req), requestBody.data.notification_for),
         run: async () => {
-            await Notification.updateNotification(n.data);
+            await Notification.updateNotification(requestBody.data);
             return { status: "accepted" };
         },
     };
@@ -64,13 +71,14 @@ router.put("/notification/:id", (req, res) => endpoint(req, res, () => {
         throw new HTMLStatusError("Missing parameter", 400);
     }
     requireBody(req);
-    const n: { data: NotificationAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: NotificationAPIType, message: string, session: string } = req.body;
+    requireParam(requestBody.data?.note_identifier, "Notification identifier");
     const markSeen = req.params.id.toString() === "t" || req.params.id.toString() === "1";
     return {
-        message: n.message,
-        authorize: async () => assertNotificationAccess(await requireActingUser(req), n.data.note_identifier),
+        message: requestBody.message,
+        authorize: async () => assertNotificationAccess(await requireActingUser(req), requestBody.data.note_identifier),
         run: async () => {
-            const noteId = n.data.note_identifier || "";
+            const noteId = requestBody.data.note_identifier || "";
             if (markSeen) {
                 await Notification.setAsSeen(noteId);
             } else {
@@ -86,12 +94,13 @@ router.put("/notification/:id", (req, res) => endpoint(req, res, () => {
  */
 router.delete("/notification", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const n: { data: NotificationAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: NotificationAPIType, message: string, session: string } = req.body;
+    requireParam(requestBody.data?.note_identifier, "Notification identifier");
     return {
-        message: n.message,
-        authorize: async () => assertNotificationAccess(await requireActingUser(req), n.data.note_identifier),
+        message: requestBody.message,
+        authorize: async () => assertNotificationAccess(await requireActingUser(req), requestBody.data.note_identifier),
         run: async () => {
-            await Notification.deleteNotification(n.data.note_identifier || "");
+            await Notification.deleteNotification(requestBody.data.note_identifier || "");
             return { status: "noContent" };
         },
     };

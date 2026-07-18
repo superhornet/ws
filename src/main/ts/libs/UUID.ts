@@ -40,7 +40,7 @@ export function generateUUID(): string {
         timeMid,
         byte6.toString(16).padStart(2, "0") + randomBytes[1]!.toString(16).padStart(2, "0"),
         byte8.toString(16).padStart(2, "0") + randomBytes[3]!.toString(16).padStart(2, "0"),
-        Array.from(randomBytes.slice(4), b => b.toString(16).padStart(2, "0")).join("")
+        Array.from(randomBytes.slice(4), byte => byte.toString(16).padStart(2, "0")).join("")
     ].join("-");
 }
 

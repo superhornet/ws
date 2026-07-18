@@ -12,13 +12,17 @@ export const router = express.Router();
  */
 router.post("/stack", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const s: { data: StackAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: StackAPIType, message: string, session: string } = req.body;
+    // Reject a malformed body (missing `data`/fields) here, during plan(), so it
+    // becomes a 400 — authorize/run must never dereference an absent `data` and
+    // surface a 500 instead.
+    requireParam(requestBody.data?.stack_name, "Stack name");
     return {
-        message: s.message,
+        message: requestBody.message,
         authorize: async () => {
-            s.data.owner_identifier = await requireActingUser(req);
+            requestBody.data.owner_identifier = await requireActingUser(req);
         },
-        run: async () => ({ status: "created", data: await Stack.storeStack(s.data) }),
+        run: async () => ({ status: "created", data: await Stack.storeStack(requestBody.data) }),
     };
 }));
 
@@ -55,12 +59,14 @@ router.get("/stack/members", (req, res) => endpoint(req, res, () => {
  */
 router.put("/stack", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const s: { data: StackAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: StackAPIType, message: string, session: string } = req.body;
+    requireParam(requestBody.data?.stack_identifier, "Stack identifier");
+    requireParam(requestBody.data?.stack_name, "Stack name");
     return {
-        message: s.message,
-        authorize: async () => assertStackOwner(await requireActingUser(req), s.data.stack_identifier),
+        message: requestBody.message,
+        authorize: async () => assertStackOwner(await requireActingUser(req), requestBody.data.stack_identifier),
         run: async () => {
-            await Stack.updateStack(s.data);
+            await Stack.updateStack(requestBody.data);
             return { status: "accepted" };
         },
     };
@@ -71,12 +77,13 @@ router.put("/stack", (req, res) => endpoint(req, res, () => {
  */
 router.delete("/stack", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const s: { data: StackAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: StackAPIType, message: string, session: string } = req.body;
+    requireParam(requestBody.data?.stack_identifier, "Stack identifier");
     return {
-        message: s.message,
-        authorize: async () => assertStackOwner(await requireActingUser(req), s.data.stack_identifier),
+        message: requestBody.message,
+        authorize: async () => assertStackOwner(await requireActingUser(req), requestBody.data.stack_identifier),
         run: async () => {
-            await Stack.deleteStack(s.data.stack_identifier || "");
+            await Stack.deleteStack(requestBody.data.stack_identifier || "");
             return { status: "noContent" };
         },
     };

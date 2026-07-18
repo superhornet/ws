@@ -39,7 +39,29 @@ export class User implements IUser {
         }
     }
 
+    /**
+     * Rejects a payload whose required string fields are missing or not strings,
+     * before any of them are dereferenced (`email.split`, `stripHtml`, …), so a
+     * malformed body yields a 400 rather than a TypeError-driven 500. The message
+     * stays generic: validation errors must not name fields.
+     */
+    private static assertUserShape(user: UserAPIType | undefined): asserts user is UserAPIType {
+        const requiredStrings = [
+            user?.email,
+            user?.firstname,
+            user?.lastname,
+            user?.address1,
+            user?.address2,
+            user?.city,
+            user?.state,
+        ];
+        if (requiredStrings.some((field) => typeof field !== "string")) {
+            throw new HTMLStatusError("User fields are invalid", 400);
+        }
+    }
+
     static async storeUser(user: UserAPIType, verifiedPhone?: string | null) {
+        User.assertUserShape(user);
         const vName = new Validator({
             version: "1.0",
             stringValidation: {
@@ -168,6 +190,7 @@ export class User implements IUser {
         }
     }
     static async updateUser(user: UserAPIType) {
+        User.assertUserShape(user);
         let isUpdated = false;
         const vName = new Validator({
             version: "1.0",
@@ -274,7 +297,7 @@ export class User implements IUser {
         const legalChars: string = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
         let code = "";
 
-        for (let i = 0; i < size_t; i++) {
+        for (let index = 0; index < size_t; index++) {
             code += legalChars.charAt(randomInt(legalChars.length));
         }
         return code;

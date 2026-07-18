@@ -81,11 +81,63 @@ suite("Testing the Notification routes without session", () => {
     test("POST is 403 when the session is missing", async () => {
         const handler = findRouteHandler(notificationRouter, 'post', '/notification');
         assert.ok(handler, "Missing handler for notification endpoint");
-        const { req, res } = mockNotification({ body: { message: "Missing session" } });
+        const { req, res } = mockNotification({
+            body: {
+                data: {
+                    message: "No session note.",
+                    notification_for: "00000000-0000-0000-0000-000000000000",
+                    note_identifier: "",
+                },
+                message: "Missing session",
+            },
+        });
         // @ts-expect-error req is fine as-is
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
         assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("POST is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(notificationRouter, 'post', '/notification');
+        assert.ok(handler, "Missing handler for notification endpoint");
+        const { req, res } = mockNotification({ body: { message: "Malformed body", session: "not-checked" } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Notification recipient is required');
+    });
+
+    test("PUT is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(notificationRouter, 'put', '/notification');
+        assert.ok(handler, "Missing handler for notification endpoint");
+        const { req, res } = mockNotification({ body: { message: "Malformed body", session: "not-checked" } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Notification recipient is required');
+    });
+
+    test("PUT /notification/:id is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(notificationRouter, 'put', '/notification/:id');
+        assert.ok(handler, "Missing handler for notification endpoint");
+        const { req, res } = mockNotification({
+            params: { id: 1 },
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Notification identifier is required');
+    });
+
+    test("DELETE is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(notificationRouter, 'delete', '/notification');
+        assert.ok(handler, "Missing handler for notification endpoint");
+        const { req, res } = mockNotification({ body: { message: "Malformed body", session: "not-checked" } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Notification identifier is required');
     });
 });
 suite("Testing the Notification routes authorization and edge cases", () => {

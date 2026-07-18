@@ -468,6 +468,31 @@ describe("Testing /api/user authorization and edge cases", () => {
         assert.equal(res.body.message, 'Empty JSON body');
     });
 
+    test("PUT /user is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(userRouter, 'put', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: { message: "Malformed body", session: "not-checked", user_identifier: "" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'User fields are invalid');
+    });
+
+    test("POST /user is 400 when the body has no data", async () => {
+        const session = await createSession();
+        const handler = findRouteHandler(userRouter, 'post', '/user');
+        assert.ok(handler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: { message: "Malformed signup", session },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'User fields are invalid');
+    });
+
     test("DELETE /user is 400 when the body is empty", async () => {
         const handler = findRouteHandler(userRouter, 'delete', '/user');
         assert.ok(handler, "Missing handler for user endpoint");

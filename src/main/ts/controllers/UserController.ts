@@ -29,22 +29,22 @@ router.post("/user", async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new HTMLStatusError("Empty JSON body", 400);
         }
-        const u: { data: UserAPIType, message: string, session: string } = req.body;
-        if (u.session === undefined || u.session.length === 0) {
+        const requestBody: { data: UserAPIType, message: string, session: string } = req.body;
+        if (requestBody.session === undefined || requestBody.session.length === 0) {
             throw new HTMLStatusError("Session ID Required", 403);
-        } else if (await Session.exists(u.session)) {
-            if (await Session.getUserForSession(u.session)) {
+        } else if (await Session.exists(requestBody.session)) {
+            if (await Session.getUserForSession(requestBody.session)) {
                 throw new HTMLStatusError("Session is already associated with a user", 409);
             }
-            await Audit.logMessage(u.message, u.session);
+            await Audit.logMessage(requestBody.message, requestBody.session);
             // Link the phone proven during the signup OTP flow (kept on the
             // session's verified phone OTP) so login lookups by phone succeed.
-            const verifiedPhone = await OtpRequest.verifiedPhoneForSession(u.session);
-            const user = await User.storeUser(u.data, verifiedPhone);
+            const verifiedPhone = await OtpRequest.verifiedPhoneForSession(requestBody.session);
+            const user = await User.storeUser(requestBody.data, verifiedPhone);
             if (!user.user_identifier) {
                 throw new HTMLStatusError("Failed to create user.", 500);
             }
-            await Session.bindUser(u.session, user.user_identifier);
+            await Session.bindUser(requestBody.session, user.user_identifier);
             JSONResponse.creationSuccess(req, res, "Created", user as unknown as JSON);
         } else {
             throw new HTMLStatusError("Unauthorized", 403);
@@ -88,13 +88,19 @@ router.get("/user", (req, res) => endpoint(req, res, () => {
  */
 router.put("/user", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const u: { data: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
-    u.data.user_identifier = u.user_identifier;
+    const requestBody: { data: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
+    // Reject a malformed body (missing `data`) here, during plan(), so it becomes
+    // a 400 instead of a TypeError-driven 500. Kept generic per the project's
+    // no-field-names-in-errors convention for user PII.
+    if (!requestBody.data) {
+        throw new HTMLStatusError("User fields are invalid", 400);
+    }
+    requestBody.data.user_identifier = requestBody.user_identifier;
     return {
-        message: `Put /api/user/${u.user_identifier}`,
-        authorize: async () => assertSelf(await requireActingUser(req), u.user_identifier),
+        message: `Put /api/user/${requestBody.user_identifier}`,
+        authorize: async () => assertSelf(await requireActingUser(req), requestBody.user_identifier),
         run: async () => {
-            await User.updateUser(u.data);
+            await User.updateUser(requestBody.data);
             return { status: "accepted" };
         },
     };
@@ -105,12 +111,12 @@ router.put("/user", (req, res) => endpoint(req, res, () => {
  */
 router.delete("/user", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const u: { user: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
+    const requestBody: { user: UserAPIType, message: string, session: string, user_identifier: string } = req.body;
     return {
-        message: `Delete /api/user/${u.user_identifier}`,
-        authorize: async () => assertSelf(await requireActingUser(req), u.user_identifier),
+        message: `Delete /api/user/${requestBody.user_identifier}`,
+        authorize: async () => assertSelf(await requireActingUser(req), requestBody.user_identifier),
         run: async () => {
-            await User.deleteUser(u.user_identifier);
+            await User.deleteUser(requestBody.user_identifier);
             return { status: "noContent" };
         },
     };

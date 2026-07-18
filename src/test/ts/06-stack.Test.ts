@@ -83,12 +83,28 @@ suite("Stack routes: input validation and missing session", () => {
         const handler = findRouteHandler(stackRouter, 'post', '/stack');
         assert.ok(handler, "Missing handler for stack endpoint");
         const { req, res } = mockStack({
-            body: { message: "Test unauthorized response", session: "" },
+            body: {
+                data: { stack_name: "No Session Stack", stack_identifier: "", owner_identifier: "" },
+                message: "Test unauthorized response",
+                session: "",
+            },
         });
         // @ts-expect-error req is fine as-is
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
         assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("POST is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(stackRouter, 'post', '/stack');
+        assert.ok(handler, "Missing handler for stack endpoint");
+        const { req, res } = mockStack({
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Stack name is required');
     });
 
     test("PUT is 400 when the body is empty", async () => {
@@ -106,7 +122,7 @@ suite("Stack routes: input validation and missing session", () => {
         assert.ok(handler, "Missing handler for stack endpoint");
         const { req, res } = mockStack({
             body: {
-                data: { stack_name: "Renamed", stack_identifier: "", owner_identifier: "" },
+                data: { stack_name: "Renamed", stack_identifier: "00000000-0000-0000-0000-000000000000", owner_identifier: "" },
                 message: "No session",
                 session: "",
             },
@@ -115,6 +131,18 @@ suite("Stack routes: input validation and missing session", () => {
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
         assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("PUT is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(stackRouter, 'put', '/stack');
+        assert.ok(handler, "Missing handler for stack endpoint");
+        const { req, res } = mockStack({
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Stack identifier is required');
     });
 
     test("DELETE is 400 when the body is empty", async () => {
@@ -132,7 +160,7 @@ suite("Stack routes: input validation and missing session", () => {
         assert.ok(handler, "Missing handler for stack endpoint");
         const { req, res } = mockStack({
             body: {
-                data: { stack_name: "", stack_identifier: "", owner_identifier: "" },
+                data: { stack_name: "", stack_identifier: "00000000-0000-0000-0000-000000000000", owner_identifier: "" },
                 message: "No session",
                 session: "",
             },
@@ -141,6 +169,18 @@ suite("Stack routes: input validation and missing session", () => {
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
         assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("DELETE is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(stackRouter, 'delete', '/stack');
+        assert.ok(handler, "Missing handler for stack endpoint");
+        const { req, res } = mockStack({
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Stack identifier is required');
     });
 });
 
