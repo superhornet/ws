@@ -161,7 +161,7 @@ export class Session implements ISession {
         const otpLength: number = 6;
         let otp = "";
 
-        for (let i = 0; i < otpLength; i++) {
+        for (let index = 0; index < otpLength; index++) {
             otp += legalChars.charAt(randomInt(legalChars.length));
         }
         return otp;

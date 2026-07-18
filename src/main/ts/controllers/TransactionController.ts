@@ -24,19 +24,19 @@ const TRANSACTION_QUERY_AUTH: Record<string, (actingUser: string, value: string)
  */
 router.post("/transaction", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
-    const t: { data: TransactionAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: TransactionAPIType, message: string, session: string } = req.body;
     // Reject a malformed body (missing `data`/source) here, during plan(), so it
     // becomes a 400 before session resolution/authorize run — the 403/401 checks
     // must never dereference an absent `data` and surface a 500 instead.
-    requireGuid(t.data?.from_identifier, "Transaction source");
+    requireGuid(requestBody.data?.from_identifier, "Transaction source");
     return {
-        message: `Transaction $${t.data.amount}: From ${t.data.from_identifier} to ${t.data.to_identifier}.`,
+        message: `Transaction $${requestBody.data.amount}: From ${requestBody.data.from_identifier} to ${requestBody.data.to_identifier}.`,
         authorize: async () => {
             const actingUser = await requireActingUser(req);
-            t.data.initiated_by = actingUser;
-            await assertSubstackAccess(actingUser, t.data.from_identifier);
+            requestBody.data.initiated_by = actingUser;
+            await assertSubstackAccess(actingUser, requestBody.data.from_identifier);
         },
-        run: async () => ({ status: "created", data: await Transaction.storeTransaction(t.data) }),
+        run: async () => ({ status: "created", data: await Transaction.storeTransaction(requestBody.data) }),
     };
 }));
 

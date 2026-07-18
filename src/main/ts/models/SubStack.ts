@@ -242,8 +242,8 @@ export class SubStack {
                 `SELECT balance FROM substacks WHERE substack_identifier = $1;`,
                 [substack_identifier]
             );
-            for(const b of fetchedBalance){
-                balance = b.balance/100;
+            for(const row of fetchedBalance){
+                balance = row.balance/100;
             }
             return balance;
         } catch (error) {

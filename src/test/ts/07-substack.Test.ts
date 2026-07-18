@@ -139,11 +139,28 @@ suite("SubStack routes: input validation and missing session", () => {
     test("POST is 403 when the session is missing", async () => {
         const handler = findRouteHandler(substackRouter, 'post', '/substack');
         assert.ok(handler, "Missing handler for substack endpoint");
-        const { req, res } = mockSubStack({ body: { message: "Missing session" } });
+        const { req, res } = mockSubStack({
+            body: {
+                data: { substack_name: "No Session Sub", stack_identifier: "00000000-0000-0000-0000-000000000000", substack_identifier: "", users_list: [], balance: 0 },
+                message: "Missing session",
+            },
+        });
         // @ts-expect-error req is fine as-is
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
         assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("POST is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(substackRouter, 'post', '/substack');
+        assert.ok(handler, "Missing handler for substack endpoint");
+        const { req, res } = mockSubStack({
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Stack identifier is required');
     });
 
     test("PUT is 400 when the body is empty", async () => {
@@ -161,7 +178,7 @@ suite("SubStack routes: input validation and missing session", () => {
         assert.ok(handler, "Missing handler for substack endpoint");
         const { req, res } = mockSubStack({
             body: {
-                data: { substack_name: "Renamed", stack_identifier: "", substack_identifier: "", users_list: [], balance: 0 },
+                data: { substack_name: "Renamed", stack_identifier: "", substack_identifier: "00000000-0000-0000-0000-000000000000", users_list: [], balance: 0 },
                 message: "No session",
                 session: "",
             },
@@ -170,6 +187,18 @@ suite("SubStack routes: input validation and missing session", () => {
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
         assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("PUT is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(substackRouter, 'put', '/substack');
+        assert.ok(handler, "Missing handler for substack endpoint");
+        const { req, res } = mockSubStack({
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Substack identifier is required');
     });
 
     test("DELETE is 400 when the body is empty", async () => {
@@ -187,7 +216,7 @@ suite("SubStack routes: input validation and missing session", () => {
         assert.ok(handler, "Missing handler for substack endpoint");
         const { req, res } = mockSubStack({
             body: {
-                data: { substack_name: "", stack_identifier: "", substack_identifier: "", users_list: [], balance: 0 },
+                data: { substack_name: "", stack_identifier: "", substack_identifier: "00000000-0000-0000-0000-000000000000", users_list: [], balance: 0 },
                 message: "No session",
                 session: "",
             },
@@ -196,6 +225,18 @@ suite("SubStack routes: input validation and missing session", () => {
         await handler(req, res, null);
         assert.equal(res.statusCode, 403);
         assert.equal(res.body.message, 'Session ID Required');
+    });
+
+    test("DELETE is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(substackRouter, 'delete', '/substack');
+        assert.ok(handler, "Missing handler for substack endpoint");
+        const { req, res } = mockSubStack({
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Substack identifier is required');
     });
 
     test("GET /substacks is 400 when the query type is missing", async () => {

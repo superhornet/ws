@@ -159,7 +159,21 @@ suite("Affiliate routes: connect validation and lifecycle", () => {
             referrer: signer.user.user_identifier!,
         });
         assert.equal(res.statusCode, 400);
-        assert.equal(res.body.message, 'Code failed');
+        // The plan()-level guard rejects a missing/empty code before the model's
+        // length validation ("Code failed") is reached.
+        assert.equal(res.body.message, 'Affiliation code is required');
+    });
+
+    test("POST is 400 when the body has no data", async () => {
+        const handler = findRouteHandler(affiliateRouter, 'post', '/affiliate');
+        assert.ok(handler, "Missing handler for affiliate endpoint");
+        const { req, res } = mockAffiliate({
+            body: { message: "Malformed body", session: "not-checked" },
+        });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Affiliation code is required');
     });
 
     test("POST is 404 when the code is well-formed but unknown", async () => {

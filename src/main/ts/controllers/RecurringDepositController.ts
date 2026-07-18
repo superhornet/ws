@@ -24,11 +24,15 @@ const RECURRING_DEPOSIT_QUERY_AUTH: Record<string, (actingUser: string, value: s
  */
 router.post("/recurring-deposit", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
-    const s: { data: RecurringDepositAPIType; message: string; session: string } = req.body;
+    const requestBody: { data: RecurringDepositAPIType; message: string; session: string } = req.body;
+    // Reject a malformed body (missing `data`/fields) here, during plan(), so it
+    // becomes a 400 — authorize/run must never dereference an absent `data` and
+    // surface a 500 instead.
+    requireParam(requestBody.data?.to_identifier, "Substack identifier");
     return {
-        message: s.message,
-        authorize: async () => assertSubstackAccess(await requireActingUser(req), s.data.to_identifier),
-        run: async () => ({ status: "created", data: await RecurringDeposit.store(s.data) }),
+        message: requestBody.message,
+        authorize: async () => assertSubstackAccess(await requireActingUser(req), requestBody.data.to_identifier),
+        run: async () => ({ status: "created", data: await RecurringDeposit.store(requestBody.data) }),
     };
 }));
 
@@ -57,16 +61,17 @@ router.get("/recurring-deposits", (req, res) => endpoint(req, res, () => {
  */
 router.put("/recurring-deposit", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
-    const s: { data: RecurringDepositAPIType; message: string; session: string } = req.body;
+    const requestBody: { data: RecurringDepositAPIType; message: string; session: string } = req.body;
+    requireParam(requestBody.data?.recurring_deposit_identifier, "Recurring deposit identifier");
     return {
-        message: s.message,
+        message: requestBody.message,
         authorize: async () => {
             const actingUser = await requireActingUser(req);
-            await assertRecurringDepositAccess(actingUser, s.data.recurring_deposit_identifier);
-            await assertSubstackAccess(actingUser, s.data.to_identifier);
+            await assertRecurringDepositAccess(actingUser, requestBody.data.recurring_deposit_identifier);
+            await assertSubstackAccess(actingUser, requestBody.data.to_identifier);
         },
         run: async () => {
-            await RecurringDeposit.update(s.data);
+            await RecurringDeposit.update(requestBody.data);
             return { status: "accepted" };
         },
     };
@@ -77,12 +82,13 @@ router.put("/recurring-deposit", (req, res) => endpoint(req, res, () => {
  */
 router.delete("/recurring-deposit", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
-    const s: { data: RecurringDepositAPIType; message: string; session: string } = req.body;
+    const requestBody: { data: RecurringDepositAPIType; message: string; session: string } = req.body;
+    requireParam(requestBody.data?.recurring_deposit_identifier, "Recurring deposit identifier");
     return {
-        message: s.message,
-        authorize: async () => assertRecurringDepositAccess(await requireActingUser(req), s.data.recurring_deposit_identifier),
+        message: requestBody.message,
+        authorize: async () => assertRecurringDepositAccess(await requireActingUser(req), requestBody.data.recurring_deposit_identifier),
         run: async () => {
-            await RecurringDeposit.remove(s.data.recurring_deposit_identifier || "");
+            await RecurringDeposit.remove(requestBody.data.recurring_deposit_identifier || "");
             return { status: "noContent" };
         },
     };

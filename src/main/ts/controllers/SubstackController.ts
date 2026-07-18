@@ -43,11 +43,16 @@ const SUBSTACK_QUERY: Record<string, {
  */
 router.post("/substack", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
-    const s: { data: SubStackAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: SubStackAPIType, message: string, session: string } = req.body;
+    // Reject a malformed body (missing `data`/fields) here, during plan(), so it
+    // becomes a 400 — authorize/run must never dereference an absent `data` and
+    // surface a 500 instead.
+    requireParam(requestBody.data?.stack_identifier, "Stack identifier");
+    requireParam(requestBody.data?.substack_name, "Substack name");
     return {
-        message: s.message,
-        authorize: async () => assertStackOwner(await requireActingUser(req), s.data.stack_identifier),
-        run: async () => ({ status: "created", data: await SubStack.storeSubStack(s.data) }),
+        message: requestBody.message,
+        authorize: async () => assertStackOwner(await requireActingUser(req), requestBody.data.stack_identifier),
+        run: async () => ({ status: "created", data: await SubStack.storeSubStack(requestBody.data) }),
     };
 }));
 
@@ -86,12 +91,14 @@ router.get("/substacks", (req, res) => endpoint(req, res, () => {
  */
 router.put("/substack", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
-    const s: { data: SubStackAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: SubStackAPIType, message: string, session: string } = req.body;
+    requireParam(requestBody.data?.substack_identifier, "Substack identifier");
+    requireParam(requestBody.data?.substack_name, "Substack name");
     return {
-        message: s.message,
-        authorize: async () => assertSubstackAccess(await requireActingUser(req), s.data.substack_identifier),
+        message: requestBody.message,
+        authorize: async () => assertSubstackAccess(await requireActingUser(req), requestBody.data.substack_identifier),
         run: async () => {
-            await SubStack.renameSubstack(s.data);
+            await SubStack.renameSubstack(requestBody.data);
             return { status: "accepted" };
         },
     };
@@ -99,12 +106,13 @@ router.put("/substack", (req, res) => endpoint(req, res, () => {
 
 router.delete("/substack", (req, res) => endpoint(req, res, () => {
     requireBody(req, "Empty JSON Body");
-    const s: { data: SubStackAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: SubStackAPIType, message: string, session: string } = req.body;
+    requireParam(requestBody.data?.substack_identifier, "Substack identifier");
     return {
-        message: s.message,
-        authorize: async () => assertSubstackAccess(await requireActingUser(req), s.data.substack_identifier),
+        message: requestBody.message,
+        authorize: async () => assertSubstackAccess(await requireActingUser(req), requestBody.data.substack_identifier),
         run: async () => {
-            await SubStack.deleteSubstack(s.data);
+            await SubStack.deleteSubstack(requestBody.data);
             return { status: "noContent" };
         },
     };

@@ -1,7 +1,7 @@
 import * as express from "express";
 import { Affiliate } from "../models/Affiliate.ts";
 import type { AffiliateAPIType } from "../types/AffiliateAPITypes.ts";
-import { requireBody } from "../libs/requestValidation.ts";
+import { requireBody, requireParam } from "../libs/requestValidation.ts";
 import { endpoint } from "../libs/endpoint.ts";
 import { requireActingUser, assertSelf } from "../libs/authorization.ts";
 export const router = express.Router();
@@ -11,13 +11,17 @@ export const router = express.Router();
  */
 router.post("/affiliate", (req, res) => endpoint(req, res, () => {
     requireBody(req);
-    const a: { data: AffiliateAPIType, message: string, session: string } = req.body;
+    const requestBody: { data: AffiliateAPIType, message: string, session: string } = req.body;
+    // Reject a malformed body (missing `data`/fields) here, during plan(), so it
+    // becomes a 400 — authorize/run must never dereference an absent `data` and
+    // surface a 500 instead.
+    requireParam(requestBody.data?.affiliation_code, "Affiliation code");
     return {
-        message: a.message,
-        authorize: async () => assertSelf(await requireActingUser(req), a.data.referrer),
+        message: requestBody.message,
+        authorize: async () => assertSelf(await requireActingUser(req), requestBody.data.referrer),
         run: async () => ({
             status: "created",
-            data: await Affiliate.connect(a.data.affiliation_code, a.data.referrer),
+            data: await Affiliate.connect(requestBody.data.affiliation_code, requestBody.data.referrer),
         }),
     };
 }));
