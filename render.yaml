@@ -1,22 +1,27 @@
 # Render Blueprint for the WeStack API.
 #
-# Defines ONE project with TWO isolated environments:
+# Defines ONE project with TWO environments:
 #   - staging    -> what the TestFlight beta build points at (separate data)
 #   - production -> what the App Store release points at (real data)
 #
-# Each environment has its OWN Postgres database, so beta testers never touch
-# production data. `networking.isolation: enabled` blocks cross-environment DB
-# access, and `permissions.protection: enabled` on production requires an admin
-# for destructive changes.
+# Postgres is hosted on Supabase, NOT on Render. Each environment points at its
+# OWN Supabase project (a separate staging project keeps beta data away from
+# production data), so there is no `databases:` block here and no `fromDatabase`
+# wiring. Each `DATABASE_URL` is provided as a `sync: false` secret — paste the
+# Supabase connection string on deploy. `permissions.protection: enabled` on
+# production still requires an admin for destructive changes to the service.
 #
-# After Render first provisions each database, run init.sql against it ONCE to
-# create the base tables (init.sql is destructive and is NOT run on boot; the
-# app only runs incremental migrations at startup). The schema uses
-# gen_random_uuid() (available on PG 13+), so no specific major version is
+# Schema is managed by node-pg-migrate, but production/staging migrations are not
+# applied automatically by deploys. Run migrations as an explicit maintenance
+# operation after taking a database backup. The schema uses gen_random_uuid()
+# (available on PG 13+, which Supabase ships), so no specific major version is
 # required.
 #
-# Secrets (Cybrid keys, OTP provider tokens) use `sync: false` so Render prompts
-# for them on deploy instead of storing them in git.
+# Use the Supabase Session pooler connection string (IPv4-friendly, suited to a
+# long-lived pg Pool) and keep POSTGRES_SSL=true since Supabase requires TLS.
+#
+# Secrets (DATABASE_URL, Cybrid keys, OTP provider tokens) use `sync: false` so
+# Render prompts for them on deploy instead of storing them in git.
 
 projects:
   - name: westack
@@ -25,13 +30,8 @@ projects:
       # PRODUCTION
       # ----------------------------------------------------------------------
       - name: production
-        networking:
-          isolation: enabled
         permissions:
           protection: enabled
-        databases:
-          - name: westack-db
-            plan: basic-256mb
         services:
           - name: westack-api
             type: web
@@ -43,10 +43,9 @@ projects:
             envVars:
               - key: NODE_ENV
                 value: production
+              # Supabase (production project) Session pooler connection string.
               - key: DATABASE_URL
-                fromDatabase:
-                  name: westack-db
-                  property: connectionString
+                sync: false
               - key: POSTGRES_SSL
                 value: "true"
               - key: POSTGRES_SSL_REJECT_UNAUTHORIZED
@@ -81,11 +80,6 @@ projects:
       # STAGING  (TestFlight beta target)
       # ----------------------------------------------------------------------
       - name: staging
-        networking:
-          isolation: enabled
-        databases:
-          - name: westack-db-staging
-            plan: basic-256mb
         services:
           - name: westack-api-staging
             type: web
@@ -100,10 +94,11 @@ projects:
             envVars:
               - key: NODE_ENV
                 value: production
+              # Supabase (staging project) Session pooler connection string. Use
+              # a SEPARATE Supabase project from production so beta data stays
+              # isolated.
               - key: DATABASE_URL
-                fromDatabase:
-                  name: westack-db-staging
-                  property: connectionString
+                sync: false
               - key: POSTGRES_SSL
                 value: "true"
               - key: POSTGRES_SSL_REJECT_UNAUTHORIZED

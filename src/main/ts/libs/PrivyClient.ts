@@ -1,10 +1,7 @@
-import * as dotenv from 'dotenv';
 import { PrivyClient } from '@privy-io/node';
 import type { Wallet } from '@privy-io/node';
 import { HTMLStatusError } from './HTMLStatusError.ts';
 import type { WalletCreateInput, WalletListQuery } from '../types/PrivyAPITypes.ts';
-
-dotenv.config({ quiet: true });
 
 const PRIVY_APP_ID = process.env.PRIVY_APP_ID || '';
 const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET || '';

@@ -1,10 +1,7 @@
-DROP TABLE IF EXISTS raffle_entries;
-DROP TABLE IF EXISTS affiliations CASCADE;
-DROP TABLE IF EXISTS stacks;
-DROP TABLE IF EXISTS substacks CASCADE;
-DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS otp_requests;
-DROP TABLE IF EXISTS sessions;
+-- Up Migration
+-- Baseline schema for a fresh WeStack database. This is the single source of
+-- truth for the initial schema; subsequent changes are added as new migrations.
+
 CREATE TABLE sessions(
     id SERIAL PRIMARY KEY,
     expires TIMESTAMP DEFAULT (NOW() + INTERVAL '30 minutes'),
@@ -16,17 +13,15 @@ CREATE TABLE sessions(
     user_identifier UUID
 );
 
-DROP TABLE IF EXISTS audit;
 CREATE TABLE audit(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL,
     session UUID DEFAULT gen_random_uuid(),
-    time_at timestamp NOT NULL DEFAULT (NOW()),
+    time_at TIMESTAMP NOT NULL DEFAULT (NOW()),
     type TEXT
-    );
+);
 
-DROP TABLE IF EXISTS users;
 CREATE TABLE users(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
@@ -50,8 +45,7 @@ CREATE TABLE users(
     created_at TIMESTAMP DEFAULT (NOW()),
     CONSTRAINT unique_user UNIQUE (user_identifier),
     CONSTRAINT unique_affiliate UNIQUE (affiliate)
-
-  );
+);
 -- One Cybrid customer maps to at most one user.
 CREATE UNIQUE INDEX idx_users_cybrid_customer_guid
   ON users(cybrid_customer_guid)
@@ -82,6 +76,7 @@ CREATE TABLE otp_requests(
 );
 CREATE INDEX idx_otp_requests_lookup ON otp_requests(channel, destination_hash, purpose, created_at DESC);
 CREATE INDEX idx_otp_requests_session ON otp_requests(session_uuid);
+
 CREATE TABLE affiliations(
     id SERIAL PRIMARY KEY,
     affiliation_code TEXT NOT NULL CHECK(length(affiliation_code) = 7),
@@ -89,13 +84,12 @@ CREATE TABLE affiliations(
     referrer UUID REFERENCES users(user_identifier),
     CONSTRAINT fk_affiliation_code_users_affiliate
         FOREIGN KEY (affiliation_code)
-        REFERENCES users (affiliate)
-    ,
+        REFERENCES users (affiliate),
     CONSTRAINT fk_referrer_users_user_identifier
         FOREIGN KEY (referrer)
         REFERENCES users (user_identifier)
-    );
-DROP TABLE IF EXISTS notifications;
+);
+
 CREATE TABLE notifications(
     id SERIAL PRIMARY KEY,
     deleted BOOLEAN DEFAULT FALSE,
@@ -103,7 +97,7 @@ CREATE TABLE notifications(
     notification_for UUID DEFAULT NULL,
     seen BOOLEAN DEFAULT FALSE,
     message TEXT NOT NULL
-  );
+);
 
 CREATE TABLE stacks(
     id SERIAL PRIMARY KEY,
@@ -111,7 +105,7 @@ CREATE TABLE stacks(
     owner_identifier UUID REFERENCES users(user_identifier),
     stack_name TEXT NOT NULL,
     stack_identifier UUID DEFAULT gen_random_uuid(),
-    goal_amount INTEGER, --Target in cents, NULL when unset
+    goal_amount INTEGER, -- Target in cents, NULL when unset
     goal_deadline TIMESTAMP,
     category TEXT,
     emoji TEXT,
@@ -121,12 +115,12 @@ CREATE TABLE stacks(
     CONSTRAINT fk_owner_id
         FOREIGN KEY (owner_identifier)
         REFERENCES users (user_identifier)
-    );
+);
 
 CREATE TABLE substacks(
     id SERIAL PRIMARY KEY,
-    balance INTEGER DEFAULT 0, --Value in cents
-    goal_amount INTEGER, --Target in cents, NULL when unset
+    balance INTEGER DEFAULT 0, -- Value in cents
+    goal_amount INTEGER, -- Target in cents, NULL when unset
     goal_deadline TIMESTAMP,
     created_at TIMESTAMP DEFAULT (NOW()),
     updated_at TIMESTAMP DEFAULT (NOW()),
@@ -137,11 +131,11 @@ CREATE TABLE substacks(
     substack_name TEXT NOT NULL,
     users_list TEXT NOT NULL,
     CONSTRAINT unique_substack UNIQUE (substack_identifier)
-  );
+);
 
 CREATE TABLE transactions(
     id SERIAL PRIMARY KEY,
-    amount INTEGER DEFAULT 0, --value in cents
+    amount INTEGER DEFAULT 0, -- Value in cents
     initiated_by UUID NOT NULL REFERENCES users(user_identifier),
     occurred_at TIMESTAMP NOT NULL DEFAULT (NOW()),
     processor TEXT CHECK(processor IN ('Internal', 'ACH', 'Moonpay', 'Stripe', 'Apple', 'Google', 'CashApp', 'Bitcoin')) NOT NULL DEFAULT 'Internal',
@@ -177,7 +171,6 @@ CREATE TABLE recurring_deposits(
 );
 CREATE INDEX idx_recurring_deposits_to ON recurring_deposits(to_identifier);
 
-DROP TABLE IF EXISTS raffles;
 CREATE TABLE raffles(
     raffle_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     raffle_name TEXT NOT NULL,
@@ -191,13 +184,11 @@ CREATE TABLE raffle_entries(
     CONSTRAINT fk_raffle
         FOREIGN KEY (raffle_key)
         REFERENCES raffles (raffle_id),
-
     CONSTRAINT fk_user
         FOREIGN KEY (entry_user)
         REFERENCES users (user_identifier)
 );
 
-DROP TABLE IF EXISTS idempotency_keys;
 CREATE TABLE idempotency_keys(
     id SERIAL PRIMARY KEY,
     idempotency_key TEXT NOT NULL CHECK(length(idempotency_key) >= 1 AND length(idempotency_key) <= 255),
@@ -211,3 +202,10 @@ CREATE TABLE idempotency_keys(
     UNIQUE(session_id, idempotency_key, route_path)
 );
 CREATE INDEX idx_idempotency_keys_created ON idempotency_keys(created_at);
+
+-- Down Migration
+DO $$
+BEGIN
+    RAISE EXCEPTION 'Refusing to roll back baseline schema migration. Use an explicit reset script for disposable local databases.';
+END
+$$;

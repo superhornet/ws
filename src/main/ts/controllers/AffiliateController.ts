@@ -18,7 +18,11 @@ router.post("/affiliate", (req, res) => endpoint(req, res, () => {
     requireParam(requestBody.data?.affiliation_code, "Affiliation code");
     return {
         message: requestBody.message,
-        authorize: async () => assertSelf(await requireActingUser(req), requestBody.data.referrer),
+        authorize: async () => {
+            const actingUser = await requireActingUser(req);
+            assertSelf(actingUser, requestBody.data.referrer);
+            requestBody.data.referrer = actingUser;
+        },
         run: async () => ({
             status: "created",
             data: await Affiliate.connect(requestBody.data.affiliation_code, requestBody.data.referrer),

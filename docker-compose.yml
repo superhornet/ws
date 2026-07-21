@@ -3,6 +3,9 @@ services:
     build: .
     image: westack-node-app
     restart: always
+    # Apply pending migrations against the local postgres service, then start the
+    # server. The app itself no longer mutates schema on boot.
+    command: sh -c "npm run migrate:built && node ."
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       SERVER_PORT: ${SERVER_PORT:-3000}
@@ -51,7 +54,6 @@ services:
     - "5432:5432"
     volumes:
     - postgres_data:/var/lib/postgresql/data
-    - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-westack} -d ${LOCAL_DB_NAME:-westack}"]
       interval: 10s

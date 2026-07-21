@@ -6,7 +6,7 @@ type QueryFn = (text: string, params?: unknown[]) => Promise<unknown[]>;
 type ClientQueryFn = (
     text: string,
     params?: unknown[],
-) => Promise<{ rows: Array<{ id: number; expires: string }> }>;
+) => Promise<{ rows: Array<{ expires: string; uuid: string }> }>;
 type TransactionFn = (
     fn: (client: { query: ClientQueryFn }) => Promise<unknown>,
 ) => Promise<unknown>;
@@ -29,7 +29,10 @@ function resetAll() {
     mockQuery.mock.mockImplementation(async () => []);
     mockClientQuery.mock.resetCalls();
     mockClientQuery.mock.mockImplementation(async () => ({
-        rows: [{ id: 7, expires: "2030-01-01T00:00:00.000Z" }],
+        rows: [{
+            expires: "2030-01-01T00:00:00.000Z",
+            uuid: "11111111-1111-1111-1111-111111111111",
+        }],
     }));
     mockWithTransaction.mock.resetCalls();
     mockWithTransaction.mock.mockImplementation(async (fn) =>
@@ -74,12 +77,24 @@ describe("Session.create", () => {
     });
 
     it("produces different UUIDs on each construction", async () => {
+        let callCount = 0;
+        mockClientQuery.mock.mockImplementation(async () => {
+            callCount += 1;
+            return {
+                rows: [{
+                    expires: "2030-01-01T00:00:00.000Z",
+                    uuid: callCount === 1
+                        ? "11111111-1111-1111-1111-111111111111"
+                        : "22222222-2222-2222-2222-222222222222",
+                }],
+            };
+        });
         const first = await Session.create();
         const second = await Session.create();
         assert.notEqual(first.uuid, second.uuid);
     });
 
-    it("inserts a row with (uuid, otp) into sessions", async () => {
+    it("inserts a row with otp into sessions and returns the public UUID", async () => {
         const session = await Session.create();
         assert.equal(mockClientQuery.mock.callCount(), 1);
         const call = mockClientQuery.mock.calls[0]!;
@@ -88,16 +103,21 @@ describe("Session.create", () => {
         assert.match(sqlText, /INSERT INTO sessions/i);
         assert.match(sqlText, /uuid/i);
         assert.match(sqlText, /otp/i);
-        assert.deepEqual(params, [session.uuid, session.otp]);
+        assert.doesNotMatch(sqlText, /RETURNING\s+id/i);
+        assert.deepEqual(params, [session.otp]);
+        assert.equal(session.uuid, "11111111-1111-1111-1111-111111111111");
     });
 
-    it("populates dbID and expires from the returned row", async () => {
+    it("populates expires from the returned row", async () => {
         mockClientQuery.mock.mockImplementation(async () => ({
-            rows: [{ id: 99, expires: "2031-06-01T00:00:00.000Z" }],
+            rows: [{
+                expires: "2031-06-01T00:00:00.000Z",
+                uuid: "22222222-2222-2222-2222-222222222222",
+            }],
         }));
         const session = await Session.create();
-        assert.equal(session.dbID, 99);
         assert.equal(session.expires, "2031-06-01T00:00:00.000Z");
+        assert.equal(session.uuid, "22222222-2222-2222-2222-222222222222");
     });
 
     it("rejects with HTMLStatusError(500) when the insert returns no rows", async () => {
@@ -106,7 +126,7 @@ describe("Session.create", () => {
             Session.create(),
             (error: HTMLStatusError) => {
                 assert.equal(error.statusCode, 500);
-                assert.match(error.message, /Session creation failed/);
+                assert.match(error.message, /Failed to store session/);
                 return true;
             },
         );
@@ -116,27 +136,23 @@ describe("Session.create", () => {
 describe("Session.session()", () => {
     beforeEach(() => { resetAll(); });
 
-    // Documents the current return shape. If this assertion changes, the public
-    // API has changed too — confirm intent before updating.
-    it("returns uuid, expires, dbID, and otp", async () => {
-        const session = await Session.create();
-        const payload = session.session();
-        assert.equal(payload.uuid, session.uuid);
-        assert.equal(payload.expires, session.expires);
-        assert.equal(payload.dbID, session.dbID);
-        assert.equal(payload.otp, session.otp);
+    it("returns uuid, expires, and otp without exposing a database row id", async () => {
+        const payload = await Session.create();
+        assert.equal(payload.uuid, "11111111-1111-1111-1111-111111111111");
+        assert.equal(payload.expires, "2030-01-01T00:00:00.000Z");
+        assert.equal(payload.otp.length, 6);
+        assert.equal("dbID" in payload, false);
     });
 });
 
 describe("Session.toString()", () => {
     beforeEach(() => { resetAll(); });
 
-    it("includes uuid, expires, and dbID but not otp", async () => {
-        const session = await Session.create();
+    it("does not expose otp or database row id", async () => {
+        const session = new Session();
         const text = session.toString();
-        assert.ok(text.includes(session.uuid));
-        assert.ok(text.includes(String(session.dbID)));
-        assert.ok(!text.includes(session.otp));
+        assert.ok(!text.includes("dbID"));
+        assert.ok(!text.includes("otp"));
     });
 });
 

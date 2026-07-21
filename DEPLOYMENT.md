@@ -1,25 +1,28 @@
 # WeStack API Deployment Guide
 
-How to deploy the WeStack backend to [Render](https://render.com) with two
-isolated environments — **staging** (what the TestFlight beta uses) and
-**production** (the App Store release) — so beta data never touches real data.
+How to deploy the WeStack backend with two environments — **staging** (what the
+TestFlight beta uses) and **production** (the App Store release) — so beta data
+never touches real data. The Express app runs on
+[Render](https://render.com); Postgres is hosted on
+[Supabase](https://supabase.com).
 
 ---
 
 ## Architecture
 
-One Render **project** (`westack`) contains two **environments**, each with its
-own web service and its own Postgres database:
+One Render **project** (`westack`) contains two **environments**, each a web
+service that connects to its **own Supabase project**:
 
-| App build | EAS profile | API URL (example) | Render environment | Deploys from | Database |
-|-----------|-------------|-------------------|--------------------|--------------|----------|
-| TestFlight beta | `preview` | `https://westack-api-staging.onrender.com` | `staging` | `staging` branch | `westack-db-staging` |
-| App Store release | `production` | `https://westack-api.onrender.com` | `production` | `main` branch | `westack-db` |
+| App build | EAS profile | API URL (example) | Render environment | Deploys from | Database (Supabase project) |
+|-----------|-------------|-------------------|--------------------|--------------|------------------------------|
+| TestFlight beta | `preview` | `https://westack-api-staging.onrender.com` | `staging` | `staging` branch | staging Supabase project |
+| App Store release | `production` | `https://westack-api.onrender.com` | `production` | `main` branch | production Supabase project |
 
-- `networking.isolation: enabled` blocks a service in one environment from
-  reaching the other environment's database.
+- Postgres is **not** provisioned by Render. Each Render service points at a
+  separate Supabase project via a `DATABASE_URL` secret, so beta data lives in a
+  different database from production data.
 - `permissions.protection: enabled` on production requires a workspace admin to
-  make destructive changes.
+  make destructive changes to the service.
 
 All of this is declared in [`render.yaml`](./render.yaml).
 
@@ -42,67 +45,97 @@ The backend was made deployment-ready for this:
 - Binds to the platform-injected `PORT` (falls back to `SERVER_PORT`, then `3000`).
 - Honors `TRUST_PROXY` so rate limiting keys on the real client IP behind
   Render's load balancer.
-- Accepts a `DATABASE_URL` connection string (Render's Blueprint only surfaces
-  `connectionString`), falling back to discrete `POSTGRES_*` vars locally.
-- Supports `POSTGRES_SSL` for TLS connections to managed Postgres.
+- Accepts a `DATABASE_URL` connection string (Supabase provides one per
+  project), falling back to discrete `POSTGRES_*` vars locally.
+- Supports `POSTGRES_SSL` for TLS connections to managed Postgres (Supabase
+  requires TLS).
 
 ---
 
-## Database bootstrap (important)
+## Database schema (migrations)
 
-`init.sql` is the **canonical, destructive bootstrap** — it `DROP`s and
-recreates tables. It is **not** run on boot. On startup the app only runs
-`ensureDatabaseSchema()`, which performs *incremental* migrations and does
-**not** create the core tables (`users`, `stacks`, `substacks`,
-`transactions`, `notifications`, `sessions`, `affiliations`, ...).
+Schema is managed by [`node-pg-migrate`](https://github.com/salsita/node-pg-migrate).
+Migration files live in [`migrations/`](./migrations) and are the **single source
+of truth** for the schema. They are applied with `npm run migrate`, which runs
+each pending migration exactly once (tracked in a `pgmigrations` table) and is a
+no-op when the database is already up to date. The app **never** mutates schema
+on boot, and Render deploys do **not** apply schema changes automatically.
 
-Therefore each fresh Render database must be initialized **once** with
-`init.sql`.
+For staging and production, database creation and modification are explicit
+maintenance operations: take a database backup, put the environment in the
+intended maintenance posture, run the migration command, verify the app, then
+resume traffic. A fresh Supabase project is initialized by running the baseline
+migration once before the first deploy. The migrations use `gen_random_uuid()`,
+available on **PostgreSQL 13+** (Supabase ships this), so no specific major
+version is pinned.
 
-`init.sql` uses `gen_random_uuid()`, which is available on **PostgreSQL 13+**,
-so no specific major version is pinned in `render.yaml` (and it runs on managed
-hosts like Supabase that don't ship the PG 18 `uuidv7()` builtin).
+If a database was already created with the old `init.sql` / startup schema path,
+do not run the baseline migration directly against it. During the maintenance
+window, compare the live schema against `migrations/1700000000000_baseline-schema.sql`
+and either apply a corrective migration or manually record the baseline in
+`pgmigrations` only after the schema shape is verified.
 
-> Running `init.sql` against a database that already has data will erase it. Run
-> it only on a brand-new database.
+> To add a schema change, add a new migration file under `migrations/` (a new
+> timestamped `*.sql` with `-- Up Migration` / `-- Down Migration` sections).
+> Never edit an already-applied migration, and never rely on app startup or
+> deploy hooks to alter staging/production tables.
 
 ---
 
 ## First-time deploy
 
-### 1. Push the Blueprint
+### 1. Create the Supabase projects
+
+Create **two** Supabase projects — one for staging, one for production. For each,
+copy the **Session pooler** connection string (Project → Connect → "Session
+pooler"). It looks like:
+
+```
+postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+Prefer the Session pooler (port `5432`) over the direct connection: it is
+IPv4-reachable from Render and suits a long-lived `pg` Pool. Keep these strings
+for steps 2 and 3.
+
+### 2. Push the Blueprint
 
 Commit and push `render.yaml`, then in the Render dashboard:
 **New → Blueprint** → select this repository. Render provisions both
-environments, both Postgres databases, and both web services.
+environments and both web services (no databases — those live on Supabase).
 
-### 2. Provide secrets
+### 3. Provide secrets
 
 Render prompts for every `sync: false` variable. Set at minimum:
 
 | Variable | Notes |
 |----------|-------|
+| `DATABASE_URL` | The Supabase Session pooler string for **that environment** (staging string on staging, production string on production). |
 | `CYBRID_CLIENT_ID`, `CYBRID_CLIENT_SECRET` | Cybrid credentials (sandbox for staging, live for production). |
 | `CYBRID_API_BASE`, `CYBRID_AUTH_URL` | Production only; defaults to sandbox in code if unset. |
 | `OTP_SMS_WEBHOOK_URL`, `OTP_EMAIL_WEBHOOK_URL`, `OTP_PROVIDER_AUTH_TOKEN` | Point at your deployed `otp-relay`. Optional for early beta (see OTP section). |
 
 `OTP_HASH_SECRET` is auto-generated per environment; `NODE_ENV`, `POSTGRES_SSL`,
-`TRUST_PROXY`, and `DATABASE_URL` are set automatically by the Blueprint.
+and `TRUST_PROXY` are set automatically by the Blueprint.
 
-### 3. Initialize each database (once)
+### 4. Initialize each database
 
-Copy each database's **External** connection string from the Render dashboard
-and run:
+Before the first deploy, initialize each brand-new Supabase project by pointing
+the connection at it and running the migrator:
 
 ```bash
 # Staging
-psql "<staging external connection string>" -f init.sql
+DATABASE_URL="<staging supabase connection string>" POSTGRES_SSL=true npm run migrate
 
 # Production
-psql "<production external connection string>" -f init.sql
+DATABASE_URL="<production supabase connection string>" POSTGRES_SSL=true npm run migrate
 ```
 
-### 4. Verify
+For an existing database that already has the old schema, do not recreate tables.
+Verify the live schema against the baseline during the maintenance window, then
+record the baseline only after that verification is complete.
+
+### 5. Verify
 
 ```bash
 curl https://westack-api-staging.onrender.com/health
@@ -174,9 +207,11 @@ The eventual App Store build uses `--profile production`.
   dedicated `staging` branch (see `render.yaml`). Promote a release by merging
   `staging` into `main`. Push beta changes to `staging` to ship them to the
   TestFlight build's API without touching production.
-- **Schema changes:** add incremental, idempotent migrations to
-  `ensureDatabaseSchema()` in `src/main/ts/libs/postgresDB.ts` (runs on every
-  boot). Do **not** re-run `init.sql` against a database with real data.
+- **Schema changes:** add a new migration file under `migrations/` (a new
+  timestamped `*.sql` with `-- Up Migration` / `-- Down Migration` sections).
+  Apply it during an explicit maintenance window after taking a database backup;
+  deploys do not run migrations automatically. Never edit a migration that has
+  already been applied to staging or production.
 - **Secrets rotation:** update values in the Render dashboard; redeploy to apply.
 
 ---
@@ -188,7 +223,7 @@ See [`.env.example`](./.env.example) for the full list. Production-relevant ones
 | Variable | Purpose |
 |----------|---------|
 | `PORT` | Injected by Render; takes precedence over `SERVER_PORT`. |
-| `DATABASE_URL` | Render connection string; overrides discrete `POSTGRES_*`. |
+| `DATABASE_URL` | Supabase Session pooler connection string; overrides discrete `POSTGRES_*`. |
 | `POSTGRES_SSL` | `true` to use TLS to managed Postgres. |
 | `POSTGRES_SSL_REJECT_UNAUTHORIZED` | `true` only with a trusted CA bundle. |
 | `TRUST_PROXY` | `1` behind Render's load balancer (correct client IPs for rate limiting). |
