@@ -101,6 +101,7 @@ export const ensureDatabaseSchema = async (): Promise<void> => {
         WHERE table_schema = 'public' AND table_name = 'users'
       ) THEN
         ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_e164 TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS cybrid_customer_guid TEXT;
       END IF;
     END $$;
 
@@ -128,6 +129,14 @@ export const ensureDatabaseSchema = async (): Promise<void> => {
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_e164
           ON users(phone_e164)
           WHERE phone_e164 IS NOT NULL AND deleted = FALSE;
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'cybrid_customer_guid'
+      ) THEN
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_cybrid_customer_guid
+          ON users(cybrid_customer_guid)
+          WHERE cybrid_customer_guid IS NOT NULL;
       END IF;
     END $$;
   `);

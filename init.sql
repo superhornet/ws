@@ -44,11 +44,18 @@ CREATE TABLE users(
     state TEXT NOT NULL,
     zipcode TEXT NOT NULL,
     subscription_level TEXT CHECK(subscription_level in ('Free', 'Basic', 'Pro')) NOT NULL DEFAULT 'Free',
+    -- Cybrid customer this user is bound to (1:1). Set once, at customer creation,
+    -- and used to authorize every /api/cybrid/* request against the caller.
+    cybrid_customer_guid TEXT,
     created_at TIMESTAMP DEFAULT (NOW()),
     CONSTRAINT unique_user UNIQUE (user_identifier),
     CONSTRAINT unique_affiliate UNIQUE (affiliate)
 
   );
+-- One Cybrid customer maps to at most one user.
+CREATE UNIQUE INDEX idx_users_cybrid_customer_guid
+  ON users(cybrid_customer_guid)
+  WHERE cybrid_customer_guid IS NOT NULL;
 CREATE UNIQUE INDEX idx_users_phone_e164 ON users(phone_e164) WHERE phone_e164 IS NOT NULL AND deleted = FALSE;
 
 -- Bind sessions to a user now that the users table exists.
