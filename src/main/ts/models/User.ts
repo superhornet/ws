@@ -189,6 +189,45 @@ export class User implements IUser {
             as500(error);
         }
     }
+    /**
+     * Returns the Cybrid customer GUID this user is bound to, or `null` when the
+     * user has not yet created a Cybrid customer. Used to authorize `/api/cybrid/*`
+     * requests against the acting user instead of trusting client-supplied GUIDs.
+     */
+    static async getCybridCustomerGuid(userIdentifier: string): Promise<string | null> {
+        try {
+            const rows = await query<{ cybrid_customer_guid: string | null }>(
+                `SELECT cybrid_customer_guid FROM users WHERE user_identifier = $1 AND deleted = FALSE;`,
+                [userIdentifier],
+            );
+            return rows.at(0)?.cybrid_customer_guid ?? null;
+        } catch (error) {
+            as500(error);
+        }
+    }
+
+    /**
+     * Binds a Cybrid customer to this user. The `cybrid_customer_guid IS NULL`
+     * guard makes this write-once: a user can never rebind to a different customer,
+     * and a concurrent double-create resolves to a single 409 rather than two
+     * bindings. Throws 409 when the user already has a customer.
+     */
+    static async setCybridCustomerGuid(userIdentifier: string, customerGuid: string): Promise<void> {
+        try {
+            const updated = await query<{ id: number }>(
+                `UPDATE users SET cybrid_customer_guid = $2
+                WHERE user_identifier = $1 AND deleted = FALSE AND cybrid_customer_guid IS NULL
+                RETURNING id;`,
+                [userIdentifier, customerGuid],
+            );
+            if (updated.length === 0) {
+                throw new HTMLStatusError("Customer already exists for this user", 409);
+            }
+        } catch (error) {
+            as500(error);
+        }
+    }
+
     static async updateUser(user: UserAPIType) {
         User.assertUserShape(user);
         let isUpdated = false;

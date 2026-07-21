@@ -29,7 +29,6 @@ describe("Get a session", async () => {
 // POST routes guarded by requireBody + requireSessionFromBody.
 const postBodyRoutes = [
     "/cybrid/account",
-    "/cybrid/bank",
     "/cybrid/counterparty",
     "/cybrid/customer",
     "/cybrid/deposit-address",
@@ -52,7 +51,6 @@ const postBodyRoutes = [
 
 // PATCH routes guarded by requireBody + requireSessionFromBody + requireGuid.
 const patchGuidRoutes = [
-    { path: "/cybrid/bank/:bank_guid", label: "Bank" },
     { path: "/cybrid/customer/:customer_guid", label: "Customer" },
     { path: "/cybrid/external-bank-account/:external_bank_account_guid", label: "External Bank Account" },
     { path: "/cybrid/transfer/:transfer_guid", label: "Transfer" },
@@ -61,7 +59,6 @@ const patchGuidRoutes = [
 // GET single-resource routes guarded by getSession + requireGuid.
 const getGuidRoutes = [
     { path: "/cybrid/account/:account_guid", label: "Account" },
-    { path: "/cybrid/bank/:bank_guid", label: "Bank" },
     { path: "/cybrid/counterparty/:counterparty_guid", label: "Counterparty" },
     { path: "/cybrid/customer/:customer_guid", label: "Customer" },
     { path: "/cybrid/deposit-address/:deposit_address_guid", label: "Deposit Address" },
@@ -91,9 +88,7 @@ const deleteGuidRoutes = [
 const getListRoutes = [
     "/cybrid/accounts",
     "/cybrid/assets",
-    "/cybrid/banks",
     "/cybrid/counterparties",
-    "/cybrid/customers",
     "/cybrid/deposit-addresses",
     "/cybrid/deposit-bank-accounts",
     "/cybrid/executions",
@@ -225,6 +220,40 @@ describe("GET /api/cybrid list routes session validation", () => {
             assert.equal(res.body.message, 'Session ID Required');
         });
     }
+});
+
+describe("Platform-admin bank routes and customer enumeration are denied", () => {
+    const deniedBankRoutes: Array<{ method: "post" | "get" | "patch"; path: string }> = [
+        { method: "post", path: "/cybrid/bank" },
+        { method: "get", path: "/cybrid/bank/:bank_guid" },
+        { method: "get", path: "/cybrid/banks" },
+        { method: "patch", path: "/cybrid/bank/:bank_guid" },
+    ];
+    for (const { method, path } of deniedBankRoutes) {
+        test(`${method.toUpperCase()} ${path} is 403 Forbidden even with a valid session`, async () => {
+            const handler = findRouteHandler(cybridRouter, method, path);
+            assert.ok(handler, `Missing handler for ${method} ${path}`);
+            const { req, res } = mockGetRequest({
+                headers: { "x-session": sharedSession },
+                body: { session: sharedSession, name: "x" },
+                params: { bank_guid: randomUUID() },
+            });
+            // @ts-expect-error req is fine as-is
+            await handler(req, res, null);
+            assert.equal(res.statusCode, 403);
+            assert.equal(res.body.message, "Forbidden");
+        });
+    }
+
+    test("GET /cybrid/customers is 403 Forbidden even with a valid session", async () => {
+        const handler = findRouteHandler(cybridRouter, "get", "/cybrid/customers");
+        assert.ok(handler, "Missing handler for GET /cybrid/customers");
+        const { req, res } = mockGetRequest({ headers: { "x-session": sharedSession } });
+        // @ts-expect-error req is fine as-is
+        await handler(req, res, null);
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, "Forbidden");
+    });
 });
 
 describe("POST /api/cybrid/fiat-transfer amount validation", () => {
