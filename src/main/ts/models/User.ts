@@ -3,6 +3,7 @@ import type { UserAPIType } from "../types/UserAPITypes.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
 import { randomInt } from "node:crypto";
+
 export interface IUser {
     //storeUser(): Promise<void>;
     readUser(): UserAPIType;
@@ -10,6 +11,7 @@ export interface IUser {
     //updateUser();
     //deleteUser();
 }
+
 export class User implements IUser {
     private pUser!: UserAPIType;
     private get user(): UserAPIType | undefined {
@@ -60,8 +62,14 @@ export class User implements IUser {
         }
     }
 
-    static async storeUser(user: UserAPIType, verifiedPhone?: string | null) {
-        User.assertUserShape(user);
+    /**
+     * Validates the user's string fields and returns their sanitized
+     * (stripHtml'd) values ready for persistence, throwing a generic 400 if any
+     * field fails validation. `email` is returned raw (only the local/host parts
+     * are stripped), matching the existing INSERT/UPDATE column mapping.
+     * `emailMinLength` is the only knob that differs between create and update.
+     */
+    private static sanitizeUserFields(user: UserAPIType, emailMinLength: number) {
         const vName = new Validator({
             version: "1.0",
             stringValidation: {
@@ -77,7 +85,7 @@ export class User implements IUser {
                 domainMaxLength: 36,
             },
             stringValidation: {
-                minLength: 3,
+                minLength: emailMinLength,
                 maxLength: 128
             }
         });
@@ -91,67 +99,84 @@ export class User implements IUser {
         });
 
         const [userid, hostname] = user.email.split("@");
+        const emailid = vEmail.stripHtml(userid as string);
+        const email_host = vEmail.stripHtml(hostname as string);
+        const firstname = vName.stripHtml(user.firstname);
+        const lastname = vName.stripHtml(user.lastname);
+        const address1 = vAddress.stripHtml(user.address1);
+        const address2 = vAddress.stripHtml(user.address2);
+        const city = vAddress.stripHtml(user.city);
+        const state = vAddress.stripHtml(user.state);
+
         const emailChecked: boolean = (
             vEmail.emailValidate(user.email) &&
-            vEmail.stringValidate(vEmail.stripHtml(userid as string)) &&
-            vEmail.stringValidate(vEmail.stripHtml(hostname as string)));
+            vEmail.stringValidate(emailid) &&
+            vEmail.stringValidate(email_host));
         const nameChecked: boolean = (
-            vName.stringValidate(vName.stripHtml(user.firstname)) &&
-            vName.stringValidate(vName.stripHtml(user.lastname)));
+            vName.stringValidate(firstname) &&
+            vName.stringValidate(lastname));
         const addressChecked: boolean = (
-            vAddress.stringValidate(vAddress.stripHtml(user.address1)) &&
-            vAddress.stringValidate(vAddress.stripHtml(user.address2)) &&
-            vAddress.stringValidate(vAddress.stripHtml(user.city)) &&
-            vAddress.stringValidate(vAddress.stripHtml(user.state)));
-        if (emailChecked && nameChecked && addressChecked) {
-            const queryResult = await withTransaction(async (client) => {
-                return await client.query(
-                    `INSERT INTO users (email,email_host,emailid,
-                    firstname,lastname,affiliate,
-                    address1,address2,city,state,zipcode,
-                    subscription_level,phone_e164) VALUES
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                    RETURNING id, user_identifier, firstname, lastname, affiliate,
-                    email, phone_e164, address1, address2, city, state, zipcode, subscription_level`,
-                    [
-                        user.email,
-                        vEmail.stripHtml(hostname as string),
-                        vEmail.stripHtml(userid as string),
-                        vName.stripHtml(user.firstname),
-                        vName.stripHtml(user.lastname),
-                        User.generateAffiliate(7),
-                        vAddress.stripHtml(user.address1),
-                        vAddress.stripHtml(user.address2),
-                        vAddress.stripHtml(user.city),
-                        vAddress.stripHtml(user.state),
-                        user.zipcode,
-                        user.subscription_level,
-                        verifiedPhone ?? null
-                    ]
-                );
-            });
-
-            const row = queryResult.rows.at(0);
-            if (!row) {
-                throw new HTMLStatusError("Failed to create user.", 500)
-            }
-            const userEntry = new User({
-                firstname: row.firstname,
-                lastname: row.lastname,
-                email: row.email,
-                phone_e164: row.phone_e164,
-                address1: row.address1,
-                address2: row.address2,
-                city: row.city,
-                state: row.state,
-                zipcode: row.zipcode,
-                subscription_level: row.subscription_level,
-                user_identifier: row.user_identifier,
-                affiliate: row.affiliate
-            }, row.id);
-            return userEntry.readUser();
+            vAddress.stringValidate(address1) &&
+            vAddress.stringValidate(address2) &&
+            vAddress.stringValidate(city) &&
+            vAddress.stringValidate(state));
+        if (!emailChecked || !nameChecked || !addressChecked) {
+            throw new HTMLStatusError("User fields are invalid", 400);
         }
-        throw new HTMLStatusError("User fields are invalid", 400);
+
+        return { email: user.email, email_host, emailid, firstname, lastname, address1, address2, city, state };
+    }
+
+    static async storeUser(user: UserAPIType, verifiedPhone?: string | null) {
+        User.assertUserShape(user);
+        const fields = User.sanitizeUserFields(user, 3);
+
+        const queryResult = await withTransaction(async (client) => {
+            return await client.query(
+                `INSERT INTO users (email,email_host,emailid,
+                firstname,lastname,affiliate,
+                address1,address2,city,state,zipcode,
+                subscription_level,phone_e164) VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                RETURNING id, user_identifier, firstname, lastname, affiliate,
+                email, phone_e164, address1, address2, city, state, zipcode, subscription_level`,
+                [
+                    fields.email,
+                    fields.email_host,
+                    fields.emailid,
+                    fields.firstname,
+                    fields.lastname,
+                    User.generateAffiliate(7),
+                    fields.address1,
+                    fields.address2,
+                    fields.city,
+                    fields.state,
+                    user.zipcode,
+                    user.subscription_level,
+                    verifiedPhone ?? null
+                ]
+            );
+        });
+
+        const row = queryResult.rows.at(0);
+        if (!row) {
+            throw new HTMLStatusError("Failed to create user.", 500)
+        }
+        const userEntry = new User({
+            firstname: row.firstname,
+            lastname: row.lastname,
+            email: row.email,
+            phone_e164: row.phone_e164,
+            address1: row.address1,
+            address2: row.address2,
+            city: row.city,
+            state: row.state,
+            zipcode: row.zipcode,
+            subscription_level: row.subscription_level,
+            user_identifier: row.user_identifier,
+            affiliate: row.affiliate
+        }, row.id);
+        return userEntry.readUser();
     }
     public readUser(): UserAPIType {
         return this.user as UserAPIType;
@@ -231,84 +256,41 @@ export class User implements IUser {
     static async updateUser(user: UserAPIType) {
         User.assertUserShape(user);
         let isUpdated = false;
-        const vName = new Validator({
-            version: "1.0",
-            stringValidation: {
-                minLength: 2,
-                maxLength: 48,
-                locale: "en-us"
-            }
-        });
-        const vEmail = new Validator({
-            version: "1.0",
-            emailValidation: {
-                domainMinLength: 5,
-                domainMaxLength: 36,
-            },
-            stringValidation: {
-                minLength: 5,
-                maxLength: 128
-            }
-        });
-        const vAddress = new Validator({
-            version: "1.0",
-            stringValidation: {
-                minLength: 0,
-                maxLength: 64,
-                locale: "en-us"
-            }
-        });
+        const fields = User.sanitizeUserFields(user, 5);
 
-        const [userid, hostname] = user.email.split("@");
-        const emailChecked: boolean = (
-            vEmail.emailValidate(user.email) &&
-            vEmail.stringValidate(vEmail.stripHtml(userid as string)) &&
-            vEmail.stringValidate(vEmail.stripHtml(hostname as string)));
-        const nameChecked: boolean = (
-            vName.stringValidate(vName.stripHtml(user.firstname)) &&
-            vName.stringValidate(vName.stripHtml(user.lastname)));
-        const addressChecked: boolean = (
-            vAddress.stringValidate(vAddress.stripHtml(user.address1)) &&
-            vAddress.stringValidate(vAddress.stripHtml(user.address2)) &&
-            vAddress.stringValidate(vAddress.stripHtml(user.city)) &&
-            vAddress.stringValidate(vAddress.stripHtml(user.state)));
-        if (emailChecked && nameChecked && addressChecked) {
-            try {
-                const queryResult = await withTransaction(async (client) => {
-                    return await client.query(
-                        `UPDATE users SET (email,email_host,emailid,
-                    firstname,lastname,
-                    address1,address2,city,state,zipcode,
-                    subscription_level) =
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                    where user_identifier = $12`,
-                        [
-                            user.email,
-                            vEmail.stripHtml(hostname as string),
-                            vEmail.stripHtml(userid as string),
-                            vName.stripHtml(user.firstname),
-                            vName.stripHtml(user.lastname),
-                            vAddress.stripHtml(user.address1),
-                            vAddress.stripHtml(user.address2),
-                            vAddress.stripHtml(user.city),
-                            vAddress.stripHtml(user.state),
-                            user.zipcode,
-                            user.subscription_level,
-                            user.user_identifier
-                        ])
-                });
+        try {
+            const queryResult = await withTransaction(async (client) => {
+                return await client.query(
+                    `UPDATE users SET (email,email_host,emailid,
+                firstname,lastname,
+                address1,address2,city,state,zipcode,
+                subscription_level) =
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                where user_identifier = $12`,
+                    [
+                        fields.email,
+                        fields.email_host,
+                        fields.emailid,
+                        fields.firstname,
+                        fields.lastname,
+                        fields.address1,
+                        fields.address2,
+                        fields.city,
+                        fields.state,
+                        user.zipcode,
+                        user.subscription_level,
+                        user.user_identifier
+                    ])
+            });
 
-                const rowCount = queryResult.rowCount;
-                if (rowCount === 0) {
-                    throw new HTMLStatusError("User not updated", 404);
-                } else {
-                    isUpdated = true;
-                }
-            } catch (error) {
-                as500(error);
+            const rowCount = queryResult.rowCount;
+            if (rowCount === 0) {
+                throw new HTMLStatusError("User not updated", 404);
+            } else {
+                isUpdated = true;
             }
-        } else {
-            throw new HTMLStatusError("User fields are invalid", 400);
+        } catch (error) {
+            as500(error);
         }
         return isUpdated;
     }
