@@ -6,25 +6,34 @@ import type { CreateWalletRequest, WalletChainType, WalletCreateInput, WalletLis
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import { getSession, requireSessionFromBody } from "../libs/session.ts";
 import { requireBody } from "../libs/requestValidation.ts";
+import { requireWalletOwner } from "../libs/privyAuth.ts";
 
 export const router = express.Router();
 
 // --- Wallets ---
 //
+// Wallets are scoped to the acting user via a server-controlled `external_id`
+// (the caller's user_identifier): create stamps it, list forces it, and reads
+// assert it — so a session can only ever see its own wallets, never another
+// user's by guessing IDs.
+//
 // NOTE: signing/send endpoints (sign-message, sign-transaction, send-transaction)
-// are intentionally NOT implemented here. They move irreversible, uncapped value
-// and must not exist until session->user binding + per-user ownership checks land
+// are still intentionally NOT implemented. `external_id` authorizes reads only;
+// before signing lands, the wallet `owner` (P-256 authorization key) must also be
+// pinned to something the server controls.
 
 router.post("/privy/wallet", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as CreateWalletRequest;
         requireSessionFromBody(data);
+        const actingUser = await requireWalletOwner(req);
+        // `external_id` is server-controlled: it is the ownership tag every read
+        // is scoped to, so a client-supplied `external_id`/`owner` is ignored.
         const input: WalletCreateInput = {
             chain_type: data.chain_type,
-            ...(data.owner ? { owner: data.owner } : {}),
+            external_id: actingUser,
             ...(data.display_name ? { display_name: data.display_name } : {}),
-            ...(data.external_id ? { external_id: data.external_id } : {}),
         };
         await Audit.logMessage("POST /api/privy/wallet", data.session);
         const wallet = await Privy.createWallet(input);
@@ -38,26 +47,26 @@ router.get("/privy/wallet/:wallet_id", async (req, res) => {
     try {
         const session = getSession(req);
         const walletId = req.params.wallet_id;
+        const actingUser = await requireWalletOwner(req);
         await Audit.logMessage(`GET /api/privy/wallet/${walletId}`, session);
         const wallet = await Privy.getWallet(walletId);
+        if (wallet.external_id !== actingUser) {
+            throw new HTMLStatusError("Forbidden", 403);
+        }
         JSONResponse.goodToGo(req, res, "OK", wallet as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }
 });
 
-// ACCEPTED RISK (read-only sandbox slice): with no filter this lists every
-// server wallet in the app, and GET /privy/wallet/:id reads any wallet — neither
-// is scoped to the caller. This is the cross-user IDOR documented
-// (sessions carry no user_identifier); the per-user ownership mapping is still an
-// open design item. Before this leaves sandbox, scope the query to the caller's
-// own wallets (the same blocker that gates the signing/send endpoints).
 router.get("/privy/wallets", async (req, res) => {
     try {
         const session = getSession(req);
+        const actingUser = await requireWalletOwner(req);
+        // Always scope to the caller's own wallets; client-supplied `user_id` /
+        // `external_id` filters are ignored so a session cannot list another's.
         const query: WalletListQuery = {
-            ...(req.query.user_id ? { user_id: req.query.user_id as string } : {}),
-            ...(req.query.external_id ? { external_id: req.query.external_id as string } : {}),
+            external_id: actingUser,
             ...(req.query.chain_type ? { chain_type: req.query.chain_type as WalletChainType } : {}),
             ...(req.query.cursor ? { cursor: req.query.cursor as string } : {}),
             ...(req.query.limit ? { limit: Number(req.query.limit) } : {}),
