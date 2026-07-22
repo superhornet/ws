@@ -4,6 +4,7 @@ import tsParser from "@typescript-eslint/parser";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
+import globals from "globals";
 import { FlatCompat } from "@eslint/eslintrc";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +24,9 @@ export default defineConfig([{
 
     languageOptions: {
         parser: tsParser,
+        globals: {
+            ...globals.node,
+        },
     },
 
     rules: {},
