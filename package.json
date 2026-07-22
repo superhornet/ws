@@ -1,7 +1,7 @@
 {
     "name": "ws",
     "version": "1.0.0",
-    "description": "Backend application created for StackIt.cash",
+    "description": "Backend application created for WeStack",
     "keywords": [
         "typescript",
         "express",
@@ -25,6 +25,9 @@
     "author": "Caleb King",
     "type": "module",
     "main": "dist/js/index.js",
+    "engines": {
+        "node": ">=24 <25"
+    },
     "scripts": {
         "doc": "typedoc --plugin typedoc-plugin-rename-defaults --entryPointStrategy expand src/main/ts/",
         "clean": "rimraf dist/ docs/",
@@ -54,7 +57,7 @@
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",
         "@types/fs-extra": "^11.0.4",
-        "@types/node": "^25.9.1",
+        "@types/node": "^24.13.3",
         "@types/pg": "^8.20.0",
         "@types/shelljs": "^0.10.0",
         "@typescript-eslint/eslint-plugin": "^8.51.0",
@@ -74,8 +77,8 @@
         "typescript": "^5.9.3"
     },
     "dependencies": {
-        "@cybrid/cybrid-api-bank-typescript": "^0.128.102",
-        "@privy-io/node": "^0.21.0",
+        "@cybrid/cybrid-api-bank-typescript": "^0.129.682",
+        "@privy-io/node": "^0.26.0",
         "cors": "^2.8.6",
         "express": "^5.2.1",
         "express-rate-limit": "^8.3.2",
