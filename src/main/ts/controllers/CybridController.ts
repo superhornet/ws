@@ -2,7 +2,7 @@ import * as express from "express";
 import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { Cybrid } from "../models/Cybrid.ts";
-import type { CybridAPIType, FiatTransferRequest } from "../types/CybridAPITypes.ts";
+import type { FiatTransferRequest } from "../types/CybridAPITypes.ts";
 import type {
     PostDepositAddressBankModel,
     PostDepositBankAccountBankModel,
@@ -28,7 +28,7 @@ import type {
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import { requireGuid } from "../libs/requestValidation.ts";
 import { withIdempotency } from "../libs/withIdempotency.ts";
-import { getSession, requireSessionFromBody } from "../libs/session.ts";
+import { getSession } from "../libs/session.ts";
 import { requireBody } from "../libs/requestValidation.ts";
 import {
     requireCustomerGuid,
@@ -61,10 +61,10 @@ router.post("/cybrid/account", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostAccountBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/account", data.session);
+        await Audit.logMessage("POST /api/cybrid/account", session);
         const account = await Cybrid.createAccount(data);
         JSONResponse.creationSuccess(req, res, "Account created", account as unknown as JSON);
     } catch (error) {
@@ -130,10 +130,10 @@ router.post("/cybrid/counterparty", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostCounterpartyBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/counterparty", data.session);
+        await Audit.logMessage("POST /api/cybrid/counterparty", session);
         const counterparty = await Cybrid.createCounterparty(data);
         JSONResponse.creationSuccess(req, res, "Counterparty created", counterparty as unknown as JSON);
     } catch (error) {
@@ -176,13 +176,12 @@ router.get("/cybrid/counterparties", async (req, res) => {
 router.post("/cybrid/customer", async (req, res) => {
     try {
         requireBody(req);
-        const data: CybridAPIType = req.body;
-        requireSessionFromBody(data);
+        const session = getSession(req);
         // Establish the user->customer binding: the session must be a signed-up
         // (bound) user without an existing customer, and the returned guid is
         // stamped onto that user so later requests can be authorized against it.
         const actingUser = await requireUnboundUser(req);
-        await Audit.logMessage("POST /api/cybrid/customer", data.session);
+        await Audit.logMessage("POST /api/cybrid/customer", session);
         const customer = await Cybrid.createCustomer(req.body);
         if (!customer.guid) {
             throw new HTMLStatusError("Customer creation failed", 500);
@@ -216,11 +215,11 @@ router.patch("/cybrid/customer/:customer_guid", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PatchCustomerBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = req.params.customer_guid;
         requireGuid(customerGuid, "Customer");
         assertOwnedByCustomer(await requireCustomerGuid(req), customerGuid);
-        await Audit.logMessage(`PATCH /api/cybrid/customer/${customerGuid}`, data.session);
+        await Audit.logMessage(`PATCH /api/cybrid/customer/${customerGuid}`, session);
         const customer = await Cybrid.updateCustomer(customerGuid, data);
         JSONResponse.goodToGo(req, res, "Customer updated", customer as unknown as JSON);
     } catch (error) {
@@ -234,11 +233,11 @@ router.post("/cybrid/deposit-address", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostDepositAddressBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         requireGuid(data.account_guid, "Account");
         await assertOwns(customerGuid, () => Cybrid.getAccount(data.account_guid));
-        await Audit.logMessage("POST /api/cybrid/deposit-address", data.session);
+        await Audit.logMessage("POST /api/cybrid/deposit-address", session);
         const address = await Cybrid.createDepositAddress(data);
         JSONResponse.creationSuccess(req, res, "Deposit address created", address as unknown as JSON);
     } catch (error) {
@@ -281,10 +280,10 @@ router.post("/cybrid/deposit-bank-account", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostDepositBankAccountBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/deposit-bank-account", data.session);
+        await Audit.logMessage("POST /api/cybrid/deposit-bank-account", session);
         const account = await Cybrid.createDepositBankAccount(data);
         JSONResponse.creationSuccess(req, res, "Deposit bank account created", account as unknown as JSON);
     } catch (error) {
@@ -327,11 +326,11 @@ router.post("/cybrid/execution", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostExecutionBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         requireGuid(data.plan_guid, "Plan");
         await assertOwns(customerGuid, () => Cybrid.getPlan(data.plan_guid));
-        await Audit.logMessage("POST /api/cybrid/execution", data.session);
+        await Audit.logMessage("POST /api/cybrid/execution", session);
         const execution = await Cybrid.createExecution(data);
         JSONResponse.creationSuccess(req, res, "Execution created", execution as unknown as JSON);
     } catch (error) {
@@ -374,10 +373,10 @@ router.post("/cybrid/external-bank-account", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostExternalBankAccountBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/external-bank-account", data.session);
+        await Audit.logMessage("POST /api/cybrid/external-bank-account", session);
         const account = await Cybrid.createExternalBankAccount(data);
         JSONResponse.creationSuccess(req, res, "External bank account created", account as unknown as JSON);
     } catch (error) {
@@ -426,12 +425,12 @@ router.patch("/cybrid/external-bank-account/:external_bank_account_guid", async 
     try {
         requireBody(req);
         const data = req.body as PatchExternalBankAccountBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const externalBankAccountGuid = req.params.external_bank_account_guid;
         requireGuid(externalBankAccountGuid, "External Bank Account");
         const customerGuid = await requireCustomerGuid(req);
         await assertOwns(customerGuid, () => Cybrid.getExternalBankAccount(externalBankAccountGuid));
-        await Audit.logMessage(`PATCH /api/cybrid/external-bank-account/${externalBankAccountGuid}`, data.session);
+        await Audit.logMessage(`PATCH /api/cybrid/external-bank-account/${externalBankAccountGuid}`, session);
         const account = await Cybrid.patchExternalBankAccount(externalBankAccountGuid, data);
         JSONResponse.goodToGo(req, res, "External bank account updated", account as unknown as JSON);
     } catch (error) {
@@ -460,10 +459,10 @@ router.post("/cybrid/external-wallet", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostExternalWalletBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/external-wallet", data.session);
+        await Audit.logMessage("POST /api/cybrid/external-wallet", session);
         const wallet = await Cybrid.createExternalWallet(data);
         JSONResponse.creationSuccess(req, res, "External wallet created", wallet as unknown as JSON);
     } catch (error) {
@@ -521,7 +520,7 @@ router.post("/cybrid/fiat-transfer", async (req, res) => {
     try {
         requireBody(req);
         const data: FiatTransferRequest = req.body;
-        requireSessionFromBody(data);
+        const session = getSession(req);
         if (!data.source_account_guid || !data.destination_account_guid) {
             throw new HTMLStatusError("Source and destination account GUIDs are required", 400);
         }
@@ -539,8 +538,8 @@ router.post("/cybrid/fiat-transfer", async (req, res) => {
         // customer-to-customer book transfer.
         const customerGuid = await requireCustomerGuid(req);
         await assertOwns(customerGuid, () => Cybrid.getAccount(data.source_account_guid));
-        await withIdempotency(req, res, data.session, "/cybrid/fiat-transfer", async () => {
-            await Audit.logMessage("POST /api/cybrid/fiat-transfer", data.session);
+        await withIdempotency(req, res, session, "/cybrid/fiat-transfer", async () => {
+            await Audit.logMessage("POST /api/cybrid/fiat-transfer", session);
             const transfer = await Cybrid.transferFiat(
                 data.source_account_guid,
                 data.destination_account_guid,
@@ -560,10 +559,10 @@ router.post("/cybrid/file", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostFileBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/file", data.session);
+        await Audit.logMessage("POST /api/cybrid/file", session);
         const file = await Cybrid.createFile(data);
         JSONResponse.creationSuccess(req, res, "File created", file as unknown as JSON);
     } catch (error) {
@@ -607,10 +606,10 @@ router.post("/cybrid/identity-verification", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostIdentityVerificationBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/identity-verification", data.session);
+        await Audit.logMessage("POST /api/cybrid/identity-verification", session);
         const verification = await Cybrid.createIdentityVerification(data);
         JSONResponse.creationSuccess(req, res, "Identity verification created", verification as unknown as JSON);
     } catch (error) {
@@ -653,10 +652,10 @@ router.post("/cybrid/invoice", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostInvoiceBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/invoice", data.session);
+        await Audit.logMessage("POST /api/cybrid/invoice", session);
         const invoice = await Cybrid.createInvoice(data);
         JSONResponse.creationSuccess(req, res, "Invoice created", invoice as unknown as JSON);
     } catch (error) {
@@ -714,11 +713,11 @@ router.post("/cybrid/payment-instruction", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostPaymentInstructionBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         requireGuid(data.invoice_guid, "Invoice");
         await assertOwns(customerGuid, () => Cybrid.getInvoice(data.invoice_guid));
-        await Audit.logMessage("POST /api/cybrid/payment-instruction", data.session);
+        await Audit.logMessage("POST /api/cybrid/payment-instruction", session);
         const instruction = await Cybrid.createPaymentInstruction(data);
         JSONResponse.creationSuccess(req, res, "Payment instruction created", instruction as unknown as JSON);
     } catch (error) {
@@ -762,11 +761,11 @@ router.post("/cybrid/persona-session", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostPersonaSessionBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         requireGuid(data.identity_verification_guid, "Verification");
         await assertOwns(customerGuid, () => Cybrid.getIdentityVerification(data.identity_verification_guid));
-        await Audit.logMessage("POST /api/cybrid/persona-session", data.session);
+        await Audit.logMessage("POST /api/cybrid/persona-session", session);
         const personaSession = await Cybrid.createPersonaSession(data);
         JSONResponse.creationSuccess(req, res, "Persona session created", personaSession as unknown as JSON);
     } catch (error) {
@@ -780,10 +779,10 @@ router.post("/cybrid/plan", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostPlanBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/plan", data.session);
+        await Audit.logMessage("POST /api/cybrid/plan", session);
         const plan = await Cybrid.createPlan(data);
         JSONResponse.creationSuccess(req, res, "Plan created", plan as unknown as JSON);
     } catch (error) {
@@ -840,11 +839,11 @@ router.post("/cybrid/quote", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostQuoteBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await withIdempotency(req, res, data.session as string, "/cybrid/quote", async () => {
-            await Audit.logMessage("POST /api/cybrid/quote", data.session as string);
+        await withIdempotency(req, res, session, "/cybrid/quote", async () => {
+            await Audit.logMessage("POST /api/cybrid/quote", session);
             const quote = await Cybrid.createQuote(data);
             return { code: 201, data: quote as unknown as JSON, message: "Quote created" };
         });
@@ -901,12 +900,12 @@ router.post("/cybrid/trade", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostTradeBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         requireGuid(data.quote_guid, "Quote");
         await assertOwns(customerGuid, () => Cybrid.getQuote(data.quote_guid));
-        await withIdempotency(req, res, data.session as string, "/cybrid/trade", async () => {
-            await Audit.logMessage("POST /api/cybrid/trade", data.session as string);
+        await withIdempotency(req, res, session, "/cybrid/trade", async () => {
+            await Audit.logMessage("POST /api/cybrid/trade", session);
             const trade = await Cybrid.createTrade(data);
             return { code: 201, data: trade as unknown as JSON, message: "Trade created" };
         });
@@ -948,12 +947,12 @@ router.post("/cybrid/transfer", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostTransferBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         requireGuid(data.quote_guid, "Quote");
         await assertOwns(customerGuid, () => Cybrid.getQuote(data.quote_guid));
-        await withIdempotency(req, res, data.session as string, "/cybrid/transfer", async () => {
-            await Audit.logMessage("POST /api/cybrid/transfer", data.session as string);
+        await withIdempotency(req, res, session, "/cybrid/transfer", async () => {
+            await Audit.logMessage("POST /api/cybrid/transfer", session);
             const transfer = await Cybrid.createTransfer(data);
             return { code: 201, data: transfer as unknown as JSON, message: "Transfer created" };
         });
@@ -993,12 +992,12 @@ router.patch("/cybrid/transfer/:transfer_guid", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PatchTransferBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const transferGuid = req.params.transfer_guid;
         requireGuid(transferGuid, "Transfer");
         const customerGuid = await requireCustomerGuid(req);
         await assertOwns(customerGuid, () => Cybrid.getTransfer(transferGuid));
-        await Audit.logMessage(`PATCH /api/cybrid/transfer/${transferGuid}`, data.session);
+        await Audit.logMessage(`PATCH /api/cybrid/transfer/${transferGuid}`, session);
         const transfer = await Cybrid.updateTransfer(transferGuid, data);
         JSONResponse.goodToGo(req, res, "Transfer updated", transfer as unknown as JSON);
     } catch (error) {
@@ -1012,10 +1011,10 @@ router.post("/cybrid/workflow", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as PostWorkflowBankModel & { session?: string };
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const customerGuid = await requireCustomerGuid(req);
         data.customer_guid = requireOwnCustomerGuid(customerGuid, data.customer_guid);
-        await Audit.logMessage("POST /api/cybrid/workflow", data.session);
+        await Audit.logMessage("POST /api/cybrid/workflow", session);
         const workflow = await Cybrid.createWorkflow(data);
         JSONResponse.creationSuccess(req, res, "Workflow created", workflow as unknown as JSON);
     } catch (error) {

@@ -9,9 +9,8 @@ let sharedSession: string = "";
 
 /**
  * The Cybrid routes never reach the Cybrid API in this suite: every test below
- * exercises the validation layer (requireBody / requireSessionFromBody /
- * getSession / requireGuid and the fiat-transfer amount rules), all of which
- * reject before `Cybrid.*` is invoked.
+ * exercises the validation layer (requireBody / getSession / requireGuid and the
+ * fiat-transfer amount rules), all of which reject before `Cybrid.*` is invoked.
  */
 async function createSession(): Promise<string> {
     const handler = findRouteHandler(sessionRouter, 'get', '/session');
@@ -26,7 +25,7 @@ describe("Get a session", async () => {
     sharedSession = await createSession();
 });
 
-// POST routes guarded by requireBody + requireSessionFromBody.
+// POST routes guarded by requireBody + getSession (X-Session header).
 const postBodyRoutes = [
     "/cybrid/account",
     "/cybrid/counterparty",
@@ -49,7 +48,7 @@ const postBodyRoutes = [
     "/cybrid/workflow",
 ];
 
-// PATCH routes guarded by requireBody + requireSessionFromBody + requireGuid.
+// PATCH routes guarded by requireBody + getSession (X-Session header) + requireGuid.
 const patchGuidRoutes = [
     { path: "/cybrid/customer/:customer_guid", label: "Customer" },
     { path: "/cybrid/external-bank-account/:external_bank_account_guid", label: "External Bank Account" },
@@ -153,7 +152,7 @@ describe("PATCH /api/cybrid/* body, session, and GUID validation", () => {
         test(`PATCH ${path} is 400 when the GUID is missing`, async () => {
             const handler = findRouteHandler(cybridRouter, 'patch', path);
             assert.ok(handler, `Missing handler for PATCH ${path}`);
-            const { req, res } = mockGetRequest({ body: { session: sharedSession }, params: {} });
+            const { req, res } = mockGetRequest({ headers: { "x-session": sharedSession }, body: { message: "x" }, params: {} });
             // @ts-expect-error req is fine as-is
             await handler(req, res, null);
             assert.equal(res.statusCode, 400);
@@ -261,8 +260,8 @@ describe("POST /api/cybrid/fiat-transfer amount validation", () => {
         const handler = findRouteHandler(cybridRouter, 'post', "/cybrid/fiat-transfer");
         assert.ok(handler, "Missing handler for POST /cybrid/fiat-transfer");
         const { req, res } = mockGetRequest({
+            headers: { "x-session": sharedSession },
             body: {
-                session: sharedSession,
                 source_account_guid: randomUUID(),
                 destination_account_guid: randomUUID(),
                 amount: 100,
