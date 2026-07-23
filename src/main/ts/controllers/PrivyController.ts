@@ -4,7 +4,7 @@ import { Audit } from "../models/Audit.ts";
 import { Privy } from "../models/Privy.ts";
 import type { CreateWalletRequest, WalletChainType, WalletCreateInput, WalletListQuery } from "../types/PrivyAPITypes.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
-import { getSession, requireSessionFromBody } from "../libs/session.ts";
+import { getSession } from "../libs/session.ts";
 import { requireBody } from "../libs/requestValidation.ts";
 import { requireWalletOwner } from "../libs/privyAuth.ts";
 
@@ -26,7 +26,7 @@ router.post("/privy/wallet", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as CreateWalletRequest;
-        requireSessionFromBody(data);
+        const session = getSession(req);
         const actingUser = await requireWalletOwner(req);
         // `external_id` is server-controlled: it is the ownership tag every read
         // is scoped to, so a client-supplied `external_id`/`owner` is ignored.
@@ -35,7 +35,7 @@ router.post("/privy/wallet", async (req, res) => {
             external_id: actingUser,
             ...(data.display_name ? { display_name: data.display_name } : {}),
         };
-        await Audit.logMessage("POST /api/privy/wallet", data.session);
+        await Audit.logMessage("POST /api/privy/wallet", session);
         const wallet = await Privy.createWallet(input);
         JSONResponse.creationSuccess(req, res, "Wallet created", wallet as unknown as JSON);
     } catch (error) {
