@@ -37,16 +37,14 @@
         "package": "node build.js",
         "dev:start": "npm-run-all build start",
         "dev": "nodemon --watch src -e ts --exec npm run dev:start",
-        "start": "node .",
-        "migrate": "npm run tsc && node scripts/migrate.mjs up",
-        "migrate:built": "node scripts/migrate.mjs up",
-        "migrate:down": "npm run tsc && node scripts/migrate.mjs down",
-        "migrate:down:built": "node scripts/migrate.mjs down",
+        "start": "node --env-file-if-exists=.env .",
+        "migrate": "npm run tsc && node --env-file-if-exists=.env scripts/migrate.mjs up",
+        "migrate:built": "node --env-file-if-exists=.env scripts/migrate.mjs up",
+        "migrate:down": "npm run tsc && node --env-file-if-exists=.env scripts/migrate.mjs down",
+        "migrate:down:built": "node --env-file-if-exists=.env scripts/migrate.mjs down",
         "test:cucumber": "cucumber-js --format progress",
-        "test": "node --test --test-concurrency=1 --experimental-test-module-mocks './src/test/ts/**/*.Test.ts'",
-        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./src/test/ts/**/*.Test.ts",
-        "test:cybrid": "node --experimental-test-module-mocks --test './test/ts/**/*.test.ts'",
-        "testWithCoverage:cybrid": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout ./test/ts/**/*.test.ts"
+        "test": "node --test --test-concurrency=1 --experimental-test-module-mocks --env-file-if-exists=.env './src/test/ts/**/*.Test.ts'",
+        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --env-file-if-exists=.env ./src/test/ts/**/*.Test.ts"
     },
     "overrides": {
         "inflight": "latest",
