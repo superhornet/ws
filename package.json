@@ -44,7 +44,7 @@
         "migrate:down:built": "node --env-file-if-exists=.env scripts/migrate.mjs down",
         "test:cucumber": "cucumber-js --format progress",
         "test": "node --test --test-concurrency=1 --experimental-test-module-mocks --env-file-if-exists=.env './src/test/ts/**/*.Test.ts'",
-        "testWithCoverage": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --env-file-if-exists=.env ./src/test/ts/**/*.Test.ts"
+        "testWithCoverage": "node --test --test-concurrency=1 --experimental-test-module-mocks --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --env-file-if-exists=.env './src/test/ts/**/*.Test.ts'"
     },
     "overrides": {
         "inflight": "latest",
