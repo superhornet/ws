@@ -3,7 +3,8 @@ import JSONResponse from "../libs/JSONResponse.ts";
 import { Audit } from "../models/Audit.ts";
 import { HTMLStatusError, processError } from "../libs/HTMLStatusError.ts";
 import { requireBody } from "../libs/requestValidation.ts";
-import { Session } from "../models/Session.ts";
+import { requireActingUser } from "../libs/authorization.ts";
+import { readSessionToken } from "../libs/session.ts";
 export const router = express.Router();
 
 type AuditRequestBody = {
@@ -32,22 +33,18 @@ function auditMessageFromBody(data: AuditRequestBody): string {
  * this endpoint through it would either double-log or reduce `run` to a no-op.
  * Here the audit entry IS the response payload, so the flow stays explicit.
  * `sessionAuth` already validates the session upstream; the in-handler
- * `Session.exists` check is kept as defense-in-depth for handler-level callers
- * that bypass middleware.
+ * `requireActingUser` re-checks it for handler-level callers that bypass
+ * middleware and requires the session to be bound to a user (403 otherwise), so
+ * an anonymous session cannot write audit rows.
  */
 router.post("/audit", async (req, res) => {
     try {
         requireBody(req);
         const data = req.body as AuditRequestBody;
-        if (!data.session) {
-            throw new HTMLStatusError("Session ID Required", 403);
-        }
-        if (await Session.exists(data.session)) {
-            const audit = await Audit.logMessage(auditMessageFromBody(data), data.session);
-            JSONResponse.creationSuccess(req, res, "Created", audit as unknown as JSON);
-        } else {
-            throw new HTMLStatusError("Unauthorized", 403);
-        }
+        await requireActingUser(req);
+        const session = readSessionToken(req) as string;
+        const audit = await Audit.logMessage(auditMessageFromBody(data), session);
+        JSONResponse.creationSuccess(req, res, "Created", audit as unknown as JSON);
     } catch (error) {
         processError(req, res, error as HTMLStatusError);
     }

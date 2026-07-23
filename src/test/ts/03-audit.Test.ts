@@ -2,9 +2,15 @@ import { suite, after, test } from "node:test";
 import assert from "node:assert";
 import { router as auditRouter } from "../../main/ts/controllers/AuditController.ts";
 import { router as sessionRouter } from "../../main/ts/controllers/SessionController.ts";
+import { router as userRouter } from "../../main/ts/controllers/UserController.ts";
 import { Audit } from "../../main/ts/models/Audit.ts";
+import { SubscriptionType } from "../../main/ts/types/SubscriptionTypes.ts";
 
-import { mockAudit, mockSession, findRouteHandler } from "./mocks.ts";
+import { mockAudit, mockSession, mockUser, findRouteHandler } from "./mocks.ts";
+
+// Run-unique suffix so re-running against a persistent DB does not collide on
+// the users' unique email constraint.
+const RUN = Date.now();
 
 async function createSession(): Promise<string> {
     const handler = findRouteHandler(sessionRouter, 'get', '/session');
@@ -13,6 +19,37 @@ async function createSession(): Promise<string> {
     // @ts-expect-error req is fine as-is
     await handler(req, res, null);
     return res.body.data.uuid;
+}
+
+/**
+ * Signs up a fresh user on its own session so the session is bound to a user,
+ * then returns that session. POST /api/audit now requires a bound session.
+ */
+async function createBoundSession(label: string): Promise<string> {
+    const session = await createSession();
+    const handler = findRouteHandler(userRouter, 'post', '/user');
+    assert.ok(handler, "Missing handler for user post");
+    const { req, res } = mockUser({
+        body: {
+            data: {
+                firstname: "Audit",
+                lastname: "Tester",
+                email: `${label}.${RUN}@westack.cash`,
+                address1: "1 Test St",
+                address2: "",
+                city: "Testville",
+                state: "FL",
+                zipcode: "33101",
+                subscription_level: SubscriptionType.PRO,
+            },
+            message: `Signup ${label}`,
+            session,
+        },
+    });
+    // @ts-expect-error req is fine as-is
+    await handler(req, res, null);
+    assert.equal(res.statusCode, 201);
+    return session;
 }
 
 async function postAudit(body: { session?: string; message?: string; action?: string; entity?: string; entity_identifier?: string }) {
@@ -44,20 +81,27 @@ suite("Audit routes: input validation and session guards", () => {
     test("POST is 403 when the session is forged", async () => {
         const res = await postAudit({ message: "Forged session.", session: "00000000-0000-0000-0000-000000000000" });
         assert.equal(res.statusCode, 403);
-        assert.equal(res.body.message, 'Unauthorized');
+        assert.equal(res.body.message, 'Session is not associated with a user');
+    });
+
+    test("POST is 403 when the session is valid but unbound", async () => {
+        const session = await createSession();
+        const res = await postAudit({ message: "Anonymous session.", session });
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.message, 'Session is not associated with a user');
     });
 });
 
 suite("Audit routes: success path", () => {
     test("POST is 201 Created for a valid session and message", async () => {
-        const session = await createSession();
+        const session = await createBoundSession("created");
         const res = await postAudit({ message: "<Unit> Test&amp; Message", session });
         assert.equal(res.statusCode, 201);
         assert.equal(res.body.message, 'Created');
     });
 
     test("POST returns the HTML-sanitized message it stored", async () => {
-        const session = await createSession();
+        const session = await createBoundSession("sanitized");
         const res = await postAudit({ message: "<Unit> Test&amp; Message", session });
         assert.equal(res.statusCode, 201);
         assert.equal(
@@ -67,7 +111,7 @@ suite("Audit routes: success path", () => {
     });
 
     test("POST prefers an explicit message over action/entity fields", async () => {
-        const session = await createSession();
+        const session = await createBoundSession("explicit");
         const res = await postAudit({ session, message: "explicit wins", action: "create", entity: "user", entity_identifier: "123" });
         assert.equal(res.statusCode, 201);
         assert.equal((res.body.data as { message: string }).message, "explicit wins");
@@ -120,28 +164,28 @@ suite("Auditing is guaranteed even for out-of-range messages", () => {
 
 suite("Derives the audit message when none is supplied", () => {
     test("Joins action, entity and identifier when message is absent", async () => {
-        const session = await createSession();
+        const session = await createBoundSession("derive-full");
         const res = await postAudit({ session, action: "create", entity: "user", entity_identifier: "123" });
         assert.equal(res.statusCode, 201);
         assert.equal((res.body.data as { message: string }).message, "create:user:123");
     });
 
     test("Falls back to a default label when nothing identifies the event", async () => {
-        const session = await createSession();
+        const session = await createBoundSession("derive-default");
         const res = await postAudit({ session });
         assert.equal(res.statusCode, 201);
         assert.equal((res.body.data as { message: string }).message, "Audit event");
     });
 
     test("Uses a single field alone when it is the only one supplied", async () => {
-        const session = await createSession();
+        const session = await createBoundSession("derive-single");
         const res = await postAudit({ session, action: "create" });
         assert.equal(res.statusCode, 201);
         assert.equal((res.body.data as { message: string }).message, "create");
     });
 
     test("Joins only the present fields when the identifier is absent", async () => {
-        const session = await createSession();
+        const session = await createBoundSession("derive-partial");
         const res = await postAudit({ session, action: "create", entity: "user" });
         assert.equal(res.statusCode, 201);
         assert.equal((res.body.data as { message: string }).message, "create:user");
