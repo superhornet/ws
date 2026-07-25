@@ -364,6 +364,41 @@ suite("Transaction routes: transfer lifecycle and balances", () => {
         assert.equal(await balanceOf(owner.session, stack.stack_identifier, dest.substack_identifier), 5000);
     });
 
+    test("Concurrent transfers from the same source cannot overdraw it (H2)", async () => {
+        const owner = await createBoundUser("tx.race.owner");
+        const stack = await createStack(owner.session, "Race Stack");
+        const source = await createSubstack(owner.session, stack.stack_identifier, "Race Source", { balance: 100000 }); // $1,000.00
+        const destA = await createSubstack(owner.session, stack.stack_identifier, "Race Dest A");
+        const destB = await createSubstack(owner.session, stack.stack_identifier, "Race Dest B");
+
+        // Two simultaneous $800 transfers out of a $1,000 source. Only one can
+        // succeed; the atomic guarded debit must reject the other rather than
+        // letting both read the same balance and mint money.
+        const [resA, resB] = await Promise.all([
+            postTransaction(owner.session, {
+                from_identifier: source.substack_identifier,
+                to_identifier: destA.substack_identifier,
+                amount: 800,
+            }),
+            postTransaction(owner.session, {
+                from_identifier: source.substack_identifier,
+                to_identifier: destB.substack_identifier,
+                amount: 800,
+            }),
+        ]);
+
+        const statuses = [resA.statusCode, resB.statusCode].sort((first, second) => first - second);
+        assert.deepEqual(statuses, [201, 400], `expected one success and one rejection, got ${statuses}`);
+
+        // Money is conserved: the source is debited exactly once and exactly one
+        // destination is credited (total credited = the single $800 that cleared).
+        const sourceBalance = await balanceOf(owner.session, stack.stack_identifier, source.substack_identifier);
+        const destABalance = await balanceOf(owner.session, stack.stack_identifier, destA.substack_identifier);
+        const destBBalance = await balanceOf(owner.session, stack.stack_identifier, destB.substack_identifier);
+        assert.equal(sourceBalance, 20000); // $1,000 - $800
+        assert.equal((destABalance ?? 0) + (destBBalance ?? 0), 80000); // exactly one $800 credit
+    });
+
     test("A transfer exceeding the source balance is rejected as insufficient funds", async () => {
         const owner = await createBoundUser("tx.insufficient.owner");
         const stack = await createStack(owner.session, "Insufficient Stack");
@@ -540,12 +575,12 @@ suite("Transaction routes: read scoping", () => {
         assert.equal(byUser.statusCode, 200);
         assert.equal((byUser.body.data as unknown[]).length, 2);
 
-        // Stack scope: unlike the user query, the stack query has no DISTINCT, so
-        // each transfer yields one row per matched substack (from + to) — 2
-        // transfers x 2 sides = 4 rows. (Latent inconsistency worth noting.)
+        // Stack scope: DISTINCT now collapses the OR-join duplicates to one row per
+        // transaction, so the two transfers yield 2 rows — consistent with the user
+        // query.
         const byStack = await getTransactions({ session: owner.session, key: TransactionQueryTypes.STACK, value: stack.stack_identifier });
         assert.equal(byStack.statusCode, 200);
-        assert.equal((byStack.body.data as unknown[]).length, 4);
+        assert.equal((byStack.body.data as unknown[]).length, 2);
     });
 });
 
@@ -553,5 +588,5 @@ after(async () => {
     // Defer the pool-closing beforeExit so the final suite's last test has
     // settled before shutdown; emitting it synchronously races the last test.
     await new Promise((resolve) => setTimeout(resolve, 250));
-    process.emit('beforeExit');
+    process.emit('beforeExit', 0);
 });

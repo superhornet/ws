@@ -5,36 +5,7 @@ import { query, withTransaction } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
 import type { SubStackAPIType } from "../types/SubStackAPITypes.ts";
 
-export interface ITransaction {
-    readTransaction(): TransactionAPIType
-}
-
 export class Transaction {
-    private pTransaction!: TransactionAPIType;
-    private get transaction(): TransactionAPIType {
-        return this.pTransaction;
-    }
-    private set transaction(value: TransactionAPIType) {
-        this.pTransaction = value;
-    }
-    private pId!: number;
-    private get id() {
-        return this.pId;
-    }
-    private set id(value) {
-        this.pId = value;
-    }
-    constructor(
-        transaction: TransactionAPIType,
-        id: number | bigint
-    ) {
-        try {
-            this.transaction = transaction;
-            this.id = Number(id);
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
-    }
     static async storeTransaction(transaction: TransactionAPIType) {
         const vTransaction = new Validator({ //Validator for transaction
             version: "1.0",
@@ -55,124 +26,108 @@ export class Transaction {
         const noteChecked: boolean =
             vTransaction.stringValidate(vTransaction.stripHtml(transaction.notation));
 
-        const from_balance = await SubStack.getBalance(transaction.from_identifier);
-        const to_balance = await SubStack.getBalance(transaction.to_identifier);
         const authorizedUsers = await SubStack.getUsersList(transaction.from_identifier);
-        if (transaction.amount > from_balance) {
-            throw new HTMLStatusError("Insufficient funds", 400);
-        }
-        const isAuthorized = authorizedUsers.has(transaction.initiated_by)
-        if (amountChecked && noteChecked && isAuthorized) {
-            try {
-                const feeBearingTypes: TransactionEnum[] = [TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND];
-                const feeBearingProcessors: TransactionProcessorEnum[] = [
-                    TransactionProcessorType.APPLE,
-                    TransactionProcessorType.BITCOIN,
-                    TransactionProcessorType.CASHAPP,
-                    TransactionProcessorType.GOOGLE,
-                    TransactionProcessorType.MOONPAY,
-                    TransactionProcessorType.STRIPE,
-                ];
-                const queryResult = await withTransaction(async (client) => {
-                    if (feeBearingTypes.includes(transaction.transaction_type) &&
-                        feeBearingProcessors.includes(transaction.processor)) {
-                        let fee = 0;
-                        if (transaction.amount > 2500) {
-                            fee = 25;
-                        } else if (transaction.amount <= 75) {
-                            fee = .75;
-                        } else {
-                            fee = transaction.amount * 0.01;
-                        }
 
-                        //balance -= fee;
-                        await client.query(
-                            `INSERT INTO transactions (
-                            amount,
-                            processor,
-                            from_identifier,
-                            to_identifier,
-                            notation,
-                            transaction_type,
-                            initiated_by
-                          )
-                        VALUES (
-                            $1,
-                            $2,
-                            $3,
-                            $4,
-                            $5,
-                            $6,
-                            $7
-                          )`,
-                            [fee * 100, transaction.processor, transaction.from_identifier, await Transaction.getFeeSubStack(),
-                                "Service Fee", transaction.transaction_type, transaction.initiated_by]
-                        );
-                    }
-                    await client.query(
-                        `UPDATE substacks SET balance = $2 WHERE substack_identifier = $1;`, [transaction.from_identifier, Math.round((from_balance - transaction.amount) * 100)]
-                    );
-                    await client.query(
-                        `UPDATE substacks SET balance = $2 WHERE substack_identifier = $1;`, [transaction.to_identifier, Math.round((to_balance + transaction.amount) * 100)]
-                    );
-                    return await client.query(
-                        `INSERT INTO transactions (
-                            amount,
-                            processor,
-                            from_identifier,
-                            to_identifier,
-                            notation,
-                            transaction_type,
-                            initiated_by
-                          )
-                        VALUES (
-                            $1,
-                            $2,
-                            $3,
-                            $4,
-                            $5,
-                            $6,
-                            $7
-                          )
-                        RETURNING id, amount, processor, from_identifier, to_identifier,
-                        notation, transaction_type, initiated_by, status, occurred_at AS created_at;`,
-                        [transaction.amount * 100, transaction.processor, transaction.from_identifier, transaction.to_identifier,
-                        transaction.notation, transaction.transaction_type, transaction.initiated_by]
-                    )
-                });
-                const row = queryResult.rows.at(0);
-                if (!row) {
-                    throw new HTMLStatusError("Failed to create transaction", 500);
-                }
-                const transactionEntry = new Transaction({
-                    amount: row.amount,
-                    processor: row.processor,
-                    from_identifier: row.from_identifier,
-                    to_identifier: row.to_identifier,
-                    notation: row.notation,
-                    transaction_type: row.transaction_type,
-                    initiated_by: row.initiated_by,
-                    balance: to_balance + row.amount,
-                    status: row.status ?? null,
-                    created_at: row.created_at ?? null,
-                }, row.id);
-                return transactionEntry.transaction;
-            } catch (error) {
-                as500(error);
-            }
-        }
-        if (!isAuthorized) {
+        // Guard clauses (authorization before field validity, preserving the prior
+        // precedence) keep the happy path below flat.
+        if (!authorizedUsers.has(transaction.initiated_by)) {
             throw new HTMLStatusError("Not authorized to transact on this substack", 403);
         }
-        throw new HTMLStatusError("Transaction fields are invalid", 400);
-    }
-    public readTransaction(): TransactionAPIType {
-        return this.transaction;
+        if (!amountChecked || !noteChecked) {
+            throw new HTMLStatusError("Transaction fields are invalid", 400);
+        }
+
+        // Money is stored in integer cents; `transaction.amount` arrives in dollars.
+        // Convert once so every balance mutation below runs in the DB's cent unit.
+        const amountCents = Math.round(transaction.amount * 100);
+        const feeBearingTypes: TransactionEnum[] = [TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND];
+        const feeBearingProcessors: TransactionProcessorEnum[] = [
+            TransactionProcessorType.APPLE,
+            TransactionProcessorType.BITCOIN,
+            TransactionProcessorType.CASHAPP,
+            TransactionProcessorType.GOOGLE,
+            TransactionProcessorType.MOONPAY,
+            TransactionProcessorType.STRIPE,
+        ];
+
+        try {
+            const { inserted, destBalanceCents } = await withTransaction(async (client) => {
+                // The fee and main legs write the same seven columns, differing only in
+                // amount, destination, and notation.
+                const insertLedgerRow = (amount: number, to: string, notation: string) =>
+                    client.query(
+                        `INSERT INTO transactions (
+                            amount, processor, from_identifier, to_identifier,
+                            notation, transaction_type, initiated_by
+                          )
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        RETURNING id, amount, processor, from_identifier, to_identifier,
+                        notation, transaction_type, initiated_by, status, occurred_at AS created_at;`,
+                        [amount, transaction.processor, transaction.from_identifier, to,
+                            notation, transaction.transaction_type, transaction.initiated_by]
+                    );
+
+                // Atomic, guarded debit. The database re-evaluates `balance >= $2`
+                // against the row it locks for the UPDATE, so two concurrent transfers
+                // on the same source can never both pass it — the second blocks on the
+                // lock, then sees the first's committed debit. rowCount === 0 means the
+                // guard failed: insufficient funds.
+                const debit = await client.query(
+                    `UPDATE substacks SET balance = balance - $2 WHERE substack_identifier = $1 AND balance >= $2;`,
+                    [transaction.from_identifier, amountCents]
+                );
+                if (debit.rowCount === 0) {
+                    throw new HTMLStatusError("Insufficient funds", 400);
+                }
+
+                if (feeBearingTypes.includes(transaction.transaction_type) &&
+                    feeBearingProcessors.includes(transaction.processor)) {
+                    let feeCents = 0;
+                    if (amountCents > 250000) {          // amount > $2,500.00
+                        feeCents = 2500;                 // $25.00 flat
+                    } else if (amountCents <= 7500) {    // amount <= $75.00
+                        feeCents = 75;                   // $0.75 flat
+                    } else {
+                        feeCents = Math.round(amountCents / 100); // 1% of amount
+                    }
+                    await insertLedgerRow(feeCents, await Transaction.getFeeSubStack(), "Service Fee");
+                }
+
+                const credit = await client.query<{ balance: number }>(
+                    `UPDATE substacks SET balance = balance + $2 WHERE substack_identifier = $1 RETURNING balance;`,
+                    [transaction.to_identifier, amountCents]
+                );
+                if (credit.rowCount === 0) {
+                    throw new HTMLStatusError("Destination substack not found", 404);
+                }
+
+                const inserted = await insertLedgerRow(amountCents, transaction.to_identifier, transaction.notation);
+                return { inserted, destBalanceCents: credit.rows[0]!.balance };
+            });
+
+            const row = inserted.rows.at(0);
+            if (!row) {
+                throw new HTMLStatusError("Failed to create transaction", 500);
+            }
+            return {
+                amount: row.amount,
+                processor: row.processor,
+                from_identifier: row.from_identifier,
+                to_identifier: row.to_identifier,
+                notation: row.notation,
+                transaction_type: row.transaction_type,
+                initiated_by: row.initiated_by,
+                balance: destBalanceCents,
+                status: row.status ?? null,
+                created_at: row.created_at ?? null,
+            };
+        } catch (error) {
+            as500(error);
+        }
     }
     static async getTransactions(key: string, value: string) {
-        const output: Array<TransactionAPIType> = [];
         try {
-            let fetchedTransactions;
+            let fetchedTransactions: TransactionAPIType[];
             switch (key) {
                 case TransactionQueryTypes.SUBSTACK:
                     fetchedTransactions = await query<TransactionAPIType>(
@@ -193,8 +148,11 @@ export class Transaction {
                     );
                     break;
                 case TransactionQueryTypes.STACK:
+                    // DISTINCT collapses the OR-join duplicates (a transfer matches
+                    // both its source and destination substack) to one row per
+                    // transaction, matching the USER query's shape.
                     fetchedTransactions = await query<TransactionAPIType>(
-                        `SELECT
+                        `SELECT DISTINCT
                         t.initiated_by,
                         t.processor,
                         t.transaction_type,
@@ -209,19 +167,16 @@ export class Transaction {
                         t.from_identifier = s.substack_identifier OR
                         t.to_identifier = s.substack_identifier
                         WHERE s.stack_identifier = $1::uuid
-                        ORDER BY t.occurred_at DESC;`,
+                        ORDER BY created_at DESC;`,
                         [value]
                     );
                     break;
                 case TransactionQueryTypes.USER:
-                    // `occurred_at` is unique per transaction and shared by the
-                    // duplicate rows the OR-join produces (a transfer matches both
-                    // its source and destination substack), so DISTINCT collapses
-                    // those join duplicates to one row per transaction. Ordered
-                    // newest-first.
+                    // DISTINCT collapses the OR-join duplicates (a transfer matches
+                    // both its source and destination substack) to one row per
+                    // transaction. Ordered newest-first.
                     fetchedTransactions = await query<TransactionAPIType>(
                         `SELECT DISTINCT
-                        u.email,
                         t.initiated_by,
                         t.processor,
                         t.transaction_type,
@@ -237,50 +192,46 @@ export class Transaction {
                         t.to_identifier = ss.substack_identifier
                         INNER JOIN stacks AS s ON
                         ss.stack_identifier = s.stack_identifier
-                        INNER JOIN users AS u ON
-                        s.owner_identifier = u.user_identifier
                         WHERE s.owner_identifier = $1::uuid
                         ORDER BY created_at DESC;`,
                     [value]
                     );
                     break;
                 default:
-                    break;
+                    // Unreachable via the controller (it rejects unknown keys with a
+                    // 400 first), but fail closed if ever called directly.
+                    throw new HTMLStatusError("Invalid transaction query key", 400);
             }
-            if (fetchedTransactions === undefined) {
-                throw new HTMLStatusError("No transactions found", 404);
-            } else {
-                for (const transaction of fetchedTransactions) {
-                    output.push({
-                        initiated_by: transaction.initiated_by,
-                        processor: transaction.processor,
-                        transaction_type: transaction.transaction_type,
-                        amount: transaction.amount,
-                        to_identifier: transaction.to_identifier,
-                        from_identifier: transaction.from_identifier,
-                        notation: transaction.notation,
-                        status: transaction.status ?? null,
-                        created_at: transaction.created_at ?? null,
-                    });
-                }
-            }
+            return fetchedTransactions.map((transaction) => ({
+                initiated_by: transaction.initiated_by,
+                processor: transaction.processor,
+                transaction_type: transaction.transaction_type,
+                amount: transaction.amount,
+                to_identifier: transaction.to_identifier,
+                from_identifier: transaction.from_identifier,
+                notation: transaction.notation,
+                status: transaction.status ?? null,
+                created_at: transaction.created_at ?? null,
+            }));
         } catch (error) {
             as500(error);
         }
-        return output;
     }
     static async getFeeSubStack() {
         try {
-            let substackID: string = '';
             const feeSubStack = await query<SubStackAPIType>(
-                `SELECT substack_identifier, stack_identifier FROM substacks WHERE deleted = FALSE AND substack_name = $1;`,
+                `SELECT substack_identifier
+                FROM substacks
+                WHERE deleted = FALSE
+                AND substack_name = $1
+                ORDER BY id LIMIT 1;`,
                 ["Company Funds"]
             );
-            for (const feeSSid of feeSubStack) {
-                substackID = feeSSid.substack_identifier;
+            const feeSubStackId = feeSubStack.at(0)?.substack_identifier;
+            if (!feeSubStackId) {
+                throw new HTMLStatusError("Fee account is not configured", 500);
             }
-            return substackID;
-
+            return feeSubStackId;
         } catch (error) {
             as500(error);
         }
