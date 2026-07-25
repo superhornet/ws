@@ -491,6 +491,22 @@ suite("Transaction routes: transfer lifecycle and balances", () => {
         assert.notEqual(res.statusCode, 201);
         assert.ok(res.statusCode >= 400, `expected a failure status, got ${res.statusCode}`);
     });
+
+    test("A model-raised 500 returns a generic body, not internal detail (M1)", async () => {
+        // A malformed (non-UUID) destination makes the credit UPDATE raise a raw
+        // Postgres error, which the model wraps as a 500. The client must see a
+        // generic message, never the underlying database/SQL detail.
+        const owner = await createBoundUser("tx.m1.owner");
+        const stack = await createStack(owner.session, "M1 Stack");
+        const source = await createSubstack(owner.session, stack.stack_identifier, "M1 Source", { balance: 100000 });
+        const res = await postTransaction(owner.session, {
+            from_identifier: source.substack_identifier,
+            to_identifier: "not-a-uuid",
+            amount: 10,
+        });
+        assert.equal(res.statusCode, 500);
+        assert.equal(res.body.message, "Internal Server Error");
+    });
 });
 
 suite("Transaction routes: processor fees", () => {

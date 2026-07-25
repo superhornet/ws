@@ -27,7 +27,9 @@ export function as500(error: unknown): never {
     if (error instanceof HTMLStatusError) {
         throw error;
     }
-    throw new HTMLStatusError((error as Error).message, 500);
+    // Log the real error server-side; never surface its message to the client.
+    console.error("Wrapping as 500:", error);
+    throw new HTMLStatusError("Internal Server Error", 500);
 }
 export function processError(req: Request, res: Response, error: HTMLStatusError) {
     if (error instanceof HTMLStatusError) {
@@ -54,11 +56,14 @@ export function processError(req: Request, res: Response, error: HTMLStatusError
                 JSONResponse.badGateway(req, res, error.message, null);
                 break;
             default:
-                JSONResponse.serverError(req, res, error.message, null);
+                // 5xx: log the detail server-side; never put it in the response body.
+                console.error("Unhandled server error:", error);
+                JSONResponse.serverError(req, res, "Internal Server Error", null);
                 break;
         }
     }else{
-        JSONResponse.serverError(req, res, (error as Error).message, null);
+        console.error("Unhandled non-HTMLStatusError:", error);
+        JSONResponse.serverError(req, res, "Internal Server Error", null);
     }
 
 }
