@@ -186,12 +186,12 @@ export class SubStack {
 
                     return await client.query(
                         `UPDATE substacks
-                         SET substack_name = $1,
-                             users_list = $2,
-                             goal_amount = COALESCE($3, goal_amount),
-                             goal_deadline = COALESCE($4, goal_deadline),
-                             updated_at = NOW()
-                         WHERE deleted = FALSE AND substack_identifier = $5;`,
+                        SET substack_name = $1,
+                            users_list = $2,
+                            goal_amount = COALESCE($3, goal_amount),
+                            goal_deadline = COALESCE($4, goal_deadline),
+                            updated_at = NOW()
+                        WHERE deleted = FALSE AND substack_identifier = $5;`,
                         [
                             substack.substack_name,
                             users.toString(),
@@ -234,21 +234,6 @@ export class SubStack {
             as500(error);
         }
         return isDeleted;
-    }
-    static async getBalance(substack_identifier: string) {
-        try {
-            let balance = 0;
-            const fetchedBalance = await query<SubStackAPIType>(
-                `SELECT balance FROM substacks WHERE substack_identifier = $1;`,
-                [substack_identifier]
-            );
-            for(const row of fetchedBalance){
-                balance = row.balance/100;
-            }
-            return balance;
-        } catch (error) {
-            as500(error);
-        }
     }
     static async getParentStack(substack_identifier: string) {
         let parentStackID: string = '';

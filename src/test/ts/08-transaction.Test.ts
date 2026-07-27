@@ -73,7 +73,7 @@ async function createStack(session: string, name: string): Promise<StackAPIType>
 
 /**
  * Creates a substack. `balance` is stored verbatim in cents (integer), so pass
- * cents here; transaction `amount`s below are in dollars.
+ * cents here; transaction `amount`s below are also in integer cents.
  */
 async function createSubstack(session: string, stack_identifier: string, name: string, extra: Partial<SubStackAPIType> = {}): Promise<SubStackAPIType> {
     const handler = findRouteHandler(substackRouter, 'post', '/substack');
@@ -355,7 +355,7 @@ suite("Transaction routes: transfer lifecycle and balances", () => {
         const res = await postTransaction(owner.session, {
             from_identifier: source.substack_identifier,
             to_identifier: dest.substack_identifier,
-            amount: 50, // $50.00
+            amount: 5000, // $50.00
             notation: "Fund the destination",
         });
         assert.equal(res.statusCode, 201);
@@ -378,12 +378,12 @@ suite("Transaction routes: transfer lifecycle and balances", () => {
             postTransaction(owner.session, {
                 from_identifier: source.substack_identifier,
                 to_identifier: destA.substack_identifier,
-                amount: 800,
+                amount: 80000,
             }),
             postTransaction(owner.session, {
                 from_identifier: source.substack_identifier,
                 to_identifier: destB.substack_identifier,
-                amount: 800,
+                amount: 80000,
             }),
         ]);
 
@@ -407,7 +407,7 @@ suite("Transaction routes: transfer lifecycle and balances", () => {
         const res = await postTransaction(owner.session, {
             from_identifier: source.substack_identifier,
             to_identifier: dest.substack_identifier,
-            amount: 200, // $200.00 > $1.00
+            amount: 20000, // $200.00 > $1.00
         });
         assert.equal(res.statusCode, 400);
         assert.equal(res.body.message, 'Insufficient funds');
@@ -454,7 +454,23 @@ suite("Transaction routes: transfer lifecycle and balances", () => {
         const res = await postTransaction(owner.session, {
             from_identifier: source.substack_identifier,
             to_identifier: dest.substack_identifier,
-            amount: 10000.5, // above the floatMax of 10000.01
+            amount: 1000001, // 1 cent above the 1,000,000-cent ($10,000) cap
+        });
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.message, 'Transaction fields are invalid');
+    });
+
+    test("A fractional-cent amount is rejected as invalid", async () => {
+        // Amounts are integer cents; a fractional cent has no representation and
+        // must be rejected rather than silently rounded.
+        const owner = await createBoundUser("tx.fractional.owner");
+        const stack = await createStack(owner.session, "Fractional Stack");
+        const source = await createSubstack(owner.session, stack.stack_identifier, "Fractional Source", { balance: 100000 });
+        const dest = await createSubstack(owner.session, stack.stack_identifier, "Fractional Dest");
+        const res = await postTransaction(owner.session, {
+            from_identifier: source.substack_identifier,
+            to_identifier: dest.substack_identifier,
+            amount: 100.5, // fractional cents
         });
         assert.equal(res.statusCode, 400);
         assert.equal(res.body.message, 'Transaction fields are invalid');
@@ -524,9 +540,9 @@ suite("Transaction routes: processor fees", () => {
         //   $75 < amount <= $2500 -> 1% of amount
         //   amount > $2500     -> $25 flat
         const tiers: Array<{ amount: number; feeCents: number }> = [
-            { amount: 50, feeCents: 75 },     // $0.75
-            { amount: 500, feeCents: 500 },   // 1% of $500 = $5.00
-            { amount: 3000, feeCents: 2500 }, // $25.00
+            { amount: 5000, feeCents: 75 },      // $50.00 -> $0.75
+            { amount: 50000, feeCents: 500 },    // $500.00 -> 1% = $5.00
+            { amount: 300000, feeCents: 2500 },  // $3,000.00 -> $25.00
         ];
         for (const tier of tiers) {
             const res = await postTransaction(owner.session, {

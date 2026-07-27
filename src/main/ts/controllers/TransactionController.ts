@@ -30,7 +30,7 @@ router.post("/transaction", (req, res) => endpoint(req, res, () => {
     // must never dereference an absent `data` and surface a 500 instead.
     requireGuid(requestBody.data?.from_identifier, "Transaction source");
     return {
-        message: `Transaction $${requestBody.data.amount}: From ${requestBody.data.from_identifier} to ${requestBody.data.to_identifier}.`,
+        message: `Transaction $${(requestBody.data.amount / 100).toFixed(2)}: From ${requestBody.data.from_identifier} to ${requestBody.data.to_identifier}.`,
         authorize: async () => {
             const actingUser = await requireActingUser(req);
             requestBody.data.initiated_by = actingUser;
