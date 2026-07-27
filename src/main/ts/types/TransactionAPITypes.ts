@@ -38,7 +38,7 @@ export interface TransactionAPIType{
     initiated_by: string;
     processor: TransactionProcessorEnum; //processsor for the transaction
     transaction_type: TransactionEnum; //type of transaction
-    amount: number; //decimal amount
+    amount: number; //integer amount in cents
     to_identifier: string; //substackIdentifier
     from_identifier: string; //substackIdentifier
     notation: string;

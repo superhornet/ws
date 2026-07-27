@@ -13,7 +13,7 @@ export class Transaction {
                 integerMin: 1, // bounds are inclusive; 1 cent is the smallest allowed amount
                 integerMax: 1000000, //$10,000.00
                 floatMin: 1,
-                floatMax: 10000.01
+                floatMax: 1000000
             },
             stringValidation: { //Validator for notation text
                 minLength: 0,
@@ -21,8 +21,11 @@ export class Transaction {
                 locale: "en-us"
             }
         });
+        // `amount` is integer cents: reject fractional cents (a non-integer would
+        // otherwise fall through to the float branch of numberValidate) before the
+        // range check.
         const amountChecked: boolean =
-            vTransaction.numberValidate(transaction.amount);
+            Number.isInteger(transaction.amount) && vTransaction.numberValidate(transaction.amount);
         const noteChecked: boolean =
             vTransaction.stringValidate(vTransaction.stripHtml(transaction.notation));
 
@@ -37,9 +40,9 @@ export class Transaction {
             throw new HTMLStatusError("Transaction fields are invalid", 400);
         }
 
-        // Money is stored in integer cents; `transaction.amount` arrives in dollars.
-        // Convert once so every balance mutation below runs in the DB's cent unit.
-        const amountCents = Math.round(transaction.amount * 100);
+        // `transaction.amount` is already integer cents — the DB's native unit — so
+        // every balance mutation below uses it directly.
+        const amountCents = transaction.amount;
         const feeBearingTypes: TransactionEnum[] = [TransactionItemType.DEBIT, TransactionItemType.INITIAL_FUND];
         const feeBearingProcessors: TransactionProcessorEnum[] = [
             TransactionProcessorType.APPLE,
@@ -59,7 +62,7 @@ export class Transaction {
                         `INSERT INTO transactions (
                             amount, processor, from_identifier, to_identifier,
                             notation, transaction_type, initiated_by
-                          )
+                        )
                         VALUES ($1, $2, $3, $4, $5, $6, $7)
                         RETURNING id, amount, processor, from_identifier, to_identifier,
                         notation, transaction_type, initiated_by, status, occurred_at AS created_at;`,
@@ -236,5 +239,4 @@ export class Transaction {
             as500(error);
         }
     }
-
 }
