@@ -73,8 +73,7 @@ export function mockSession() {
             code: -1,
             data: {
                 uuid: "",
-                expires: "",
-                otp: ""
+                expires: ""
             },
             message: ""
         }),
