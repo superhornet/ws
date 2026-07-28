@@ -1,46 +1,10 @@
 import { HTMLStatusError, as500 } from "../libs/HTMLStatusError.ts";
 import type { UserAPIType } from "../types/UserAPITypes.ts";
-import { query, withTransaction } from "../libs/postgresDB.ts";
+import { query } from "../libs/postgresDB.ts";
 import { Validator } from "../libs/Validator.ts";
 import { randomInt } from "node:crypto";
 
-export interface IUser {
-    //storeUser(): Promise<void>;
-    readUser(): UserAPIType;
-    //fetchByUuid(user_identifier: string): Promise<UserAPIType>;
-    //updateUser();
-    //deleteUser();
-}
-
-export class User implements IUser {
-    private pUser!: UserAPIType;
-    private get user(): UserAPIType | undefined {
-        return this.pUser;
-    }
-    private set user(value: UserAPIType) {
-        this.pUser = value;
-    }
-
-    private pId!: number | bigint;
-    private get id(): number | bigint {
-        return this.pId;
-    }
-    private set id(value: number) {
-        this.pId = value;
-    }
-
-    constructor(
-        user: UserAPIType,
-        id: number | bigint
-    ) {
-        try {
-            this.user = user;
-            this.id = Number(id);
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
-    }
-
+export class User {
     /**
      * Rejects a payload whose required string fields are missing or not strings,
      * before any of them are dereferenced (`email.split`, `stripHtml`, …), so a
@@ -131,55 +95,37 @@ export class User implements IUser {
         User.assertUserShape(user);
         const fields = User.sanitizeUserFields(user, 3);
 
-        const queryResult = await withTransaction(async (client) => {
-            return await client.query(
-                `INSERT INTO users (email,email_host,emailid,
-                firstname,lastname,affiliate,
-                address1,address2,city,state,zipcode,
-                phone_e164) VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                RETURNING id, user_identifier, firstname, lastname, affiliate,
-                email, phone_e164, address1, address2, city, state, zipcode, subscription_level`,
-                [
-                    fields.email,
-                    fields.email_host,
-                    fields.emailid,
-                    fields.firstname,
-                    fields.lastname,
-                    User.generateAffiliate(7),
-                    fields.address1,
-                    fields.address2,
-                    fields.city,
-                    fields.state,
-                    user.zipcode,
-                    verifiedPhone ?? null
-                ]
-            );
-        });
+        const rows = await query<UserAPIType>(
+            `INSERT INTO users (email, email_host, emailid,
+                firstname, lastname, affiliate,
+                address1, address2, city, state, zipcode,
+                phone_e164)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                RETURNING user_identifier, firstname, lastname, affiliate,
+                email, phone_e164, address1, address2, city, state, zipcode, subscription_level;`,
+            [
+                fields.email,
+                fields.email_host,
+                fields.emailid,
+                fields.firstname,
+                fields.lastname,
+                User.generateAffiliate(7),
+                fields.address1,
+                fields.address2,
+                fields.city,
+                fields.state,
+                user.zipcode,
+                verifiedPhone ?? null,
+            ],
+        );
 
-        const row = queryResult.rows.at(0);
+        const row = rows.at(0);
         if (!row) {
-            throw new HTMLStatusError("Failed to create user.", 500)
+            throw new HTMLStatusError("Failed to create user.", 500);
         }
-        const userEntry = new User({
-            firstname: row.firstname,
-            lastname: row.lastname,
-            email: row.email,
-            phone_e164: row.phone_e164,
-            address1: row.address1,
-            address2: row.address2,
-            city: row.city,
-            state: row.state,
-            zipcode: row.zipcode,
-            subscription_level: row.subscription_level,
-            user_identifier: row.user_identifier,
-            affiliate: row.affiliate
-        }, row.id);
-        return userEntry.readUser();
+        return row;
     }
-    public readUser(): UserAPIType {
-        return this.user as UserAPIType;
-    }
+
     static async fetchByUuid(user_identifier: string): Promise<UserAPIType> {
         try {
             const fetchedUser = await query<UserAPIType>(
@@ -198,6 +144,7 @@ export class User implements IUser {
             as500(error);
         }
     };
+
     static async findIdentifierByPhone(phone: string): Promise<string | null> {
         try {
             const fetchedUser = await query<{ user_identifier: string }>(
@@ -213,6 +160,7 @@ export class User implements IUser {
             as500(error);
         }
     }
+
     /**
      * Returns the Cybrid customer GUID this user is bound to, or `null` when the
      * user has not yet created a Cybrid customer. Used to authorize `/api/cybrid/*`
@@ -252,65 +200,55 @@ export class User implements IUser {
         }
     }
 
-    static async updateUser(user: UserAPIType) {
+    static async updateUser(user: UserAPIType): Promise<void> {
         User.assertUserShape(user);
-        let isUpdated = false;
         const fields = User.sanitizeUserFields(user, 5);
-
         try {
-            const queryResult = await withTransaction(async (client) => {
-                return await client.query(
-                    `UPDATE users SET (email,email_host,emailid,
-                firstname,lastname,
-                address1,address2,city,state,zipcode) =
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                where user_identifier = $11`,
-                    [
-                        fields.email,
-                        fields.email_host,
-                        fields.emailid,
-                        fields.firstname,
-                        fields.lastname,
-                        fields.address1,
-                        fields.address2,
-                        fields.city,
-                        fields.state,
-                        user.zipcode,
-                        user.user_identifier
-                    ])
-            });
-
-            const rowCount = queryResult.rowCount;
-            if (rowCount === 0) {
+            const updated = await query<{ user_identifier: string }>(
+                `UPDATE users SET
+                    (email, email_host, emailid, firstname, lastname,
+                    address1, address2, city, state, zipcode)
+                    = ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    WHERE user_identifier = $11
+                    RETURNING user_identifier;`,
+                [
+                    fields.email,
+                    fields.email_host,
+                    fields.emailid,
+                    fields.firstname,
+                    fields.lastname,
+                    fields.address1,
+                    fields.address2,
+                    fields.city,
+                    fields.state,
+                    user.zipcode,
+                    user.user_identifier,
+                ],
+            );
+            if (updated.length === 0) {
                 throw new HTMLStatusError("User not updated", 404);
-            } else {
-                isUpdated = true;
             }
         } catch (error) {
             as500(error);
         }
-        return isUpdated;
     }
-    static async deleteUser(user_identifier: string) {
-        let isDeleted = false;
+
+    static async deleteUser(user_identifier: string): Promise<void> {
         try {
-            const queryResult = await withTransaction(async (client) => {
-                return await client.query(
-                    `UPDATE users SET deleted=TRUE WHERE user_identifier = $1`,
-                    [user_identifier]
-                )
-            });
-            const rowCount = queryResult.rowCount;
-            if (rowCount === 0) {
+            const deleted = await query<{ user_identifier: string }>(
+                `UPDATE users SET deleted = TRUE
+                    WHERE user_identifier = $1
+                    RETURNING user_identifier;`,
+                [user_identifier],
+            );
+            if (deleted.length === 0) {
                 throw new HTMLStatusError("User not found", 404);
-            } else {
-                isDeleted = true;
             }
         } catch (error) {
             as500(error);
         }
-        return isDeleted
     }
+
     static generateAffiliate(size_t: number): string {
         const legalChars: string = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
         let code = "";
