@@ -1,45 +1,25 @@
 import { HTMLStatusError, as500 } from "../libs/HTMLStatusError.ts";
-import { query, withTransaction } from "../libs/postgresDB.ts"
-
-/**
- * Session interface definition
- */
-export interface ISession {
-    session(): Promise<{ uuid: string; expires: string }>;
-    toString(): string;
-}
+import { query } from "../libs/postgresDB.ts"
 
 /**
  * @class Session
- * inherits from ISession
  * @author Caleb King
- * constructor takes no parameters
- * but depends upon the database
+ * A collection of static helpers over the `sessions` table.
  */
-export class Session implements ISession {
-    private uuid = "";
-    private expires = "";
-
-    static async create() {
-        const session = new Session();
-        await session.storeSession();
-        return session.session();
-    }
-
-    private async storeSession(): Promise<void> {
-        const q = await withTransaction(async (client) => {
-            return client.query<{ expires: string, uuid: string }>(
-                'INSERT INTO sessions DEFAULT VALUES RETURNING expires, uuid'
+export class Session {
+    static async create(): Promise<{ uuid: string; expires: string }> {
+        try {
+            const rows = await query<{ uuid: string; expires: string }>(
+                `INSERT INTO sessions DEFAULT VALUES RETURNING uuid, expires;`
             );
-        });
-
-        const row = q.rows.at(0);
-        if (!row) {
-            throw new HTMLStatusError("Failed to store session", 500);
+            const row = rows.at(0);
+            if (!row) {
+                throw new HTMLStatusError("Failed to store session", 500);
+            }
+            return row;
+        } catch (error) {
+            as500(error);
         }
-
-        this.expires = row.expires;
-        this.uuid = row.uuid;
     }
     /**
      * kill() prunes expired sessions from the database
@@ -59,19 +39,15 @@ export class Session implements ISession {
      * exists
      */
     static async exists(session: string): Promise<boolean> {
-        if(session?.length !== 36){
+        if (session?.length !== 36) {
             return false;
         }
         try {
-            const fetchedSession = await query<{ id: number }>(
-                `SELECT * FROM sessions WHERE uuid = $1 AND expires > NOW();`,
+            const rows = await query<{ ok: number }>(
+                `SELECT 1 AS ok FROM sessions WHERE uuid = $1 AND expires > NOW();`,
                 [session]
-            )
-            if (fetchedSession.length === 0) {
-                return false;
-            } else {
-                return true;
-            }
+            );
+            return rows.length > 0;
         } catch (error) {
             as500(error);
         }
@@ -118,24 +94,6 @@ export class Session implements ISession {
         } catch (error) {
             as500(error);
         }
-    }
-    /**
-     * @returns Object
-     */
-    public async session(): Promise<{ uuid: string; expires: string; }> {
-        if (!this.uuid || !this.expires) {
-            throw new HTMLStatusError("Session not found.", 404);
-        }
-        return {
-            uuid: this.uuid,
-            expires: this.expires,
-        };
-    };
-    /**
-     * @returns string
-     */
-    public toString(): string {
-        return `{ uuid: '${this.uuid}', expires: '${this.expires}' }`;
     }
 }
 
