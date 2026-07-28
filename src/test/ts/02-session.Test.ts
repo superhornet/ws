@@ -68,10 +68,11 @@ async function seedExpiredSession(): Promise<string> {
     return uuid;
 }
 
-async function deleteSession() {
+async function deleteSession(session?: string) {
     const handler = findRouteHandler(sessionRouter, 'delete', '/session');
     assert.ok(handler, "Missing handler for DELETE /api/session");
-    const { req, res } = mockSession();
+    const { res } = mockSession();
+    const req = { headers: session ? { "x-session": session } : {} };
     // @ts-expect-error req is fine as-is
     await handler(req, res, () => null);
     return res;
@@ -106,26 +107,31 @@ suite("Session routes: GET /api/session uniqueness", () => {
 });
 
 suite("Session routes: DELETE /api/session", () => {
-    test("returns 204 No Content", async () => {
-        const res = await deleteSession();
+    // DELETE /session is now a real, per-session logout: it deletes the session
+    // whose token the caller presents (X-Session), and only that one (L7). It is
+    // no longer a global prune of every expired row.
+    test("logs out the caller's own session (204) and touches no other session", async () => {
+        const mine = await newSessionUuid();
+        const other = await newSessionUuid();
+
+        const res = await deleteSession(mine);
         assert.equal(res.statusCode, 204);
         assert.equal(res.body.code, 204);
         assert.equal(res.body.message, 'No Content');
         assert.equal(res.body.data, null);
+
+        assert.equal(await Session.exists(mine), false, "the caller's own session should be revoked");
+        assert.equal(await Session.exists(other), true, "another caller's session must be untouched");
     });
 
-    // DELETE /session takes no session parameter: it is a global prune of every
-    // expired session, not a logout of the caller. This pins that surprising
-    // semantic — a fresh session survives the call while an expired one is gone.
-    test("is a global prune of expired sessions, not a logout of the caller", async () => {
-        const fresh = await newSessionUuid();
-        const expired = await seedExpiredSession();
-
+    test("requires a session token (403 when none is presented)", async () => {
         const res = await deleteSession();
-        assert.equal(res.statusCode, 204);
+        assert.equal(res.statusCode, 403);
+    });
 
-        assert.equal(await Session.exists(fresh), true, "caller's fresh session should survive");
-        assert.equal(await Session.exists(expired), false, "expired session should be pruned");
+    test("is idempotent for an unknown session token (204)", async () => {
+        const res = await deleteSession(randomUUID());
+        assert.equal(res.statusCode, 204);
     });
 });
 

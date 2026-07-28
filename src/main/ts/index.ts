@@ -1,4 +1,5 @@
 import { App } from "./App.ts";
+import { Session } from "./models/Session.ts";
 
 // Port for the HTTP server. Managed platforms (Render, Railway, Fly, Cloud Run,
 // Heroku, etc.) inject `PORT`; local/dev and docker-compose use `SERVER_PORT`.
@@ -26,3 +27,12 @@ new App().express.listen(port, () => {
     // tslint:disable-next-line:no-console
     console.log(`server started at http://localhost:${port}`);
 });
+
+// Expired session rows used to be pruned by a public DELETE /api/session, which
+// exposed a destructive verb to unauthenticated callers (L7). Pruning is now a
+// background job; DELETE /api/session is a scoped, per-session logout. unref() so
+// this timer never keeps the process alive on its own.
+const SESSION_PRUNE_INTERVAL_MS = 15 * 60 * 1000;
+setInterval(() => {
+    Session.kill().catch((error) => console.error("Session prune failed:", error));
+}, SESSION_PRUNE_INTERVAL_MS).unref();
