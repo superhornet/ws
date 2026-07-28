@@ -61,8 +61,7 @@ async function createUserIdentifier(label: string): Promise<string> {
 /** Inserts an already-expired session directly and returns its UUID. */
 async function seedExpiredSession(): Promise<string> {
     const inserted = await query<{ uuid: string }>(
-        `INSERT INTO sessions (otp, expires) VALUES ($1, NOW() - INTERVAL '1 hour') RETURNING uuid;`,
-        ["EXPIRE"]
+        `INSERT INTO sessions (expires) VALUES (NOW() - INTERVAL '1 hour') RETURNING uuid;`
     );
     const uuid = inserted.at(0)?.uuid;
     assert.ok(uuid, "Failed to seed an expired session");
@@ -79,7 +78,7 @@ async function deleteSession() {
 }
 
 suite("Session routes: GET /api/session", () => {
-    test("returns 200 OK with a fresh session and OTP", async () => {
+    test("returns 200 OK with a fresh session", async () => {
         const res = await getSession();
         assert.equal(res.statusCode, 200);
         assert.equal(res.body.code, 200);
@@ -92,12 +91,6 @@ suite("Session routes: GET /api/session", () => {
         assert.match(res.body.data.uuid, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     });
 
-    test("returns a 6-character uppercase alphanumeric OTP", async () => {
-        const res = await getSession();
-        assert.equal(res.body.data.otp.length, 6);
-        assert.match(res.body.data.otp, /^[0-9A-Z]{6}$/);
-    });
-
     test("returns an expiry in the future", async () => {
         const res = await getSession();
         assert.ok(new Date(res.body.data.expires).getTime() > Date.now());
@@ -105,11 +98,10 @@ suite("Session routes: GET /api/session", () => {
 });
 
 suite("Session routes: GET /api/session uniqueness", () => {
-    test("two sessions have distinct uuids and otps", async () => {
+    test("two sessions have distinct uuids", async () => {
         const first = (await getSession()).body.data;
         const second = (await getSession()).body.data;
         assert.notEqual(first.uuid, second.uuid);
-        assert.notEqual(first.otp, second.otp);
     });
 });
 
@@ -200,8 +192,7 @@ suite("Session.bindUser() and getUserForSession()", () => {
 suite("Session.kill() prunes expired sessions", () => {
     test("deletes sessions whose expiry is in the past", async () => {
         const inserted = await query<{ uuid: string }>(
-            `INSERT INTO sessions (otp, expires) VALUES ($1, NOW() - INTERVAL '1 hour') RETURNING uuid;`,
-            ["EXPIRE"]
+            `INSERT INTO sessions (expires) VALUES (NOW() - INTERVAL '1 hour') RETURNING uuid;`
         );
         const expiredUuid = inserted.at(0)?.uuid;
         assert.ok(expiredUuid, "Failed to seed an expired session");

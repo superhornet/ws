@@ -1,4 +1,3 @@
-import { randomInt } from "node:crypto";
 import { HTMLStatusError, as500 } from "../libs/HTMLStatusError.ts";
 import { query, withTransaction } from "../libs/postgresDB.ts"
 
@@ -6,7 +5,7 @@ import { query, withTransaction } from "../libs/postgresDB.ts"
  * Session interface definition
  */
 export interface ISession {
-    session(): Promise<{ uuid: string; expires: string; otp: string }>;
+    session(): Promise<{ uuid: string; expires: string }>;
     toString(): string;
 }
 
@@ -19,18 +18,7 @@ export interface ISession {
  */
 export class Session implements ISession {
     private uuid = "";
-    private readonly otp: string;
     private expires = "";
-    /**
-     * Session constructor
-     */
-    constructor() {
-        try {
-            this.otp = this.generateOTP();
-        } catch (error) {
-            throw new Error((error as Error).message);
-        }
-    }
 
     static async create() {
         const session = new Session();
@@ -41,8 +29,7 @@ export class Session implements ISession {
     private async storeSession(): Promise<void> {
         const q = await withTransaction(async (client) => {
             return client.query<{ expires: string, uuid: string }>(
-                'INSERT INTO sessions (otp) VALUES ($1) RETURNING otp, expires, uuid',
-                [this.otp]
+                'INSERT INTO sessions DEFAULT VALUES RETURNING expires, uuid'
             );
         });
 
@@ -135,14 +122,13 @@ export class Session implements ISession {
     /**
      * @returns Object
      */
-    public async session(): Promise<{ uuid: string; expires: string; otp: string; }> {
+    public async session(): Promise<{ uuid: string; expires: string; }> {
         if (!this.uuid || !this.expires) {
             throw new HTMLStatusError("Session not found.", 404);
         }
         return {
             uuid: this.uuid,
             expires: this.expires,
-            otp: this.otp,
         };
     };
     /**
@@ -150,17 +136,6 @@ export class Session implements ISession {
      */
     public toString(): string {
         return `{ uuid: '${this.uuid}', expires: '${this.expires}' }`;
-    }
-
-    private generateOTP(): string {
-        const legalChars: string = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
-        const otpLength: number = 6;
-        let otp = "";
-
-        for (let index = 0; index < otpLength; index++) {
-            otp += legalChars.charAt(randomInt(legalChars.length));
-        }
-        return otp;
     }
 }
 
