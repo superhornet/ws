@@ -22,8 +22,10 @@ export class Session {
         }
     }
     /**
-     * kill() prunes expired sessions from the database
-     *
+     * kill() prunes expired sessions from the database. Invoked by a background
+     * job at boot (see index.ts), not by a public HTTP route — the old
+     * DELETE /api/session that triggered it exposed a destructive verb to
+     * unauthenticated callers (L7).
      */
     static async kill(): Promise<void> {
         try {
@@ -31,6 +33,21 @@ export class Session {
                 `DELETE FROM sessions WHERE expires < NOW();`,
                 []
             )
+        } catch (error) {
+            as500(error);
+        }
+    }
+    /**
+     * Deletes a single session by its UUID — a real, per-session logout. Scoped
+     * to the token the caller presents, so it can only revoke their own session
+     * (L7). Idempotent: deleting an unknown or already-expired UUID is a no-op.
+     */
+    static async destroy(session: string): Promise<void> {
+        try {
+            await query(
+                `DELETE FROM sessions WHERE uuid = $1;`,
+                [session]
+            );
         } catch (error) {
             as500(error);
         }
