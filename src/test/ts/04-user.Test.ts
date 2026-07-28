@@ -78,6 +78,9 @@ describe("Testing the /api/user endpoint", () => {
         assert.equal(res.body.message, 'Created');
         adminUser = res.body.data.user_identifier;
         assert.equal(adminUser.length, 36);
+        // M4: subscription_level is server-controlled — a signup requesting "Pro"
+        // is created on the default "Free" tier, not the tier it asked for.
+        assert.equal(res.body.data.subscription_level, 'Free');
     });
     test("inserts first sample record", async () => {
         const handler = findRouteHandler(userRouter, 'post', '/user');
@@ -307,6 +310,46 @@ describe("Testing /api/user authorization and edge cases", () => {
         await handler(req, res, null);
         assert.equal(res.statusCode, 400);
         assert.equal(res.body.message, 'User fields are invalid');
+    });
+
+    test("PUT /user cannot self-elevate subscription_level (M4)", async () => {
+        const { session, user_identifier } = await createBoundUser("elevate.me@westack.cash");
+        const putHandler = findRouteHandler(userRouter, 'put', '/user');
+        assert.ok(putHandler, "Missing handler for user endpoint");
+        const { req, res } = mockUser({
+            body: {
+                data: {
+                    firstname: "Bound",
+                    lastname: "User",
+                    email: "elevate.me@westack.cash",
+                    address1: "1 Test St",
+                    address2: "",
+                    city: "Testville",
+                    state: "FL",
+                    zipcode: "33101",
+                    subscription_level: SubscriptionType.PRO,
+                },
+                message: `Update ${user_identifier}`,
+                session,
+                user_identifier,
+            },
+        });
+        // @ts-expect-error req is fine as-is
+        await putHandler(req, res, null);
+        assert.equal(res.statusCode, 202);
+
+        // The update is accepted, but the tier must stay "Free": the request's
+        // "Pro" is ignored because subscription_level is server-controlled.
+        const getHandler = findRouteHandler(userRouter, 'get', '/user');
+        assert.ok(getHandler, "Missing handler for user endpoint");
+        const { req: getReq, res: getRes } = mockGetRequest({
+            headers: { "x-session": session },
+            query: { user_identifier },
+        });
+        // @ts-expect-error req is fine as-is
+        await getHandler(getReq, getRes, null);
+        assert.equal(getRes.statusCode, 200);
+        assert.equal((getRes.body.data as UserAPIType).subscription_level, "Free");
     });
 
     test("GET /user is 400 when the identifier is missing", async () => {

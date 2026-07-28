@@ -136,8 +136,8 @@ export class User implements IUser {
                 `INSERT INTO users (email,email_host,emailid,
                 firstname,lastname,affiliate,
                 address1,address2,city,state,zipcode,
-                subscription_level,phone_e164) VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                phone_e164) VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id, user_identifier, firstname, lastname, affiliate,
                 email, phone_e164, address1, address2, city, state, zipcode, subscription_level`,
                 [
@@ -152,7 +152,6 @@ export class User implements IUser {
                     fields.city,
                     fields.state,
                     user.zipcode,
-                    user.subscription_level,
                     verifiedPhone ?? null
                 ]
             );
@@ -263,10 +262,9 @@ export class User implements IUser {
                 return await client.query(
                     `UPDATE users SET (email,email_host,emailid,
                 firstname,lastname,
-                address1,address2,city,state,zipcode,
-                subscription_level) =
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                where user_identifier = $12`,
+                address1,address2,city,state,zipcode) =
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                where user_identifier = $11`,
                     [
                         fields.email,
                         fields.email_host,
@@ -278,7 +276,6 @@ export class User implements IUser {
                         fields.city,
                         fields.state,
                         user.zipcode,
-                        user.subscription_level,
                         user.user_identifier
                     ])
             });
