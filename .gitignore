@@ -10,5 +10,6 @@
 !.env.example
 **/package-lock.json
 !/package-lock.json
+!/otp-relay/package-lock.json
 schema-sqlite.sql
 SQLInit.ts

@@ -22,7 +22,7 @@ The backend never talks to Twilio/SendGrid directly. It `POST`s this JSON to wha
 
 ```bash
 cd otp-relay
-npm install
+npm ci
 cp .env.example .env   # then fill in values
 npm start
 ```
@@ -40,7 +40,39 @@ OTP_DEV_EXPOSE=false
 
 ## Provider setup
 
-See the main chat / the project notes for step-by-step Twilio and SendGrid setup. Summary:
+Summary:
 
 - **Twilio**: create account → get a phone number or Messaging Service → copy Account SID + Auth Token → set `TWILIO_*` vars.
 - **SendGrid**: create account → verify a sender/domain → create an API key → set `SENDGRID_API_KEY` + `SENDGRID_FROM_EMAIL`.
+
+## Render staging deploy
+
+The root [`render.yaml`](../render.yaml) defines an `otp-relay-staging` service
+with `rootDir: otp-relay`, `buildCommand: npm ci`, `startCommand: npm start`,
+and health check path `/health`.
+
+Set these environment variables in Render:
+
+| Variable | Notes |
+| -------- | ----- |
+| `RELAY_AUTH_TOKEN` | Long random shared secret. Must match the backend `OTP_PROVIDER_AUTH_TOKEN`. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Twilio credentials. |
+| `TWILIO_MESSAGING_SERVICE_SID` | Preferred Twilio sender configuration. |
+| `TWILIO_FROM_NUMBER` | Alternative to a Messaging Service SID; use E.164 format. |
+| `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | SendGrid credentials and verified sender. |
+
+Then set the backend staging service variables:
+
+```
+OTP_SMS_WEBHOOK_URL=https://otp-relay-staging.onrender.com/sms
+OTP_EMAIL_WEBHOOK_URL=https://otp-relay-staging.onrender.com/email
+OTP_PROVIDER_AUTH_TOKEN=<same value as RELAY_AUTH_TOKEN>
+```
+
+Verify the relay before wiring TestFlight testers to staging:
+
+```bash
+curl https://otp-relay-staging.onrender.com/health
+```
+
+Expected: `ok: true`, with both `sms` and `email` showing `configured`.

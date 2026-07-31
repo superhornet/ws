@@ -20,8 +20,8 @@
 # Use the Supabase Session pooler connection string (IPv4-friendly, suited to a
 # long-lived pg Pool) and keep POSTGRES_SSL=true since Supabase requires TLS.
 #
-# Secrets (DATABASE_URL, Cybrid keys, OTP provider tokens) use `sync: false` so
-# Render prompts for them on deploy instead of storing them in git.
+# Secrets (DATABASE_URL, Cybrid/Privy keys, OTP provider tokens) use `sync:
+# false` so Render prompts for them on deploy instead of storing them in git.
 
 projects:
   - name: westack
@@ -75,6 +75,13 @@ projects:
                 sync: false
               - key: CYBRID_AUTH_URL
                 sync: false
+              # Privy (production app).
+              - key: PRIVY_APP_ID
+                sync: false
+              - key: PRIVY_APP_SECRET
+                sync: false
+              - key: PRIVY_API_URL
+                sync: false
 
       # ----------------------------------------------------------------------
       # STAGING  (TestFlight beta target)
@@ -123,4 +130,41 @@ projects:
               - key: CYBRID_CLIENT_ID
                 sync: false
               - key: CYBRID_CLIENT_SECRET
+                sync: false
+              # Privy (staging app).
+              - key: PRIVY_APP_ID
+                sync: false
+              - key: PRIVY_APP_SECRET
+                sync: false
+              - key: PRIVY_API_URL
+                sync: false
+
+          - name: otp-relay-staging
+            type: web
+            runtime: node
+            rootDir: otp-relay
+            plan: starter
+            branch: staging
+            buildCommand: npm ci
+            startCommand: npm start
+            healthCheckPath: /health
+            envVars:
+              - key: NODE_ENV
+                value: production
+              - key: RELAY_AUTH_TOKEN
+                sync: false
+              # Twilio (SMS). Use either TWILIO_MESSAGING_SERVICE_SID or
+              # TWILIO_FROM_NUMBER in addition to the account credentials.
+              - key: TWILIO_ACCOUNT_SID
+                sync: false
+              - key: TWILIO_AUTH_TOKEN
+                sync: false
+              - key: TWILIO_MESSAGING_SERVICE_SID
+                sync: false
+              - key: TWILIO_FROM_NUMBER
+                sync: false
+              # SendGrid (email).
+              - key: SENDGRID_API_KEY
+                sync: false
+              - key: SENDGRID_FROM_EMAIL
                 sync: false

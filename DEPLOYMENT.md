@@ -102,7 +102,9 @@ for steps 2 and 3.
 
 Commit and push `render.yaml`, then in the Render dashboard:
 **New → Blueprint** → select this repository. Render provisions both
-environments and both web services (no databases — those live on Supabase).
+environments and their web services (no databases — those live on Supabase).
+Staging includes the API service plus a standalone `otp-relay-staging` service
+for Twilio/SendGrid delivery.
 
 ### 3. Provide secrets
 
@@ -113,6 +115,7 @@ Render prompts for every `sync: false` variable. Set at minimum:
 | `DATABASE_URL` | The Supabase Session pooler string for **that environment** (staging string on staging, production string on production). |
 | `CYBRID_CLIENT_ID`, `CYBRID_CLIENT_SECRET` | Cybrid credentials (sandbox for staging, live for production). |
 | `CYBRID_API_BASE`, `CYBRID_AUTH_URL` | Production only; defaults to sandbox in code if unset. |
+| `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_API_URL` | Privy app credentials. Use a staging Privy app for staging; `PRIVY_API_URL` can stay blank unless Privy gives you a non-default endpoint. |
 | `OTP_SMS_WEBHOOK_URL`, `OTP_EMAIL_WEBHOOK_URL`, `OTP_PROVIDER_AUTH_TOKEN` | Point at your deployed `otp-relay`. Optional for early beta (see OTP section). |
 
 `OTP_HASH_SECRET` is auto-generated per environment; `NODE_ENV`, `POSTGRES_SSL`,
@@ -158,6 +161,24 @@ must receive real codes. Options:
   plus `OTP_DEV_EXPOSE=true` (or `OTP_DEV_LOG=true`) and `OTP_DEV_FIXED_CODE`.
   Never use this in production.
 
+The Blueprint creates `otp-relay-staging` from [`otp-relay/`](./otp-relay) with
+`npm ci` and `npm start`. Set these relay variables in Render:
+
+| Relay variable | Notes |
+|----------------|-------|
+| `RELAY_AUTH_TOKEN` | A long random shared secret. Must exactly match the backend `OTP_PROVIDER_AUTH_TOKEN`. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Twilio account credentials for SMS. |
+| `TWILIO_MESSAGING_SERVICE_SID` or `TWILIO_FROM_NUMBER` | Use a Messaging Service SID when available; otherwise use a verified E.164 sending number. |
+| `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | SendGrid API key and verified sender/domain for email. |
+
+After the relay deploys, set the backend URLs to the relay endpoints:
+
+```bash
+OTP_SMS_WEBHOOK_URL=https://otp-relay-staging.onrender.com/sms
+OTP_EMAIL_WEBHOOK_URL=https://otp-relay-staging.onrender.com/email
+OTP_PROVIDER_AUTH_TOKEN=<same value as RELAY_AUTH_TOKEN>
+```
+
 ---
 
 ## Frontend wiring (separate Expo repo)
@@ -171,7 +192,8 @@ profile rather than hardcoding.
 {
   "build": {
     "preview": {
-      "distribution": "internal",
+      "distribution": "store",
+      "autoIncrement": true,
       "ios": { "simulator": false },
       "env": { "EXPO_PUBLIC_API_BASE_URL": "https://westack-api-staging.onrender.com" }
     },
