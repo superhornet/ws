@@ -25,6 +25,7 @@ const twilioClient =
   TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN
     ? twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     : null;
+const smsConfigured = Boolean(twilioClient && (TWILIO_MESSAGING_SERVICE_SID || TWILIO_FROM_NUMBER));
 
 if (SENDGRID_API_KEY) {
   sgMail.setApiKey(SENDGRID_API_KEY);
@@ -67,11 +68,48 @@ function otpMessageText(code) {
   return `Your verification code is ${code}. It expires shortly. If you did not request this, ignore this message.`;
 }
 
+function redactSensitiveText(value) {
+  return value
+    .replace(/\+[1-9]\d{7,14}/g, "[redacted-phone]")
+    .replace(/\b\d{6}\b/g, "[redacted-code]");
+}
+
+function redactSensitiveValues(value) {
+  if (typeof value === "string") {
+    return redactSensitiveText(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(redactSensitiveValues);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [key, redactSensitiveValues(entryValue)])
+    );
+  }
+  return value;
+}
+
+function providerErrorDetails(error) {
+  return redactSensitiveValues({
+    name: error?.name,
+    message: error?.message,
+    code: error?.code,
+    status: error?.status ?? error?.statusCode,
+    moreInfo: error?.moreInfo,
+    responseBody: error?.response?.body,
+  });
+}
+
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
-    sms: twilioClient ? "configured" : "not_configured",
+    sms: smsConfigured ? "configured" : "not_configured",
     email: SENDGRID_API_KEY ? "configured" : "not_configured",
+    sms_sender: TWILIO_MESSAGING_SERVICE_SID
+      ? "messaging_service"
+      : TWILIO_FROM_NUMBER
+        ? "from_number"
+        : "missing",
   });
 });
 
@@ -83,8 +121,20 @@ app.post("/sms", async (req, res) => {
   if (!payload) {
     return;
   }
-  if (!twilioClient) {
-    return res.status(500).json({ error: "twilio is not configured on the relay" });
+  if (!smsConfigured) {
+    console.error("[relay] sms configuration missing", {
+      hasTwilioClient: Boolean(twilioClient),
+      hasMessagingServiceSid: Boolean(TWILIO_MESSAGING_SERVICE_SID),
+      hasFromNumber: Boolean(TWILIO_FROM_NUMBER),
+    });
+    return res.status(500).json({
+      error: "twilio is not fully configured on the relay",
+      details: {
+        hasTwilioClient: Boolean(twilioClient),
+        hasMessagingServiceSid: Boolean(TWILIO_MESSAGING_SERVICE_SID),
+        hasFromNumber: Boolean(TWILIO_FROM_NUMBER),
+      },
+    });
   }
   try {
     const message = { to: payload.destination, body: otpMessageText(payload.code) };
@@ -96,8 +146,14 @@ app.post("/sms", async (req, res) => {
     const result = await twilioClient.messages.create(message);
     res.json({ ok: true, sid: result.sid });
   } catch (error) {
-    console.error("[relay] sms delivery failed:", error?.message ?? error);
-    res.status(502).json({ error: "sms delivery failed" });
+    const details = providerErrorDetails(error);
+    console.error("[relay] sms delivery failed", {
+      purpose: payload.purpose,
+      sender: TWILIO_MESSAGING_SERVICE_SID ? "messaging_service" : "from_number",
+      provider: "twilio",
+      details,
+    });
+    res.status(502).json({ error: "sms delivery failed", provider: "twilio", details });
   }
 });
 
@@ -122,14 +178,19 @@ app.post("/email", async (req, res) => {
     });
     res.json({ ok: true });
   } catch (error) {
-    console.error("[relay] email delivery failed:", error?.response?.body ?? error?.message ?? error);
-    res.status(502).json({ error: "email delivery failed" });
+    const details = providerErrorDetails(error);
+    console.error("[relay] email delivery failed", {
+      purpose: payload.purpose,
+      provider: "sendgrid",
+      details,
+    });
+    res.status(502).json({ error: "email delivery failed", provider: "sendgrid", details });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`OTP relay listening on http://localhost:${PORT}`);
-  console.log(`  SMS:   ${twilioClient ? "Twilio configured" : "NOT configured"}`);
+  console.log(`  SMS:   ${smsConfigured ? "Twilio configured" : "NOT configured"}`);
   console.log(`  Email: ${SENDGRID_API_KEY ? "SendGrid configured" : "NOT configured"}`);
   console.log(`  Auth:  ${RELAY_AUTH_TOKEN ? "bearer token required" : "OPEN (no token)"}`);
 });

@@ -32,6 +32,20 @@ function logDevOtp(payload: OtpDeliveryPayload): void {
     }
 }
 
+function redactSensitiveText(value: string): string {
+    return value
+        .replace(/\+[1-9]\d{7,14}/g, "[redacted-phone]")
+        .replace(/\b\d{6}\b/g, "[redacted-code]");
+}
+
+async function readResponseBody(response: Response): Promise<string> {
+    try {
+        return redactSensitiveText((await response.text()).slice(0, 1000));
+    } catch (error) {
+        return `[unreadable response body: ${error instanceof Error ? error.message : String(error)}]`;
+    }
+}
+
 export async function sendOtp(payload: OtpDeliveryPayload): Promise<void> {
     // In dev-expose mode the code is returned to the caller as `data.dev_otp`,
     // so a real SMS/email provider is not required. Provider configuration errors
@@ -58,13 +72,33 @@ export async function sendOtp(payload: OtpDeliveryPayload): Promise<void> {
         headers.Authorization = `Bearer ${process.env.OTP_PROVIDER_AUTH_TOKEN}`;
     }
 
-    const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-    });
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+        });
+    } catch (error) {
+        console.error("[otp delivery] relay request failed", {
+            channel: payload.channel,
+            purpose: payload.purpose,
+            relayUrl: url,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        throw new HTMLStatusError("OTP delivery failed", 502);
+    }
 
     if (!response.ok) {
+        const responseBody = await readResponseBody(response);
+        console.error("[otp delivery] relay returned non-2xx", {
+            channel: payload.channel,
+            purpose: payload.purpose,
+            relayUrl: url,
+            status: response.status,
+            statusText: response.statusText,
+            responseBody,
+        });
         throw new HTMLStatusError("OTP delivery failed", 502);
     }
 }
