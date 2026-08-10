@@ -74,28 +74,6 @@ suite("Validator test suite", () => {
             assert.equal(numberValidator.numberValidate(-Infinity), false);
         });
     });
-    describe("Validator for html stripping", () => {
-        test("replaces every HTML-significant character with its placeholder token", () => {
-            const html = `<strong>Test&apos;&nbsp;</strong>`;
-            const validator = new Validator();
-            assert.equal(typeof html, 'string');
-            const output = validator.stripHtml(html);
-            assert.strictEqual(output, "{less_than}strong{greater_than}Test{ampersand}apos{semicolon}{ampersand}nbsp{semicolon}{less_than}{solidus}strong{greater_than}");
-        });
-        test("replaces a literal double quote with the inch_mark token", () => {
-            const validator = new Validator();
-            assert.strictEqual(validator.stripHtml('"'), "{inch_mark}");
-        });
-        test("replaces a literal single quote with the foot_mark token", () => {
-            const validator = new Validator();
-            assert.strictEqual(validator.stripHtml("'"), "{foot_mark}");
-        });
-        test("throws a TypeError for a non-string input", () => {
-            const validator = new Validator();
-            // @ts-expect-error deliberately passing a non-string to exercise the guard
-            assert.throws(() => validator.stripHtml(42), TypeError);
-        });
-    });
     describe("Validator for String lengths", () => {
         test("a short string is not valid", () => {
             const validator = new Validator();

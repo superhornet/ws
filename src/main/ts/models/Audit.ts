@@ -1,6 +1,5 @@
 import { HTMLStatusError } from "../libs/HTMLStatusError.ts";
 import { withTransaction } from "../libs/postgresDB.ts"
-import { Validator } from "../libs/Validator.ts";
 
 /**
  * Audit interface definition
@@ -49,17 +48,14 @@ export class Audit implements IAudit {
      * Auditing must be guaranteed: an authorized action always produces exactly
      * one audit row, and the (often client-supplied) message text must never be
      * able to *suppress* that row. So instead of rejecting an out-of-range
-     * message, we strip HTML, then clamp it — truncating when too long and
-     * substituting a safe placeholder when empty/too short — so the insert always
-     * has a valid value.
+     * message, we clamp it — truncating when too long and substituting a safe
+     * placeholder when empty/too short — so the insert always has a valid value.
      */
     private static normalizeMessage(message: string): string {
-        // Only `stripHtml` is needed here; it ignores Validator options, and the
-        // 2..512 range is enforced explicitly below.
-        const validator = new Validator();
-        // stripHtml can expand input (e.g. "&" -> "{ampersand}"), so clamp after.
-        const sanitized = typeof message === "string" ? validator.stripHtml(message).trim() : "";
-        const clamped = sanitized.slice(0, Audit.MAX_MESSAGE_LENGTH);
+        // Store the message as provided, only clamping to the 2..512 range.
+        // Values are never HTML-mangled at storage; escaping happens at render.
+        const trimmed = typeof message === "string" ? message.trim() : "";
+        const clamped = trimmed.slice(0, Audit.MAX_MESSAGE_LENGTH);
         return clamped.length >= Audit.MIN_MESSAGE_LENGTH ? clamped : Audit.FALLBACK_MESSAGE;
     }
 

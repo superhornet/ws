@@ -556,9 +556,9 @@ describe("Testing /api/user authorization and edge cases", () => {
         assert.equal(res.body.message, 'Session ID Required');
     });
 
-    test("POST /user stores HTML-stripped name fields", async () => {
-        // stripHtml is destructive: an apostrophe in a name is replaced with a
-        // placeholder token before storage. Pin that observable behavior.
+    test("POST /user stores name fields verbatim", async () => {
+        // Names are stored exactly as provided — no HTML mangling. An apostrophe
+        // in a name must survive unchanged to the database. Pin that behavior.
         const session = await createSession();
         const postHandler = findRouteHandler(userRouter, 'post', '/user');
         assert.ok(postHandler, "Missing handler for user endpoint");
@@ -594,8 +594,8 @@ describe("Testing /api/user authorization and edge cases", () => {
         await getHandler(req, res, null);
         assert.equal(res.statusCode, 200);
         const fetched = res.body.data as unknown as UserAPIType;
-        assert.equal(fetched.lastname, "O{foot_mark}Brien");
-        assert.ok(!fetched.lastname.includes("'"), "Raw apostrophe should not survive sanitization");
+        assert.equal(fetched.lastname, "O'Brien");
+        assert.ok(fetched.lastname.includes("'"), "Apostrophe should be stored verbatim");
     });
 });
 

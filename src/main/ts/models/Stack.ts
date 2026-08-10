@@ -46,7 +46,7 @@ export class Stack implements IStack {
             }
         });
         const nameChecked: boolean =
-            vStack.stringValidate(vStack.stripHtml(stack.stack_name));
+            vStack.stringValidate(stack.stack_name);
         if (nameChecked) {
             try {
                 const userRows = await query<{id: number, user_identifier: string}>(`SELECT id, user_identifier FROM users WHERE user_identifier = $1 ORDER BY id LIMIT 1;`, [stack.owner_identifier]);
@@ -65,7 +65,7 @@ export class Stack implements IStack {
                     RETURNING id, stack_name, stack_identifier, owner_identifier, goal_amount, goal_deadline, category, emoji, created_at, updated_at`,
                         [
                             user_ident,
-                            vStack.stripHtml(stack.stack_name),
+                            stack.stack_name,
                             id,
                             stack.goal_amount ?? null,
                             stack.goal_deadline ?? null,
@@ -218,7 +218,7 @@ export class Stack implements IStack {
             }
         });
         const nameChecked: boolean =
-            vStack.stringValidate(vStack.stripHtml(stack.stack_name));
+            vStack.stringValidate(stack.stack_name);
         if (nameChecked) {
             try {
                 const queryResult = await withTransaction(async (client) => {
@@ -232,7 +232,7 @@ export class Stack implements IStack {
                         updated_at = NOW()
                     WHERE deleted = FALSE AND stack_identifier = $2;`,
                         [
-                            vStack.stripHtml(stack.stack_name),
+                            stack.stack_name,
                             stack.stack_identifier,
                             stack.goal_amount ?? null,
                             stack.goal_deadline ?? null,
