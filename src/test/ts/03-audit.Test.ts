@@ -100,13 +100,13 @@ suite("Audit routes: success path", () => {
         assert.equal(res.body.message, 'Created');
     });
 
-    test("POST returns the HTML-sanitized message it stored", async () => {
-        const session = await createBoundSession("sanitized");
+    test("POST returns the verbatim message it stored", async () => {
+        const session = await createBoundSession("verbatim");
         const res = await postAudit({ message: "<Unit> Test&amp; Message", session });
         assert.equal(res.statusCode, 201);
         assert.equal(
             (res.body.data as { message: string }).message,
-            "{less_than}Unit{greater_than} Test{ampersand}amp{semicolon} Message",
+            "<Unit> Test&amp; Message",
         );
     });
 
@@ -134,13 +134,11 @@ suite("Auditing is guaranteed even for out-of-range messages", () => {
         assert.equal(entry?.message.length, 512);
     });
 
-    test("Strips HTML from the stored message", async () => {
+    test("Stores the message verbatim, without mangling HTML characters", async () => {
         const session = await createSession();
         const entry = await Audit.logMessage("<b>hi there</b>", session);
         assert.ok(entry, "Expected an audit row to be written for an HTML message");
-        assert.ok(!entry.message.includes("<"), "Raw '<' should not survive sanitization");
-        assert.ok(!entry.message.includes(">"), "Raw '>' should not survive sanitization");
-        assert.ok(entry.message.includes("hi there"), "Message text should be preserved");
+        assert.equal(entry.message, "<b>hi there</b>", "Message should be stored exactly as provided");
     });
 
     test("Keeps a message at exactly the minimum length", async () => {

@@ -27,7 +27,7 @@ export class Transaction {
         const amountChecked: boolean =
             Number.isInteger(transaction.amount) && vTransaction.numberValidate(transaction.amount);
         const noteChecked: boolean =
-            vTransaction.stringValidate(vTransaction.stripHtml(transaction.notation));
+            vTransaction.stringValidate(transaction.notation);
 
         const authorizedUsers = await SubStack.getUsersList(transaction.from_identifier);
 

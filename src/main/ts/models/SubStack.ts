@@ -62,7 +62,7 @@ export class SubStack {
             }
         });
         const nameChecked: boolean =
-            vSubStack.stringValidate(vSubStack.stripHtml(substack.substack_name));
+            vSubStack.stringValidate(substack.substack_name);
         if (nameChecked) {
             try {
                 const stackRows = await query<{ created_by: number, stack_identifier: string, owner_identifier: string }>(`
@@ -178,7 +178,7 @@ export class SubStack {
             }
         });
         const nameChecked: boolean =
-            vSubStack.stringValidate(vSubStack.stripHtml(substack.substack_name));
+            vSubStack.stringValidate(substack.substack_name);
         if (nameChecked) {
             try {
                 const queryResult = await withTransaction(async (client) => {

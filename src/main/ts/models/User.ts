@@ -7,7 +7,7 @@ import { randomInt } from "node:crypto";
 export class User {
     /**
      * Rejects a payload whose required string fields are missing or not strings,
-     * before any of them are dereferenced (`email.split`, `stripHtml`, …), so a
+     * before any of them are dereferenced (`email.split`, `stringValidate`, …), so a
      * malformed body yields a 400 rather than a TypeError-driven 500. The message
      * stays generic: validation errors must not name fields.
      */
@@ -27,13 +27,13 @@ export class User {
     }
 
     /**
-     * Validates the user's string fields and returns their sanitized
-     * (stripHtml'd) values ready for persistence, throwing a generic 400 if any
-     * field fails validation. `email` is returned raw (only the local/host parts
-     * are stripped), matching the existing INSERT/UPDATE column mapping.
+     * Validates the user's string fields and returns them ready for
+     * persistence, throwing a generic 400 if any field fails validation. Values
+     * are stored as provided — parameterized queries prevent injection and
+     * HTML-escaping happens at render time, so nothing is mutated here.
      * `emailMinLength` is the only knob that differs between create and update.
      */
-    private static sanitizeUserFields(user: UserAPIType, emailMinLength: number) {
+    private static validateUserFields(user: UserAPIType, emailMinLength: number) {
         const vName = new Validator({
             version: "1.0",
             stringValidation: {
@@ -63,14 +63,14 @@ export class User {
         });
 
         const [userid, hostname] = user.email.split("@");
-        const emailid = vEmail.stripHtml(userid as string);
-        const email_host = vEmail.stripHtml(hostname as string);
-        const firstname = vName.stripHtml(user.firstname);
-        const lastname = vName.stripHtml(user.lastname);
-        const address1 = vAddress.stripHtml(user.address1);
-        const address2 = vAddress.stripHtml(user.address2);
-        const city = vAddress.stripHtml(user.city);
-        const state = vAddress.stripHtml(user.state);
+        const emailid = userid as string;
+        const email_host = hostname as string;
+        const firstname = user.firstname;
+        const lastname = user.lastname;
+        const address1 = user.address1;
+        const address2 = user.address2;
+        const city = user.city;
+        const state = user.state;
 
         const emailChecked: boolean = (
             vEmail.emailValidate(user.email) &&
@@ -93,7 +93,7 @@ export class User {
 
     static async storeUser(user: UserAPIType, verifiedPhone?: string | null) {
         User.assertUserShape(user);
-        const fields = User.sanitizeUserFields(user, 3);
+        const fields = User.validateUserFields(user, 3);
 
         const rows = await query<UserAPIType>(
             `INSERT INTO users (email, email_host, emailid,
@@ -202,7 +202,7 @@ export class User {
 
     static async updateUser(user: UserAPIType): Promise<void> {
         User.assertUserShape(user);
-        const fields = User.sanitizeUserFields(user, 5);
+        const fields = User.validateUserFields(user, 5);
         try {
             const updated = await query<{ user_identifier: string }>(
                 `UPDATE users SET

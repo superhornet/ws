@@ -36,26 +36,6 @@ export class Validator {
     }
 
     /**
-     * stripHtml
-     *
-     * @param str
-     * @returns string
-     */
-    public stripHtml(str: string): string {
-        if (typeof str !== "string") {
-            throw new TypeError("Input must be a string.");
-        }
-        return str
-            .replaceAll('&', "{ampersand}")
-            .replaceAll('>', "{greater_than}")
-            .replaceAll('<', "{less_than}")
-            .replaceAll('"', "{inch_mark}")
-            .replaceAll('\'', "{foot_mark}")
-            .replaceAll('/', "{solidus}")
-            .replaceAll(';', "{semicolon}");
-    }
-
-    /**
      * stringValidate
      *
      * @param str

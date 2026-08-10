@@ -46,7 +46,7 @@ export class Notification implements INotification {
             }
         });
         const messageChecked: boolean =
-            vMessage.stringValidate(vMessage.stripHtml(notification.message));
+            vMessage.stringValidate(notification.message);
         if (messageChecked) {
             const queryResult = await withTransaction(async (client) => {
                 return await client.query(
@@ -108,7 +108,7 @@ export class Notification implements INotification {
             }
         });
         const messageChecked: boolean =
-            vMessage.stringValidate(vMessage.stripHtml(notification.message));
+            vMessage.stringValidate(notification.message);
         if (messageChecked) {
             try {
                 const queryResult = await withTransaction(async (client) => {
