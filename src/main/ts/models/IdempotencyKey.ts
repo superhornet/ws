@@ -72,15 +72,24 @@ export class IdempotencyKey {
     }
 
     /**
-     * Delete an in_progress record so retries can proceed after a transient failure.
+     * Move an in_progress record to the terminal `failed` state.
+     *
+     * The record is never deleted: by the time a callback throws, the external
+     * side-effect (e.g. a Cybrid transfer) may already have executed — a response
+     * timeout or a post-side-effect failure both look like an error here. Deleting
+     * the lock would let a retry with the same key run the operation a second time.
+     * Marking it `failed` instead makes the key terminal, so retries are refused
+     * and the client must use a new key to genuinely re-attempt (fail-closed /
+     * at-most-once).
      */
-    static async release(
+    static async markFailed(
         sessionId: string,
         idempotencyKey: string,
         routePath: string
     ): Promise<void> {
         await query(
-            `DELETE FROM idempotency_keys
+            `UPDATE idempotency_keys
+             SET status = 'failed', completed_at = NOW()
              WHERE session_id = $1 AND idempotency_key = $2 AND route_path = $3
                AND status = 'in_progress'`,
             [sessionId, idempotencyKey, routePath]
