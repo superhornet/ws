@@ -3,7 +3,7 @@ export interface IdempotencyRecord {
     idempotency_key: string;
     session_id: string;
     route_path: string;
-    status: "in_progress" | "completed";
+    status: "in_progress" | "completed" | "failed";
     response_code: number | null;
     response_body: CachedResponse | null;
     created_at: string;

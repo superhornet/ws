@@ -18,7 +18,10 @@ const IN_PROGRESS_RETRY_AFTER_SECONDS = 1;
  *   - First request: acquires lock, runs callback, caches response, returns it.
  *   - Duplicate with completed original: returns cached response immediately.
  *   - Duplicate while original is in-flight: returns 409 Conflict.
- *   - Callback throws: releases the lock so retries can proceed.
+ *   - Callback throws: marks the key failed (terminal) and rethrows. The lock is
+ *     never deleted, because the external side-effect may already have executed;
+ *     a retry with the same key is refused (409) so the operation cannot run
+ *     twice. To genuinely re-attempt, the client must use a new idempotency key.
  */
 export async function withIdempotency(
     req: Request,
@@ -49,6 +52,10 @@ export async function withIdempotency(
             res.setHeader("Retry-After", String(IN_PROGRESS_RETRY_AFTER_SECONDS));
             throw new HTMLStatusError("Conflict", 409);
         }
+
+        if (existing.status === "failed") {
+            throw new HTMLStatusError("Previous request with this idempotency key failed; retry with a new key", 409);
+        }
     }
 
     try {
@@ -64,7 +71,7 @@ export async function withIdempotency(
 
         res.status(result.code).json(result);
     } catch (error) {
-        await IdempotencyKey.release(sessionId, idempotencyKey, routePath);
+        await IdempotencyKey.markFailed(sessionId, idempotencyKey, routePath);
         throw error;
     }
 }
