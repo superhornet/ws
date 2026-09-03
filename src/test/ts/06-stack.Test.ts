@@ -463,5 +463,5 @@ after(async () => {
     // Defer the pool-closing beforeExit so the final suite's last test has
     // settled before shutdown; emitting it synchronously races the last test.
     await new Promise((resolve) => setTimeout(resolve, 250));
-    process.emit('beforeExit');
+    process.emit('beforeExit', 0);
 });

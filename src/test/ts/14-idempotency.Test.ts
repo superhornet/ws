@@ -158,6 +158,6 @@ describe("withIdempotency state machine", () => {
 after(() => {
     console.log("Tests complete");
     setTimeout(() => {
-        process.emit('beforeExit');
+        process.emit('beforeExit', 0);
     }, 100);
 });

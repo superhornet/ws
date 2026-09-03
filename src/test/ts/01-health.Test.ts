@@ -18,5 +18,5 @@ suite("Health routes", () => {
 
 after(async () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    process.emit('beforeExit');
+    process.emit('beforeExit', 0);
 });
