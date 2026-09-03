@@ -192,5 +192,5 @@ suite("Derives the audit message when none is supplied", () => {
 
 after(async () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
-    process.emit('beforeExit');
+    process.emit('beforeExit', 0);
 });

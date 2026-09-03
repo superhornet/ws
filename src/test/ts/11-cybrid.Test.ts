@@ -308,6 +308,6 @@ describe("POST /api/cybrid/fiat-transfer amount validation", () => {
 after( () => {
     console.log("Tests complete");
     setTimeout(() => {
-        process.emit('beforeExit');
+        process.emit('beforeExit', 0);
     }, 100);
 });

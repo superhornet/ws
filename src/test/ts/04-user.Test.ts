@@ -602,6 +602,6 @@ describe("Testing /api/user authorization and edge cases", () => {
 after( () => {
     console.log("Tests complete");
     setTimeout(() => {
-        process.emit('beforeExit');
+        process.emit('beforeExit', 0);
     }, 100);
 });

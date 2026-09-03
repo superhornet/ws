@@ -238,6 +238,6 @@ describe("Privy wallet routes scope to the acting user (bound session)", () => {
 after(() => {
     console.log("Tests complete");
     setTimeout(() => {
-        process.emit('beforeExit');
+        process.emit('beforeExit', 0);
     }, 100);
 });

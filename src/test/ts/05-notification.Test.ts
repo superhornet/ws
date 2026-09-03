@@ -461,7 +461,7 @@ suite("Testing the Notification routes with session", () => {
     });
     after(async () => {
         setTimeout(() => {
-            process.emit('beforeExit');
+            process.emit('beforeExit', 0);
         }, 100);
     });
 });
