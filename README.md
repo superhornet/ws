@@ -2,22 +2,21 @@
 
 ## The backend application for WeStack
 
-Intended implementation will handle the following components & services
+Currently implemented:
 
 * TypeScript
 * Express.js
 * NodeJS
-* Unit Tests via node:test
-* BDD via cucumber-ts
+* Tests via node:test (with code coverage)
 * TypeDoc
-* Code Coverage via node:test
+
+Roadmap / not yet implemented:
+
+* BDD via cucumber-ts (the `test:cucumber` script exists but there are no `.feature` files yet)
 * Mermaid for diagrams
-
-Possible implementation of ProtoBuf.
-
-Possible implementation of Web interface running on NGINX.
-
-Possible implementation of Flutter UI.
+* ProtoBuf
+* Web interface running on NGINX
+* Flutter UI
 
 ## Environment
 
@@ -62,10 +61,12 @@ The tracked **[`.env.example`](./.env.example)** documents every supported varia
 (including `CORS_ALLOWED_ORIGINS`, `TRUST_PROXY`, and the full `OTP_*` family below).
 Copy it to start: `cp .env.example .env`, then fill in the values.
 
-## Payment Dependencies
+## Banking & Wallet Dependencies
 
-* Moonpay
-* Stripe
+* [Cybrid](https://www.cybrid.xyz/) — banking-as-a-service provider for fiat accounts, crypto trades, transfers, and identity verification (`CYBRID_CLIENT_ID` / `CYBRID_CLIENT_SECRET`)
+* [Privy](https://www.privy.io/) — server wallets (`PRIVY_APP_ID` / `PRIVY_APP_SECRET`)
+
+`Moonpay` and `Stripe` exist as `TransactionProcessorType` labels but are not yet integrated.
 
 ## Database Dependencies
 
